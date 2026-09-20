@@ -1,42 +1,90 @@
 {
   "expo": {
-    "name": "my-app",
+    "name": "SmartPeople",
     "slug": "my-app",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
     "userInterfaceStyle": "automatic",
+    "icon": "./src/assets/images/icon-192.png",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.smartpeople.social",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSExceptionDomains": {
+            "84.12.82.233": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            }
+          }
+        }
+      },
+      "associatedDomains": [
+        "applinks:smartpeople.vercel.app"
+      ]
     },
     "android": {
+      "package": "com.felix.kilel.smartpeople",
+      "versionCode": 1,
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./src/assets/images/icon.png",
+        "backgroundColor": "#07112F"
       },
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "smartpeople.vercel.app",
+              "pathPrefix": "/post"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpeople.vercel.app",
+              "pathPrefix": "/profile"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpeople.vercel.app",
+              "pathPrefix": "/community"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpeople.vercel.app",
+              "pathPrefix": "/sp"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+       
+      ]
     },
     "plugins": [
-      "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "image": "./src/assets/images/logo.png",
+          "backgroundColor": "#07112F",
+          "resizeMode": "contain",
+          "imageWidth": 200
         }
       ]
     ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+    "extra": {
+      "eas": {
+        "projectId": "f371b562-673c-4b0c-a38c-94b53f036fbb"
+      }
+    },
+    "owner": "ssperts-team",
+   "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f371b562-673c-4b0c-a38c-94b53f036fbb"
     }
   }
 }

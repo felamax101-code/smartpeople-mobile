@@ -1,0 +1,56 @@
+const postReplyMutation = useMutation<
+  Comment,
+  Error,
+  { commentId: string; body: string; replyToId?: string },
+  {tempReply:Comment;parentId:string}
+>({
+  mutationFn: ({ commentId, body, replyToId }) =>
+    feedService.postReply(slug, commentId, body, replyToId),
+ onMutate: ({ body, replyToId }) => {
+  const parentId = replyingTo!.parent_id ?? replyingTo!.id
+  const tempReply: Comment = {
+    id: `temp-${Date.now()}`,
+
+
+
+
+
+    // ✅ commentId is already correctly resolved in handlePost
+onMutate: ({ body, replyToId, commentId }) => {
+  const tempReply: Comment = {
+    id: `temp-${Date.now()}`,
+    body,
+    created_at: new Date().toISOString(),
+    author: user as any,
+    upvotes_count: 0,
+    downvotes_count: 0,
+    has_upvoted: false,
+    has_downvoted: false,
+    replies_count: 0,
+    parent_id: commentId,
+    reply_to: replyToId ? { id: replyToId, username: replyingTo?.author.username } : null,
+    is_deleted: false,
+  }
+
+  setOptimisticReplies(prev => ({
+    ...prev,
+    [commentId]: [...(prev[commentId] ?? []), tempReply],
+  }))
+
+  return { tempReply, commentId }
+},
+
+onSuccess: (_, __, context) => {
+  setOptimisticReplies(prev => ({
+    ...prev,
+    [context!.commentId]: prev[context!.commentId].filter(r => r.id !== context!.tempReply.id),
+  }))
+  queryClient.invalidateQueries({ queryKey: ["replies", context!.commentId] })
+},
+
+onError: (_, __, context) => {
+  setOptimisticReplies(prev => ({
+    ...prev,
+    [context!.commentId]: prev[context!.commentId].filter(r => r.id !== context!.tempReply.id),
+  }))
+},
