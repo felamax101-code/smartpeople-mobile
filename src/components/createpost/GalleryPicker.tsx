@@ -12,7 +12,7 @@ import { Image } from "expo-image"
 import { useTheme } from "@/hooks/useTheme"
 import { useMediaPicker, MediaType, SelectedMedia } from "@/hooks/useMediaPicker"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
-
+import { InAppCamera,CapturedAsset } from "../imageedit/InAppCamera"
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
 const THUMB_SIZE = (SCREEN_WIDTH - Spacing.md * 2 - Spacing.sm * 4) / 4
 
@@ -28,10 +28,17 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
     selectedMedia,
     isLoading,
     pickMedia,
-    pickFromCamera,
+    addCapturedMedia,
     removeMedia,
     maxReached,
   } = useMediaPicker(mediaType)
+
+  const [showCamera, setShowCamera] = React.useState(false)
+
+  const handleCapture = (asset: CapturedAsset) => {
+    addCapturedMedia(asset)
+    setShowCamera(false)
+  }
 
   // // auto-open picker on mount
   // React.useEffect(() => {
@@ -44,6 +51,16 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
       onNext(selectedMedia.map((m) => m.uri))
     }
   }, [selectedMedia])
+  if (showCamera) {
+    return (
+      <InAppCamera
+        mediaType={mediaType}
+        onCapture={handleCapture}
+        onClose={() => setShowCamera(false)}
+      />
+    )
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
 
@@ -51,7 +68,7 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
         <View style={styles.loading}>
           <ActivityIndicator color={theme.primary} size="large" />
           <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-            A moment...loading
+            Opening gallery...
           </Text>
         </View>
       ) : selectedMedia.length === 0 ? (
@@ -65,8 +82,8 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
           </Text>
           <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
             {mediaType === "image"
-              ? `Select up to ${5} photos from your gallery or use camera`
-              : "Select a video from your gallery or use camera"}
+              ? `Select up to ${5} photos from your gallery`
+              : "Select a video from your gallery"}
           </Text>
           <TouchableOpacity
             style={[styles.openButton, { backgroundColor: theme.primary }]}
@@ -78,7 +95,7 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.cameraButton, { borderColor: theme.primary }]}
-            onPress={pickFromCamera}
+            onPress={() => setShowCamera(true)}
           >
             <Text style={[styles.cameraButtonText, { color: theme.primary }]}>
               Use Camera

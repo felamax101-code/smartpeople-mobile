@@ -4,7 +4,7 @@ import api from "./api"
 import { attachAuthInterceptors } from "./tokenRefreshService"
 // separate axios instance for FastAPI
 const messagingApi = axios.create({
-  baseURL: API.FASTAPI_BASE_URL,
+  baseURL: API.MESSAGE_ENDPOINT,
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",

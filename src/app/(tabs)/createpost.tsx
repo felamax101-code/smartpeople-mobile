@@ -136,6 +136,17 @@ function SellScreen() {
       showBanner("error", detail)
     },
   })
+  useEffect(()=>{
+    if (step==="media_type"){
+      setForm({
+        name: "",
+        description: "",
+        category: "",
+        location: "",
+      });
+      setSelectedUris([])
+    }
+  },[step])
   const categories: Category[] = categoriesData?.data ?? []
   const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
@@ -368,11 +379,9 @@ function SellScreen() {
           mediaType={mediaType}
           onNext={(uris) => {
             setSelectedUris(uris)
-            if (mediaType === "video") {
+            if (mediaType === "image") {
               setStep("video_edit")
-            } else if (mediaType === "image") {
-              setStep("image_edit")
-            } else {
+            }  else {
               setStep("form")
             }
           }}
