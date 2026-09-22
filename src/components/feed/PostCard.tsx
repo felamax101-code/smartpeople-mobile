@@ -236,8 +236,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
   const handleShare = useCallback(async () => {
     try {
       await Share.share({
-        message: `Check out this ${isSP ? "property:" : "post"} ${post?.name} for  on SmartPeople`,
-        url: isSP ? `https://smartpeople.vercel.app/sp/post/${post.slug}` : `https://smartpeople.vercel.app/post/${post.slug}`,
+        message: `Check out this ${isSP ? "property:" : "post"} ${post?.name??""} for  on SmartPeople\n${isSP?`https://smartpipla.com/sp/post/${post.slug}`:`https://smartpipla.com/post/${post.slug}`}`,
       })
     } catch (error) {
     }

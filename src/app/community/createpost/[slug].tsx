@@ -10,11 +10,13 @@ import {
   Platform,
   ActivityIndicator,
   TextInput,
+  BackHandler
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { router, useLocalSearchParams } from "expo-router"
+import { router, useLocalSearchParams ,useFocusEffect} from "expo-router"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
+
 import { useAuthStore } from "@/stores/auth.store"
 import { useLocation } from "@/hooks/useLocation"
 import { GalleryPicker } from "@/components/createpost/GalleryPicker"
@@ -130,6 +132,33 @@ function SellScreen() {
     },
   })
   const categories: Category[] = categoriesData?.data ?? []
+
+
+  useFocusEffect(
+      useCallback(() => {
+        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+          if (step === "media_type") {
+            return false // nothing to trap — let default back/exit happen
+          }
+  
+          if (step === "form") {
+            
+             if (mediaType === "image") setStep("image_edit")
+            else setStep("media_type")
+          } else if (step === "uploading" || step === "success") {
+            // don't let back interrupt an in-flight submit or the success screen
+            return true
+          } else {
+            // gallery, image_edit, video_edit, etc. → back to media type choice
+            setStep("media_type")
+          }
+  
+          return true
+        })
+  
+        return () => sub.remove()
+      }, [step, mediaType])
+    )
   const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
   }, []);
@@ -316,13 +345,11 @@ function SellScreen() {
         mediaType={mediaType}
         onNext={(uris) => {
           setSelectedUris(uris)
-          if (mediaType === "video") {
-            setStep("video_edit")
-          } else if (mediaType === "image") {
-            setStep("image_edit")
-          } else {
-            setStep("form")
-          }
+          if (mediaType === "image") {
+              setStep("image_edit")
+            }  else {
+              setStep("form")
+            }
         }}
       />
       </View>

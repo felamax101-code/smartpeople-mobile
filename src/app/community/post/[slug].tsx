@@ -138,8 +138,7 @@ export default function PostDetailScreen() {
   const handleShare = useCallback(async () => {
     try {
       await Share.share({
-        message: `Check out this post ${post?.name}  on SmartPeople`,
-        url: `https://smartpeople.vercel.app/community/post/${slug}`,
+        message: `Check out this post ${post?.name ?? ""}  on SmartPeople\nhttps://smartpipla.com/community/post/${slug}`,
       })
     } catch (error) {
     }

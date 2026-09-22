@@ -9,9 +9,10 @@ import {
   Platform,
   ActivityIndicator,
   TextInput,
+  BackHandler
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { router,useLocalSearchParams } from "expo-router"
+import { router,useLocalSearchParams ,useFocusEffect} from "expo-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
@@ -189,7 +190,31 @@ location_lng: pinnedCoords?.longitude ?? gpsLocation?.lng ?? 0,
   const removeImage = useCallback((index: number) => {
     setSelectedUris((prev) => prev.filter((_, i) => i !== index))
   }, [])
+useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (step === "media_type") {
+          return false // nothing to trap — let default back/exit happen
+        }
 
+        if (step === "form") {
+          
+           if (mediaType === "image") setStep("image_edit")
+          else setStep("media_type")
+        } else if (step === "uploading" || step === "success") {
+          // don't let back interrupt an in-flight submit or the success screen
+          return true
+        } else {
+          // gallery, image_edit, video_edit, etc. → back to media type choice
+          setStep("media_type")
+        }
+
+        return true
+      })
+
+      return () => sub.remove()
+    }, [step, mediaType])
+  )
   //  validate form ─
   const validate = (): boolean => {
     const newErrors: typeof errors = {}
@@ -403,13 +428,11 @@ location_lng: pinnedCoords?.longitude ?? gpsLocation?.lng ?? 0,
         mediaType={mediaType}
         onNext={(uris) => {
           setSelectedUris(uris)
-          if (mediaType === "video") {
-            setStep("video_edit")
-          } else if (mediaType === "image") {
-            setStep("image_edit")
-          } else {
-            setStep("form")
-          }
+          if (mediaType === "image") {
+              setStep("image_edit")
+            }  else {
+              setStep("form")
+            }
         }}
       />
       </View>

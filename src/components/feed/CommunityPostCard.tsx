@@ -263,8 +263,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
   const handleShare = useCallback(async () => {
     try {
       await Share.share({
-        message: `Check out this post:${post?.name}  on SmartPyHub`,
-        url: `https://smartpeople.vercel.app/community/post/${post.slug}`,
+        message: `Check out this post:${post?.name}  on SmartPyHub\nhttps://smartpipla.com/community/post/${post.slug}`,
       })
     } catch (error) {
     }

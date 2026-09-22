@@ -170,8 +170,8 @@ function SellScreen() {
         }
 
         if (step === "form") {
-          if (mediaType === "video") setStep("video_edit")
-          else if (mediaType === "image") setStep("image_edit")
+          
+           if (mediaType === "image") setStep("image_edit")
           else setStep("media_type")
         } else if (step === "uploading" || step === "success") {
           // don't let back interrupt an in-flight submit or the success screen
@@ -380,7 +380,7 @@ function SellScreen() {
           onNext={(uris) => {
             setSelectedUris(uris)
             if (mediaType === "image") {
-              setStep("video_edit")
+              setStep("image_edit")
             }  else {
               setStep("form")
             }
