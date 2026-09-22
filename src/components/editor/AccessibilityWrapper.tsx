@@ -120,11 +120,11 @@ export const AccessibilityWrapper: React.FC<AccessibilityWrapperProps> = ({ chil
     if (Platform.OS === 'ios') {
       // Use iOS accessibility announcements
       // This would typically use a native module to announce to VoiceOver
-      console.log('[Accessibility] iOS Announcement:', message);
+   
     } else {
       // Use Android accessibility announcements
       // This would typically use a native module to announce to TalkBack
-      console.log('[Accessibility] Android Announcement:', message);
+      
     }
   };
 

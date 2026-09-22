@@ -151,7 +151,6 @@ export class HistoryManager {
       };
       
       await RNFS.writeFile(backupPath, JSON.stringify(checkpoint), 'utf8');
-      console.log('[HistoryManager] Created backup checkpoint');
     } catch (error) {
       console.error('[HistoryManager] Failed to create backup:', error);
     }
@@ -242,7 +241,6 @@ export class HistoryManager {
       for (const file of backupFiles) {
         const result = await this.tryRecoverFromFile(file.path);
         if (result.success) {
-          console.log(`[HistoryManager] Recovered from backup: ${file.name}`);
           return result;
         }
       }

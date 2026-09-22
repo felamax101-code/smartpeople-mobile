@@ -1,7 +1,7 @@
 
 
 export const API = {
-  DJANGO_BASE_URL:"http://84.12.82.233/api",
+  DJANGO_BASE_URL:"https://api.smartpipla.com/api",
   FASTAPI_BASE_URL: process.env.EXPO_PUBLIC_FASTAPI_URL ?? "http://localhost:8000/messaging",
   WS_BASE_URL: process.env.EXPO_PUBLIC_WS_URL ?? "ws://localhost:8000",
 }

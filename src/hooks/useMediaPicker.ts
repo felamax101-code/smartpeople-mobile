@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react"
 import * as ImagePicker from "expo-image-picker"
 import { Alert } from "react-native"
@@ -101,6 +100,79 @@ export const useMediaPicker = (mediaType: MediaType) => {
     }
   }, [mediaType])
 
+  // capture new media directly from the device camera
+  const pickFromCamera = useCallback(async () => {
+    setIsLoading(true)
+
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync()
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          `Please allow camera access to take a ${mediaType === "image" ? "photo" : "video"}.`
+        )
+        return
+      }
+
+      if (mediaType === "image") {
+        // guard against launching camera when already at the cap
+        setSelectedMedia((current) => {
+          if (current.length >= MAX_IMAGES) {
+            Alert.alert("Limit Reached", `You can only select up to ${MAX_IMAGES} photos.`)
+            return current
+          }
+          return current
+        })
+
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.85,
+        })
+
+        if (!result.canceled && result.assets[0]) {
+          const asset = result.assets[0]
+          setSelectedMedia((prev) => {
+            if (prev.length >= MAX_IMAGES) return prev
+            const newItem: SelectedMedia = {
+              uri: asset.uri,
+              id: asset.assetId ?? `cam_img_${Date.now()}`,
+              type: "image",
+              width: asset.width,
+              height: asset.height,
+            }
+            return [...prev, newItem]
+          })
+        }
+      } else {
+        // video — camera capture replaces current selection (single video)
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+          quality: 1,
+          videoMaxDuration: 60,
+        })
+
+        if (!result.canceled && result.assets[0]) {
+          const asset = result.assets[0]
+          if (asset.duration && asset.duration > 60000) {
+            Alert.alert("Please record a video under 60 seconds")
+            return
+          }
+          setSelectedMedia([{
+            uri: asset.uri,
+            id: asset.assetId ?? `cam_vid_${Date.now()}`,
+            type: "video",
+            duration: asset.duration ?? undefined,
+            width: asset.width,
+            height: asset.height,
+          }])
+        }
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [mediaType])
+
   const removeMedia = useCallback((id: string) => {
     setSelectedMedia((prev) => prev.filter((m) => m.id !== id))
   }, [])
@@ -110,10 +182,11 @@ export const useMediaPicker = (mediaType: MediaType) => {
   return {
     selectedMedia,
     isLoading,
-    pickMedia,          // call this to open the picker
+    pickMedia,          // call this to open the gallery picker
+    pickFromCamera,      // call this to open the camera
     removeMedia,
     clearSelection,
     maxReached: mediaType === "image" && selectedMedia.length >= MAX_IMAGES,
-    hasPermission: true, // handled inside pickMedia
+    hasPermission: true, // handled inside pickMedia / pickFromCamera
   }
 }

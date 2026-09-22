@@ -92,7 +92,6 @@ export default function PostDetailScreen() {
 
   const handleWSEventRef = useRef<(event: any) => void>(null)
   handleWSEventRef.current = useCallback((event: any) => {
-    console.log("slug", event)
     switch (event.type) {
 
 
@@ -417,8 +416,8 @@ export default function PostDetailScreen() {
 
             {post.owner.avatar === null ? (
               <TouchableOpacity
-                onPress={() => router.push(`/sp/profile`)}
-                style={[{ flexDirection: "row", alignItems: "center", gap: 2 }]}
+                onPress={() => router.push( user && user.username===post.owner.username?`/sp/profile`:`/sp/profile/${post.owner.username}`)}
+                style={[{ flexDirection: "row", alignItems: "center", gap: 2,marginRight:100 }]}
                 >
                 <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
                   <Text style= {[{color:"#fff"}]} >{post.owner.username.charAt(0)}</Text>
@@ -428,6 +427,7 @@ export default function PostDetailScreen() {
                 >sp/</Text>
                 <Text
                   style={[{ color:"#fff",fontWeight:FontWeight.extrabold }]}
+                  numberOfLines={1}
                 >{post.owner.username}</Text>
               </TouchableOpacity>
             ) : (

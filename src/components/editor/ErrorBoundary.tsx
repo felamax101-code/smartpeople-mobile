@@ -110,7 +110,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       };
 
       // Log error report
-      console.log('Error Report:', errorReport);
 
       // Try to send to Sentry again
       try {

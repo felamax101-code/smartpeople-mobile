@@ -542,7 +542,6 @@ export const communityservice = {
     
     category: string
   ): Promise<void> => {
-  console.log("yyyuuu",category)
    await api.post(`/groups/category/add/${cslug}/`, {  category: category })
   },
 

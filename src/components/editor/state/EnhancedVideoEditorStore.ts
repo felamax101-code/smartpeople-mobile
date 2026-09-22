@@ -123,14 +123,12 @@ export const useEnhancedVideoEditorStore = create<EnhancedEditorState>()(
               state.recoveryError = undefined;
             });
             
-            console.log('[Store] Successfully recovered from crash');
           } else {
             set((state) => {
               state.isRecovering = false;
               state.recoveryError = result.error || 'Unknown recovery error';
             });
             
-            console.warn('[Store] Recovery failed:', result.error);
           }
         } catch (error) {
           set((state) => {
@@ -145,7 +143,6 @@ export const useEnhancedVideoEditorStore = create<EnhancedEditorState>()(
       forceCheckpoint: async () => {
         try {
           await history.persistCheckpoint(get().project);
-          console.log('[Store] Force checkpoint completed');
         } catch (error) {
           console.error('[Store] Force checkpoint failed:', error);
         }

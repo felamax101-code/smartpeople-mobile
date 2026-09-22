@@ -27,6 +27,7 @@ import { useUserSavedListings } from "@/hooks/useUserSavedListings"
 import { SavedListingsGrid } from "@/components/profile/SavedProductGrid"
 import { useToast } from "@/components/activityIndicator/ToastProvider"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
 type Tab = "My posts" | "reviews" | "about" | "saved"
 
 // 
@@ -164,7 +165,7 @@ function AuthenticatedProfile({ user, theme }: { user: any; theme: any }) {
   if (isLoading || !profile) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background, justifyContent: "center", alignItems: "center" }]}>
-        <ActivityIndicator color={theme.primary} size="large" />
+        <BouncingBarsIndicator/>
       </View>
     )
   }

@@ -286,11 +286,10 @@ useEffect(() => {
   //  optimistic updates for upvote/save 
   // update the local cache immediately — don't wait for API response
   const handleUpvote = useCallback((slug: string, upvoted: boolean) => {
-    console.log("handleUpvote called for slug:", slug, "upvoted:", upvoted);
     queryClient.setQueryData(
       ["feed", filters, selectedCategory, searchText],
       (old: typeof data) => {
-        if (!old) {  console.log("No old data found");  return old}
+        if (!old) {    return old}
         return {
           ...old,
           pages: old.pages.map((page:any) => ({

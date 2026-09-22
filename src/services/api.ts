@@ -13,5 +13,4 @@ const api = axios.create({
 //  track refresh state 
 
 attachAuthInterceptors(api)
-console.log(api)
 export default api

@@ -17,11 +17,11 @@ export const CrashRecoveryWrapper: React.FC<CrashRecoveryWrapperProps> = ({
   useEffect(() => {
     const performRecovery = async () => {
       try {
-        console.log('[CrashRecovery] Starting recovery process...');
+     
         await recoverFromCrash();
-        console.log('[CrashRecovery] Recovery completed');
+      
       } catch (error) {
-        console.error('[CrashRecovery] Recovery failed:', error);
+    
       } finally {
         setIsRecovered(true);
         setRecoveryAttempted(true);

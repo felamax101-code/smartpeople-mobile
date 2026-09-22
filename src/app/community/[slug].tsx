@@ -33,6 +33,7 @@ import { communityservice } from "@/services/community.sevice"
 import GuidelinesModal from "@/components/community/GuideLines"
 import { AnimatedBanner, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
+import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 // how many posts from the end to trigger prefetch

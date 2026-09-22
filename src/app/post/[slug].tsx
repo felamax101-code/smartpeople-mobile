@@ -93,7 +93,6 @@ export default function PostDetailScreen() {
 
   const handleWSEventRef = useRef<(event: any) => void>(null)
   handleWSEventRef.current = useCallback((event: any) => {
-    console.log("slug", event)
     switch (event.type) {
 
 
@@ -378,7 +377,7 @@ export default function PostDetailScreen() {
 
             {post.owner.avatar === null ? (
               <TouchableOpacity
-                onPress={() => router.push(`/profile/${post.owner.username}`)}
+                onPress={() => router.push( user?.username!=post.owner.username?  `/profile/${post.owner.username}`:`/profile`)}
                 style={[{ flexDirection: "row", alignItems: "center", gap: 2 ,width:"50%"}]}
               >
                 <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}`,overflow:"hidden" }]}>
@@ -390,7 +389,7 @@ export default function PostDetailScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                onPress={() => router.push(`/profile/${post.owner.username}`)}
+                onPress={() => router.push( user?.username!=post.owner.username?  `/profile/${post.owner.username}`:`/profile`)}
                 style={[{ flexDirection: "row", alignItems: "center", gap: 2 }]}
 
               >
@@ -529,7 +528,7 @@ export default function PostDetailScreen() {
 
             {post.owner.avatar === null ? (
               <TouchableOpacity
-                onPress={() => router.push(`/profile/${post.owner.username}`)}
+                onPress={() => router.push( user?.username!=post.owner.username?  `/profile/${post.owner.username}`:`/profile`)}
                 style={[{ flexDirection: "row", alignItems: "center", gap: 2 }]}
                 >
                 <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
@@ -542,7 +541,7 @@ export default function PostDetailScreen() {
             ) : (
               <TouchableOpacity
                 onPress={() => router.push( user?.username!=post.owner.username?  `/profile/${post.owner.username}`:`/profile`)}
-                style={[{ flexDirection: "row", alignItems: "center", gap: 2 }]}
+                style={[{ flexDirection: "row", alignItems: "center", gap: 2 ,marginRight:100}]}
                 >
                 <Image
                   source={{ uri: post.owner.avatar }}
@@ -551,6 +550,7 @@ export default function PostDetailScreen() {
                 />
                  <Text
                   style={[{ color:"#fff" }]}
+                  numberOfLines={1}
                 >@{post.owner.username}</Text>
               </TouchableOpacity>
             )}

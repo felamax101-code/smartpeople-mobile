@@ -32,7 +32,7 @@ export const ImageStrip = ({ uris, onRemove }: Props) => {
           <Image
             source={{ uri }}
             style={styles.thumb}
-            contentFit="contain"
+            contentFit="cover"
           />
           {/* order badge */}
           <View style={[styles.orderBadge, { backgroundColor: theme.primary }]}>

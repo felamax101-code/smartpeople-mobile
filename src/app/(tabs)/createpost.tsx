@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   View,
   Text,
@@ -10,13 +10,16 @@ import {
   Platform,
   ActivityIndicator,
   TextInput,
+  BackHandler
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { router } from "expo-router"
+import { router, useFocusEffect } from "expo-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { useLocation } from "@/hooks/useLocation"
+import { useNavigation } from "expo-router"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { GalleryPicker } from "@/components/createpost/GalleryPicker"
 import { MediaTypeSelector } from "@/components/createpost/MediaTypeSelector"
 import { ImageStrip } from "@/components/createpost/ImageStrip"
@@ -25,14 +28,16 @@ import { listingService } from "@/services/listing.service"
 import { feedService } from "@/services/feed.service"
 import { Category, Post } from "@/types"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
-import { AnimatedBanner,BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
+import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { VideoEditScreen } from "@/components/editor/VideoEditScreen"
-
+import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 //  screen steps 
 type Step =
   | "media_type"    // choose images or video
   | "gallery"
-  | "video_edit" 
+  | "video_edit"
+  | "image_edit"
+
   | "form"          // listing details form
   | "uploading"     // uploading to Cloudinary
   | "success"       // posted successfully
@@ -41,7 +46,7 @@ function SellScreen() {
   const theme = useTheme()
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
-
+  const navigation = useNavigation()
 
   //  step state 
   const [step, setStep] = useState<Step>("media_type")
@@ -49,8 +54,8 @@ function SellScreen() {
   const [selectedUris, setSelectedUris] = useState<string[]>([])
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
   const [opengalleryDisabled, setopengalleryDisabled] = useState(false)
-    const [banner, setBanner] = useState<BannerState | null>(null);
-  
+  const [banner, setBanner] = useState<BannerState | null>(null);
+
   //  form state 
   const [form, setForm] = useState({
     name: "",
@@ -70,7 +75,11 @@ function SellScreen() {
     queryFn: feedService.getCategories,
     staleTime: 10 * 60 * 1000,
   })
-
+  useEffect(() => {
+    navigation.setOptions({
+      gestureEnabled: step === "media_type", // only allow swipe-back on the very first step
+    })
+  }, [step])
   //  submit mutation ─
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -124,11 +133,11 @@ function SellScreen() {
       setopengalleryDisabled(false)
       setStep("form")
       const detail = error?.response?.data?.detail ?? "Failed to post listing. Try again."
-      showBanner("error",detail)
+      showBanner("error", detail)
     },
   })
   const categories: Category[] = categoriesData?.data ?? []
- const showBanner = useCallback((type: BannerType, message: string) => {
+  const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
   }, []);
   //  update form field ─
@@ -142,6 +151,31 @@ function SellScreen() {
     setSelectedUris((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (step === "media_type") {
+          return false // nothing to trap — let default back/exit happen
+        }
+
+        if (step === "form") {
+          if (mediaType === "video") setStep("video_edit")
+          else if (mediaType === "image") setStep("image_edit")
+          else setStep("media_type")
+        } else if (step === "uploading" || step === "success") {
+          // don't let back interrupt an in-flight submit or the success screen
+          return true
+        } else {
+          // gallery, image_edit, video_edit, etc. → back to media type choice
+          setStep("media_type")
+        }
+
+        return true
+      })
+
+      return () => sub.remove()
+    }, [step, mediaType])
+  )
   //  validate form ─
   const validate = (): boolean => {
     const newErrors: typeof errors = {}
@@ -191,6 +225,15 @@ function SellScreen() {
           >
             <Text style={styles.loginButtonText}>Log In to post</Text>
           </TouchableOpacity>
+          <Text style={[styles.guestSub, { color: theme.textSecondary }]}>
+            Or new to here?
+          </Text>
+          <TouchableOpacity
+            style={[styles.loginButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push("/(auth)/register")}
+          >
+            <Text style={styles.loginButtonText}>Create account</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     )
@@ -200,34 +243,34 @@ function SellScreen() {
   //  uploading screen 
   if (step === "uploading") {
     return (
-       <SafeAreaView
+      <SafeAreaView
         style={[styles.container, { backgroundColor: theme.background }]}
         edges={["top"]}
       >
-      <View style={[styles.fullScreen, { backgroundColor: theme.background }]}>
-        <ActivityIndicator color={theme.primary} size="large" />
-        <Text style={[styles.uploadingTitle, { color: theme.textPrimary }]}>
-          uploading and submitting...
-        </Text>
-        {uploadProgress.total > 0 && (
-          <Text style={[styles.uploadingProgress, { color: theme.textSecondary }]}>
-            Uploading {uploadProgress.done} / {uploadProgress.total}{" "}
-            {mediaType === "image" ? "images" : "video"}
+        <View style={[styles.fullScreen, { backgroundColor: theme.background }]}>
+          <ActivityIndicator color={theme.primary} size="large" />
+          <Text style={[styles.uploadingTitle, { color: theme.textPrimary }]}>
+            uploading and submitting...
           </Text>
-        )}
-        {/* progress bar */}
-        <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
-          <View style={[
-            styles.progressFill,
-            {
-              backgroundColor: theme.primary,
-              width: uploadProgress.total > 0
-                ? `${(uploadProgress.done / uploadProgress.total) * 100}%`
-                : "0%",
-            }
-          ]} />
+          {uploadProgress.total > 0 && (
+            <Text style={[styles.uploadingProgress, { color: theme.textSecondary }]}>
+              Uploading {uploadProgress.done} / {uploadProgress.total}{" "}
+              {mediaType === "image" ? "images" : "video"}
+            </Text>
+          )}
+          {/* progress bar */}
+          <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
+            <View style={[
+              styles.progressFill,
+              {
+                backgroundColor: theme.primary,
+                width: uploadProgress.total > 0
+                  ? `${(uploadProgress.done / uploadProgress.total) * 100}%`
+                  : "0%",
+              }
+            ]} />
+          </View>
         </View>
-      </View>
       </SafeAreaView>
     )
   }
@@ -235,24 +278,24 @@ function SellScreen() {
   //  success screen 
   if (step === "success") {
     return (
-       <SafeAreaView
+      <SafeAreaView
         style={[styles.container, { backgroundColor: theme.background }]}
         edges={["top"]}
       >
-      <View style={[styles.fullScreen, { backgroundColor: theme.background }]}>
-        <Text style={styles.successIcon}>🎉</Text>
-        <Text style={[styles.successTitle, { color: theme.textPrimary }]}>
-          Listing submitted!
-        </Text>
-        <Text style={[styles.successSub, { color: theme.textSecondary }]}>
-          Your listing is under review. We'll notify you when it's approved.
-        </Text>
-        <ActivityIndicator
-          color={theme.primary}
-          size="small"
-          style={{ marginTop: Spacing.lg }}
-        />
-      </View>
+        <View style={[styles.fullScreen, { backgroundColor: theme.background }]}>
+          <Text style={styles.successIcon}>🎉</Text>
+          <Text style={[styles.successTitle, { color: theme.textPrimary }]}>
+            Listing submitted!
+          </Text>
+          <Text style={[styles.successSub, { color: theme.textSecondary }]}>
+            Your listing is under review. We'll notify you when it's approved.
+          </Text>
+          <ActivityIndicator
+            color={theme.primary}
+            size="small"
+            style={{ marginTop: Spacing.lg }}
+          />
+        </View>
       </SafeAreaView>
     )
   }
@@ -264,7 +307,7 @@ function SellScreen() {
         style={[styles.container, { backgroundColor: theme.background }]}
         edges={["top"]}
       >
-        
+
         {/* header */}
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -321,319 +364,185 @@ function SellScreen() {
           </View>
         </SafeAreaView>
 
-    <GalleryPicker
-  mediaType={mediaType}
-  onNext={(uris) => {
-    setSelectedUris(uris)
-    setStep(mediaType === "video" ? "video_edit" : "form")
-  }}
-/>
+        <GalleryPicker
+          mediaType={mediaType}
+          onNext={(uris) => {
+            setSelectedUris(uris)
+            if (mediaType === "video") {
+              setStep("video_edit")
+            } else if (mediaType === "image") {
+              setStep("image_edit")
+            } else {
+              setStep("form")
+            }
+          }}
+        />
       </View>
     )
   }
-//  video editor 
-if (step === "video_edit") {
-  return (
-    <VideoEditScreen
-      videoUri={selectedUris[0]}
-      onCancel={() => setStep("gallery")}
-      onDone={(finalUri) => {
-        setSelectedUris([finalUri])
-        setStep("form")
-      }}
-    />
-  )
-}
+  if (step === "image_edit") {
+    return (
+      <ImageEditScreen
+        imageUris={selectedUris}
+        onCancel={() => setStep("gallery")}
+        onDone={(finalUris) => {
+          setSelectedUris(finalUris)
+          setStep("form")
+        }}
+      />
+    )
+  }
+  //  video editor 
+  if (step === "video_edit") {
+    return (
+      <VideoEditScreen
+        videoUri={selectedUris[0]}
+        onCancel={() => setStep("gallery")}
+        onDone={(finalUri) => {
+          setSelectedUris([finalUri])
+          setStep("form")
+        }}
+      />
+    )
+  }
   //  post form 
   return (
-     <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.background }]}
-        edges={["top"]}
-      >
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      edges={["top"]}
     >
-      {banner && (
-        <AnimatedBanner
-          key={banner.id}
-          type={banner.type}
-          message={banner.message}
-          onHide={() => setBanner(null)}
-        />
-      )}
-      <ScrollView
-        style={[styles.container, { backgroundColor: theme.background }]}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ flexGrow: 1 }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {/* header */}
-        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-          <TouchableOpacity onPress={() => setStep("media_type")}>
-            <Text style={[styles.headerBack, { color: theme.textPrimary }]}>←</Text>
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-            post Details
-          </Text>
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={submitMutation.isPending}
-          >
-            <Text style={[styles.postButton, { color: theme.primary }]}>
-              Post
+        {banner && (
+          <AnimatedBanner
+            key={banner.id}
+            type={banner.type}
+            message={banner.message}
+            onHide={() => setBanner(null)}
+          />
+        )}
+        <ScrollView
+          style={[styles.container, { backgroundColor: theme.background }]}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          {/* header */}
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <TouchableOpacity onPress={() => setStep(mediaType === "video" ? "video_edit" : mediaType === "image" ? "image_edit" : "media_type")}>
+              <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
+              post Details
             </Text>
-          </TouchableOpacity>
-        </View>
-
-
-        {mediaType === "text" ?
-          (<View>
-            {/* name */}
-            <FormInput
-              label="Post Title"
-              value={form.name}
-              onChangeText={(t) => updateField("name", t)}
-              error={errors.name}
-              placeholder="title"
-              returnKeyType="next"
-            />
-            {/* category */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                Category
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={submitMutation.isPending}
+            >
+              <Text style={[styles.postButton, { color: theme.primary }]}>
+                Post
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryChips}
-              >
-                {categories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.categoryChip,
-                      {
-                        backgroundColor:
-                          form.category === cat.id
-                            ? theme.primary
-                            : theme.surfaceSecondary,
-                        borderColor:
-                          form.category === cat.id
-                            ? theme.primary
-                            : theme.border,
-                      },
-                    ]}
-                    onPress={() => updateField("category", cat.id)}
-                  >
-                    {cat.icon && (
-                      <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                    )}
-                    <Text style={[
-                      styles.categoryChipText,
-                      {
-                        color:
-                          form.category === cat.id
-                            ? "#fff"
-                            : theme.textSecondary,
-                      },
-                    ]}>
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              {errors.category && (
-                <Text style={[styles.fieldError, { color: theme.error }]}>
-                  {errors.category}
-                </Text>
-              )}
-            </View>
-            {/* description */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-              Write about your progress,success,mistakes,fun momments etc
-              </Text>
-
-              <TextInput
-                style={[
-                  styles.descriptionInput,
-                  {
-                    backgroundColor: theme.inputBackground,
-                    color: theme.textPrimary,
-                    borderColor: errors.description ? theme.error : theme.border,
-                  },
-                ]}
-                value={form.description}
-                onChangeText={(t) => updateField("description", t)}
-                placeholder="Write..."
-                placeholderTextColor={theme.textPlaceholder}
-                multiline
-                maxLength={2000}
-                textAlignVertical="top"
-              />
-
-              <View style={styles.descriptionFooter}>
-                {errors.description && (
-                  <Text style={[styles.fieldError, { color: theme.error }]}>
-                    {errors.description}
-                  </Text>
-                )}
-                <Text style={[styles.charCount, { color: theme.textPrimary }]}>
-                  {form.description.length} / 2000
-                </Text>
-              </View>
-              {/* submit button */}
-              <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: theme.primary }]}
-                onPress={handleSubmit}
-                disabled={submitMutation.isPending}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.submitButtonText}>
-                  🏷️ Post
-                </Text>
-              </TouchableOpacity>
-
-            </View>
+            </TouchableOpacity>
           </View>
 
-          ) : (
 
-            <>
-              {/*  image strip  */}
-              <View style={styles.mediaSection}>
-                <ImageStrip
-                  uris={selectedUris}
-                  onRemove={removeImage}
-                />
-                {mediaType === "video" && (
-                  <TouchableOpacity
-                    style={[styles.addMoreButton, { borderColor: theme.border }]}
-                    onPress={() => setStep("gallery")}
-                  >
-                    <Text style={[styles.addMoreText, { color: theme.textSecondary }]}>
-                      Change
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {/* re-add more images */}
-                {mediaType === "image" && selectedUris.length < 5 && (
-                  <TouchableOpacity
-                    style={[styles.addMoreButton, { borderColor: theme.border }]}
-                    onPress={() => setStep("gallery")}
-                  >
-                    <Text style={[styles.addMoreText, { color: theme.textSecondary }]}>
-                      + Add more
-                    </Text>
-                  </TouchableOpacity>
+          {mediaType === "text" ?
+            (<View>
+              {/* name */}
+              <FormInput
+                label="Post Title"
+                value={form.name}
+                onChangeText={(t) => updateField("name", t)}
+                error={errors.name}
+                placeholder="title"
+                returnKeyType="next"
+              />
+              {/* category */}
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                  Category
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryChips}
+                >
+                  {categories.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryChip,
+                        {
+                          backgroundColor:
+                            form.category === cat.id
+                              ? theme.primary
+                              : theme.surfaceSecondary,
+                          borderColor:
+                            form.category === cat.id
+                              ? theme.primary
+                              : theme.border,
+                        },
+                      ]}
+                      onPress={() => updateField("category", cat.id)}
+                    >
+                      {cat.icon && (
+                        <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                      )}
+                      <Text style={[
+                        styles.categoryChipText,
+                        {
+                          color:
+                            form.category === cat.id
+                              ? "#fff"
+                              : theme.textSecondary,
+                        },
+                      ]}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                {errors.category && (
+                  <Text style={[styles.fieldError, { color: theme.error }]}>
+                    {errors.category}
+                  </Text>
                 )}
               </View>
-              {mediaError && (
-                <Text style={[styles.fieldError, { color: theme.error }]}>
-                  {mediaError}
+              {/* description */}
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                  Write about your progress,success,mistakes,fun momments etc
                 </Text>
-              )}
-              <View style={styles.form}>
 
-                {/* name */}
-                <FormInput
-                  label="Post title"
-                  value={form.name}
-                  onChangeText={(t) => updateField("name", t)}
-                  error={errors.name}
-                  placeholder="title"
-                  returnKeyType="next"
+                <TextInput
+                  style={[
+                    styles.descriptionInput,
+                    {
+                      backgroundColor: theme.inputBackground,
+                      color: theme.textPrimary,
+                      borderColor: errors.description ? theme.error : theme.border,
+                    },
+                  ]}
+                  value={form.description}
+                  onChangeText={(t) => updateField("description", t)}
+                  placeholder="Write..."
+                  placeholderTextColor={theme.textPlaceholder}
+                  multiline
+                  maxLength={2000}
+                  textAlignVertical="top"
                 />
 
-                {/* category */}
-                <View style={styles.fieldGroup}>
-                  <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                    Category
-                  </Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoryChips}
-                  >
-                    {categories.map((cat) => (
-                      <TouchableOpacity
-                        key={cat.id}
-                        style={[
-                          styles.categoryChip,
-                          {
-                            backgroundColor:
-                              form.category === cat.id
-                                ? theme.primary
-                                : theme.surfaceSecondary,
-                            borderColor:
-                              form.category === cat.id
-                                ? theme.primary
-                                : theme.border,
-                          },
-                        ]}
-                        onPress={() => updateField("category", cat.id)}
-                      >
-                        {cat.icon && (
-                          <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                        )}
-                        <Text style={[
-                          styles.categoryChipText,
-                          {
-                            color:
-                              form.category === cat.id
-                                ? "#fff"
-                                : theme.textSecondary,
-                          },
-                        ]}>
-                          {cat.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                  {errors.category && (
+                <View style={styles.descriptionFooter}>
+                  {errors.description && (
                     <Text style={[styles.fieldError, { color: theme.error }]}>
-                      {errors.category}
+                      {errors.description}
                     </Text>
                   )}
-                </View>
-
-                {/* description */}
-                <View style={styles.fieldGroup}>
-                  <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                    Write about your post
+                  <Text style={[styles.charCount, { color: theme.textPrimary }]}>
+                    {form.description.length} / 2000
                   </Text>
-                  <TextInput
-                    style={[
-                      styles.descriptionInput,
-                      {
-                        backgroundColor: theme.inputBackground,
-                        color: theme.textPrimary,
-                        borderColor: errors.description ? theme.error : theme.border,
-                      },
-                    ]}
-                    value={form.description}
-                    onChangeText={(t) => updateField("description", t)}
-                    placeholder="Write..."
-                    placeholderTextColor={theme.textPlaceholder}
-                    multiline
-                    maxLength={2000}
-                    textAlignVertical="top"
-                  />
-                  <View style={styles.descriptionFooter}>
-                    {errors.description && (
-                      <Text style={[styles.fieldError, { color: theme.error }]}>
-                        {errors.description}
-                      </Text>
-                    )}
-                    <Text style={[styles.charCount, { color: theme.textMuted }]}>
-                      {form.description.length} / 2000
-                    </Text>
-                  </View>
                 </View>
-                {thereIsErrors && (
-                  <Text style={[styles.fieldError, { color: theme.error }]}>
-                    Correct the above errors                  </Text>
-                )}
                 {/* submit button */}
                 <TouchableOpacity
                   style={[styles.submitButton, { backgroundColor: theme.primary }]}
@@ -642,21 +551,173 @@ if (step === "video_edit") {
                   activeOpacity={0.85}
                 >
                   <Text style={styles.submitButtonText}>
-                     Post
+                    🏷️ Post
                   </Text>
                 </TouchableOpacity>
 
-                {/* pending notice */}
-                <Text style={[styles.pendingNotice, { color: theme.textMuted }]}>
-                   Posts are reviewed by our team before going live. Usually within a moment.
-                </Text>
-
               </View>
-            </>
-          )}
+            </View>
 
-      </ScrollView>
-    </KeyboardAvoidingView>
+            ) : (
+
+              <>
+                {/*  image strip  */}
+                <View style={styles.mediaSection}>
+                  <ImageStrip
+                    uris={selectedUris}
+                    onRemove={removeImage}
+                  />
+                  {mediaType === "video" && (
+                    <TouchableOpacity
+                      style={[styles.addMoreButton, { borderColor: theme.border }]}
+                      onPress={() => setStep("gallery")}
+                    >
+                      <Text style={[styles.addMoreText, { color: theme.textSecondary }]}>
+                        Change
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {/* re-add more images */}
+                  {mediaType === "image" && selectedUris.length < 5 && (
+                    <TouchableOpacity
+                      style={[styles.addMoreButton, { borderColor: theme.border }]}
+                      onPress={() => setStep("gallery")}
+                    >
+                      <Text style={[styles.addMoreText, { color: theme.textSecondary }]}>
+                        + Add more
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {mediaError && (
+                  <Text style={[styles.fieldError, { color: theme.error }]}>
+                    {mediaError}
+                  </Text>
+                )}
+                <View style={styles.form}>
+
+                  {/* name */}
+                  <FormInput
+                    label="Post title"
+                    value={form.name}
+                    onChangeText={(t) => updateField("name", t)}
+                    error={errors.name}
+                    placeholder="title"
+                    returnKeyType="next"
+                  />
+
+                  {/* category */}
+                  <View style={styles.fieldGroup}>
+                    <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                      Category
+                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.categoryChips}
+                    >
+                      {categories.map((cat) => (
+                        <TouchableOpacity
+                          key={cat.id}
+                          style={[
+                            styles.categoryChip,
+                            {
+                              backgroundColor:
+                                form.category === cat.id
+                                  ? theme.primary
+                                  : theme.surfaceSecondary,
+                              borderColor:
+                                form.category === cat.id
+                                  ? theme.primary
+                                  : theme.border,
+                            },
+                          ]}
+                          onPress={() => updateField("category", cat.id)}
+                        >
+                          {cat.icon && (
+                            <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                          )}
+                          <Text style={[
+                            styles.categoryChipText,
+                            {
+                              color:
+                                form.category === cat.id
+                                  ? "#fff"
+                                  : theme.textSecondary,
+                            },
+                          ]}>
+                            {cat.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    {errors.category && (
+                      <Text style={[styles.fieldError, { color: theme.error }]}>
+                        {errors.category}
+                      </Text>
+                    )}
+                  </View>
+
+                  {/* description */}
+                  <View style={styles.fieldGroup}>
+                    <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                      Write about your post
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.descriptionInput,
+                        {
+                          backgroundColor: theme.inputBackground,
+                          color: theme.textPrimary,
+                          borderColor: errors.description ? theme.error : theme.border,
+                        },
+                      ]}
+                      value={form.description}
+                      onChangeText={(t) => updateField("description", t)}
+                      placeholder="Write..."
+                      placeholderTextColor={theme.textPlaceholder}
+                      multiline
+                      maxLength={2000}
+                      textAlignVertical="top"
+                    />
+                    <View style={styles.descriptionFooter}>
+                      {errors.description && (
+                        <Text style={[styles.fieldError, { color: theme.error }]}>
+                          {errors.description}
+                        </Text>
+                      )}
+                      <Text style={[styles.charCount, { color: theme.textMuted }]}>
+                        {form.description.length} / 2000
+                      </Text>
+                    </View>
+                  </View>
+                  {thereIsErrors && (
+                    <Text style={[styles.fieldError, { color: theme.error }]}>
+                      Correct the above errors                  </Text>
+                  )}
+                  {/* submit button */}
+                  <TouchableOpacity
+                    style={[styles.submitButton, { backgroundColor: theme.primary }]}
+                    onPress={handleSubmit}
+                    disabled={submitMutation.isPending}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.submitButtonText}>
+                      Post
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* pending notice */}
+                  <Text style={[styles.pendingNotice, { color: theme.textMuted }]}>
+                    Posts are reviewed by our team before going live. Usually within a moment.
+                  </Text>
+
+                </View>
+              </>
+            )}
+
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }

@@ -72,7 +72,6 @@ export const useTheme = (): Theme => {
   const preference = useThemeStore(        // hook 2 — always called
     (s) => s.preference
   )
-console.log(preference,systemScheme)
   const resolved =
     preference === "system"
       ? (systemScheme ?? "light")

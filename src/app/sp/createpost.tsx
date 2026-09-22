@@ -25,13 +25,17 @@ import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { splistingService } from "@/services/splisting.service"
 import { spfeedService } from "@/services/realestate.service"
+import { VideoEditScreen } from "@/components/editor/VideoEditScreen"
+import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 //  screen steps 
 type Step =
   | "media_type"    // choose images or video
   | "gallery"
+  | "video_edit"
+  | "image_edit"  
   | "form"          // listing details form
   | "uploading"     // uploading to Cloudinary
-  | "success"       // posted successfully
+  | "success" 
 
 type ListingType = "rental" | "sale"
 type RoomType = "single" |"bed_sitter"| "one_bedroom" | "two_bedroom" | "three_plus"
@@ -256,6 +260,15 @@ location_lng: pinnedCoords?.longitude ?? gpsLocation?.lng ?? 0,
           >
             <Text style={styles.loginButtonText}>Log In to post</Text>
           </TouchableOpacity>
+          <Text style={[styles.guestSub, { color: theme.textSecondary }]}>
+            Or new to here?
+          </Text>
+          <TouchableOpacity
+            style={[styles.loginButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push("/(auth)/register")}
+          >
+            <Text style={styles.loginButtonText}>Create account</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     )
@@ -386,17 +399,46 @@ location_lng: pinnedCoords?.longitude ?? gpsLocation?.lng ?? 0,
           </View>
         </SafeAreaView>
 
-        <GalleryPicker
-          mediaType={mediaType}
-          onNext={(uris) => {
-            setSelectedUris(uris)
+              <GalleryPicker
+        mediaType={mediaType}
+        onNext={(uris) => {
+          setSelectedUris(uris)
+          if (mediaType === "video") {
+            setStep("video_edit")
+          } else if (mediaType === "image") {
+            setStep("image_edit")
+          } else {
             setStep("form")
-          }}
-        />
+          }
+        }}
+      />
       </View>
     )
   }
-
+if (step === "image_edit") {
+  return (
+    <ImageEditScreen
+      imageUris={selectedUris}
+      onCancel={() => setStep("gallery")}
+      onDone={(finalUris) => {
+        setSelectedUris(finalUris)
+        setStep("form")
+      }}
+    />
+  )
+}
+  if (step === "video_edit") {
+    return (
+      <VideoEditScreen
+        videoUri={selectedUris[0]}
+        onCancel={() => setStep("gallery")}
+        onDone={(finalUri) => {
+          setSelectedUris([finalUri])
+          setStep("form")
+        }}
+      />
+    )
+  }
   //  post form 
   return (
     <SafeAreaView

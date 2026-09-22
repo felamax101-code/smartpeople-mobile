@@ -57,7 +57,6 @@ export default function IdentityVerificationScreen() {
   })
 
   const vr = overview?.data
-  console.log(overview?.data)
   const identityStatus = vr?.identity_status
 
 

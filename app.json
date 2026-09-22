@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "SmartPeople",
+    "name": "SmartPipla",
     "slug": "my-app",
     "version": "1.0.0",
     "userInterfaceStyle": "automatic",
     "icon": "./src/assets/images/icon-192.png",
     "ios": {
-      "bundleIdentifier": "com.smartpeople.social",
+      "bundleIdentifier": "com.SmartPipla.social",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSExceptionDomains": {
@@ -18,11 +18,12 @@
         }
       },
       "associatedDomains": [
-        "applinks:smartpeople.vercel.app"
+       "applinks:smartpipla.com",
+       "applinks:www.smartpipla.com"
       ]
     },
     "android": {
-      "package": "com.felix.kilel.smartpeople",
+      "package": "com.felix.kilel.smartpipla",
       "versionCode": 1,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
@@ -34,24 +35,49 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
+             {
+              "scheme": "https",
+               "host": "smartpipla.com",
+              "pathPrefix": "/"
+            },
+             {
+              "scheme": "https",
+               "host": "www.smartpipla.com",
+              "pathPrefix": "/"
+            },
             {
               "scheme": "https",
-              "host": "smartpeople.vercel.app",
+               "host": "smartpipla.com",
+              "pathPrefix": "/post"
+            },
+             {
+              "scheme": "https",
+               "host": "www.smartpipla.com",
               "pathPrefix": "/post"
             },
             {
               "scheme": "https",
-              "host": "smartpeople.vercel.app",
+               "host": "smartpipla.com",
               "pathPrefix": "/profile"
             },
             {
               "scheme": "https",
-              "host": "smartpeople.vercel.app",
+               "host": "www.smartpipla.com",
+              "pathPrefix": "/profile"
+            },
+            {
+              "scheme": "https",
+               "host": "smartpipla.com",
               "pathPrefix": "/community"
             },
             {
               "scheme": "https",
-              "host": "smartpeople.vercel.app",
+               "host": "www.smartpipla.com",
+              "pathPrefix": "/community"
+            },
+            {
+              "scheme": "https",
+               "host": "www.smartpipla.com",
               "pathPrefix": "/sp"
             }
           ],

@@ -129,7 +129,7 @@ export default function LoadingIndicator({
           },
         ]}
       >
-{"Wait a moment"}   
+{"Loading...Wait a moment"}   
    </Animated.Text>
     </View>
   );

@@ -55,7 +55,6 @@ export class MemoryPressureHandler {
     }
 
     this.isActive = true;
-    console.log('[MemoryPressureHandler] Starting memory pressure monitoring');
 
     // Add performance monitor callback
     performanceMonitor.addAlertCallback(this.handlePerformanceAlert.bind(this));
@@ -89,7 +88,6 @@ export class MemoryPressureHandler {
       this.cleanupInterval = null;
     }
 
-    console.log('[MemoryPressureHandler] Stopped memory pressure monitoring');
   }
 
   // Handle performance alerts
@@ -175,7 +173,6 @@ export class MemoryPressureHandler {
 
   // Execute memory pressure action
   private executeAction(action: MemoryPressureAction): void {
-    console.log(`[MemoryPressureHandler] Executing ${action.type}: ${action.description}`);
     
     this.actionHistory.push(action);
 
@@ -403,13 +400,11 @@ export class MemoryPressureHandler {
 
   // Handle iOS memory warning
   private handleMemoryWarning(): void {
-    console.log('[MemoryPressureHandler] iOS memory warning received');
     this.executeMediumPressureActions();
   }
 
   // Handle Android memory trim
   private handleMemoryTrim(level: string): void {
-    console.log(`[MemoryPressureHandler] Android memory trim: ${level}`);
     
     switch (level) {
       case 'RUNNING_MODERATE':

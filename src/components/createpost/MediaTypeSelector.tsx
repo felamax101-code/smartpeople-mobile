@@ -24,19 +24,19 @@ export const MediaTypeSelector = ({ selected, onSelect,isSP}: Props) => {
       type: "image",
       icon:  <Ionicons name="image" size={24} color="gray"/>,
       label: "Add Photos",
-      sub: "Up to 5 images.Show others your dev work, memes ... in form of a photo",
+      sub: "Up to 5 images.post memes,checkouts,your fun moments ... in form of a photo",
     },
     {
       type: "video",
       icon: <Ionicons name="videocam" size={24} color="gray"/>,
       label: "Add Video",
-      sub: "Single video.Add a short video of your coding work,experience ...",
+      sub: "Single video.Add a short fun moment,meme etc ...",
     },
     {
       type: "text",
       icon:  <Ionicons name="text" size={24} color="gray"/>,
       label: "Add Text",
-      sub: "Tell others about your progress,ambitions,mistakes and solutons,achievements and lessons learnt...",
+      sub: "Share something in form of an artical",
     },
   ].filter((opt) => !(isSP && opt.type === "text"))
 

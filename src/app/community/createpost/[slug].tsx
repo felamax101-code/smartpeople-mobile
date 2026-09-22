@@ -26,13 +26,17 @@ import { Category, Post } from "@/types"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { communityservice } from "@/services/community.sevice"
+import { VideoEditScreen } from "@/components/editor/VideoEditScreen"
+import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 //  screen steps ─
 type Step =
   | "media_type"    // choose images or video
   | "gallery"
+  | "video_edit"
+  | "image_edit"  
   | "form"          // listing details form
-  | "uploading"
-  | "success"       // posted successfully
+  | "uploading"     // uploading to Cloudinary
+  | "success"       // posted successfully     // posted successfully
 
 function SellScreen() {
   const theme = useTheme()
@@ -308,17 +312,46 @@ function SellScreen() {
           </View>
         </SafeAreaView>
 
-        <GalleryPicker
-          mediaType={mediaType}
-          onNext={(uris) => {
-            setSelectedUris(uris)
+           <GalleryPicker
+        mediaType={mediaType}
+        onNext={(uris) => {
+          setSelectedUris(uris)
+          if (mediaType === "video") {
+            setStep("video_edit")
+          } else if (mediaType === "image") {
+            setStep("image_edit")
+          } else {
             setStep("form")
-          }}
-        />
+          }
+        }}
+      />
       </View>
     )
   }
-
+if (step === "image_edit") {
+  return (
+    <ImageEditScreen
+      imageUris={selectedUris}
+      onCancel={() => setStep("gallery")}
+      onDone={(finalUris) => {
+        setSelectedUris(finalUris)
+        setStep("form")
+      }}
+    />
+  )
+}
+  if (step === "video_edit") {
+    return (
+      <VideoEditScreen
+        videoUri={selectedUris[0]}
+        onCancel={() => setStep("gallery")}
+        onDone={(finalUri) => {
+          setSelectedUris([finalUri])
+          setStep("form")
+        }}
+      />
+    )
+  }
   //  post form 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]} >

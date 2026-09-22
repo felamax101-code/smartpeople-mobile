@@ -104,19 +104,16 @@ export class MockVideoExporterBridge implements VideoExporterInterface {
     outputPath: string,
     options: ExportOptions
   ): Promise<string> {
-    console.log('Mock export:', { projectJSON, outputPath, options });
     
     // Simulate export progress
     return new Promise((resolve) => {
       setTimeout(() => {
-        console.log('Mock export completed');
         resolve(outputPath);
       }, 3000);
     });
   }
 
   async generateWaveform(videoPath: string): Promise<WaveformData> {
-    console.log('Mock waveform generation:', videoPath);
     
     // Generate mock waveform data
     const durationFrames = 900; // 30 seconds at 30fps
@@ -134,12 +131,10 @@ export class MockVideoExporterBridge implements VideoExporterInterface {
     frameNumber: number,
     outputPath: string
   ): Promise<string> {
-    console.log('Mock frame extraction:', { videoPath, frameNumber, outputPath });
     
     // Simulate frame extraction
     return new Promise((resolve) => {
       setTimeout(() => {
-        console.log('Mock frame extracted');
         resolve(outputPath);
       }, 500);
     });

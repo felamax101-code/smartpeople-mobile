@@ -28,14 +28,15 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
     selectedMedia,
     isLoading,
     pickMedia,
+    pickFromCamera,
     removeMedia,
     maxReached,
   } = useMediaPicker(mediaType)
 
-  // auto-open picker on mount
-  React.useEffect(() => {
-    pickMedia()
-  }, [])
+  // // auto-open picker on mount
+  // React.useEffect(() => {
+  //   pickMedia()
+  // }, [])
 
   // when media selected → auto advance to next step
   React.useEffect(() => {
@@ -50,7 +51,7 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
         <View style={styles.loading}>
           <ActivityIndicator color={theme.primary} size="large" />
           <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-            Opening gallery...
+            A moment...loading
           </Text>
         </View>
       ) : selectedMedia.length === 0 ? (
@@ -64,8 +65,8 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
           </Text>
           <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
             {mediaType === "image"
-              ? `Select up to ${5} photos from your gallery`
-              : "Select a video from your gallery"}
+              ? `Select up to ${5} photos from your gallery or use camera`
+              : "Select a video from your gallery or use camera"}
           </Text>
           <TouchableOpacity
             style={[styles.openButton, { backgroundColor: theme.primary }]}
@@ -73,6 +74,14 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
           >
             <Text style={styles.openButtonText}>
               Open Gallery
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.cameraButton, { borderColor: theme.primary }]}
+            onPress={pickFromCamera}
+          >
+            <Text style={[styles.cameraButtonText, { color: theme.primary }]}>
+              Use Camera
             </Text>
           </TouchableOpacity>
         </View>
@@ -180,6 +189,16 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
   },
+  cameraButton: {
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+  },
+  cameraButtonText: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
   selectedContainer: {
     flex: 1,
     padding: Spacing.md,
@@ -270,10 +289,3 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
 })
-
-
-
-
-
-
-

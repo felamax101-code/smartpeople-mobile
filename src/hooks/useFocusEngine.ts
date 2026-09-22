@@ -250,14 +250,12 @@ export const useFocusEngine = () => {
         case 'clips':
           if (selectedClipId === focusedItem.id) {
             // Delete the selected clip
-            console.log('Delete clip:', focusedItem.id);
             setSelectedClip(null);
           }
           break;
         case 'overlays':
           if (selectedOverlayId === focusedItem.id) {
             // Delete the selected overlay
-            console.log('Delete overlay:', focusedItem.id);
             setSelectedOverlay(null);
           }
           break;
@@ -271,7 +269,6 @@ export const useFocusEngine = () => {
 
   const startTrimming = useCallback((side: 'start' | 'end') => {
     if (focusedItem && focusedItem.area === 'clips' && selectedClipId === focusedItem.id) {
-      console.log(`Start trimming ${side} of clip:`, selectedClipId);
       // Implement trimming logic
     }
   }, [focusedItem, selectedClipId]);
@@ -319,10 +316,8 @@ export const useFocusEngine = () => {
   const announceFocus = useCallback((label: string) => {
     if (Platform.OS === 'ios') {
       // Use iOS accessibility announcements
-      console.log('Announce to screen reader:', label);
     } else {
       // Use Android accessibility announcements
-      console.log('Announce to screen reader:', label);
     }
   }, []);
 

@@ -179,7 +179,6 @@ export const MessageBubble = memo(({
   }
   const tick = isOwn ? (message.is_read ? "✓✓" : "✓") : ""
   const tickColor = "#b50b0b"
-console.log("jj",  message.media_url,message.message_type )
   //  quoted reply preview 
   // Shown above the bubble when this message replies to another one.
   const quotedBlock = message.replied_to && (
