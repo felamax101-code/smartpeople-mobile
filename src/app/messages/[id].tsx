@@ -108,7 +108,7 @@ export default function ConversationScreen() {
 
   // ── conversation + derived data 
   const { data: conversations } = useQuery({
-    queryKey: ["conversations"],
+    queryKey: ["conversations",user?.username??""],
     queryFn: messagingService.getConversations,
   })
 

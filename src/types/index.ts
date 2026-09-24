@@ -227,6 +227,7 @@ export interface PostVideo {
   id: string
   video: string
   order: number
+  processing_status:"uploading" | "processing" | "done" | "failed"
 }
 
 export interface Report {
@@ -281,6 +282,8 @@ export interface Post {
   monthly_installment:string
   deposit:string
   rooms:string
+  client_upload_id:string
+
 }
 
 //  Comment 

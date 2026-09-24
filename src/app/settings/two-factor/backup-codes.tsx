@@ -16,7 +16,7 @@ import { useTheme } from "@/hooks/useTheme"
 import { OTPInput } from "@/components/ui/OTPInput"
 import api from "@/services/api"
 import { Spacing, Radius, FontSize, FontWeight, Colors } from "@/constants/colors"
-
+import { useAuthStore } from "@/stores/auth.store"
 type Step = "verify" | "codes"
 
 export default function BackupCodesScreen() {
@@ -24,6 +24,7 @@ export default function BackupCodesScreen() {
 const [cooldown, setCooldown] = useState(0)
 const cooldownRef = useRef<ReturnType<typeof setInterval>>(null)
   const theme = useTheme()
+  const {user}=useAuthStore()
   const [step, setStep] = useState<Step>("verify")
   const [code, setCode] = useState("")
   const [backupCodes, setBackupCodes] = useState<string[]>([])
@@ -41,7 +42,7 @@ useEffect(() => {
 
 // fetch current 2FA status to know which method
 const { data: status } = useQuery({
-  queryKey: ["2fa-status"],
+  queryKey: ["2fa-status",user?.username??""],
   queryFn: async () => {
     const { data } = await api.get("/users/me/2fa-status/")
     return data

@@ -56,7 +56,7 @@ export default function EditPostScreen() {
 
   // ── fetch existing listing ────────────────────────────────
   const { data: listing, isError, refetch, isLoading: isLoadingListing } = useQuery({
-    queryKey: ["post", comunityslug,"edit"],
+    queryKey: ["post", comunityslug,"edit",postSlug],
     queryFn: () => communityservice.getPost(postSlug),
     enabled: !!comunityslug,
   })
@@ -64,7 +64,7 @@ export default function EditPostScreen() {
 
   //   ── fetch categories ──────────────────────────────────────
   const { data: categoriesData ,isLoading:isLoadingCategories} = useQuery({
-    queryKey: ["categories",comunityslug,"edit"],
+    queryKey: ["categories",comunityslug,"edit",postSlug],
     queryFn: ()=> communityservice.getCategories(comunityslug),
   })
   const categories: Category[] = categoriesData?.data ?? []

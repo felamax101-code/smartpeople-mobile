@@ -255,11 +255,12 @@ export const communityservice = {
     slug: string,
     commentId: string,
     body: string,
-    replyToId?: string  // optional — who specifically being replied to
+    replyToId?: string,  // optional — who specifically being replied to
+    replied_to_comment_id?:string
   ): Promise<Comment> => {
     const { data } = await api.post(
       `/groups/post/${slug}/comments/${commentId}/reply/`,
-      { body, reply_to_id: replyToId }
+      { body, reply_to_id: replyToId ,replied_to_comment_id:replied_to_comment_id}
     )
     return data
   },

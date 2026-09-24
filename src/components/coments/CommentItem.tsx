@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput
 } from "react-native"
@@ -29,6 +28,7 @@ import { useToast } from "../activityIndicator/ToastProvider"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
 import truncate from "@/hooks/useTruncateBody"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { useNotificationToast } from "../activityIndicator/ToastNotification"
 interface Props {
   comment: Comment
   postSlug: string
@@ -66,7 +66,7 @@ export const CommentItem = React.memo(({
   const [localDownvotes, setLocalDownvotes] = useState(comment.downvotes_count)
 const effectRootId=rootCommentId?? comment.id
 
-
+  const {showNotifToast}=useNotificationToast()
   const { user } = useAuthStore()
   const isAuthor = user?.id === comment.author.id
 
@@ -152,7 +152,7 @@ const effectRootId=rootCommentId?? comment.id
       setShowReportModal(false)
       setReportReason("")
       setOtherReason("")
-      Alert.alert("Reported", "Thank you for your report.")
+      showNotifToast("Reported. Thank you for your report.","success")
     },
     onError: () => {
       onProcessError(true)

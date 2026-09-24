@@ -61,13 +61,13 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
 
   //  upvote 
   const handleUpvote = useCallback(() => {
-    onUpvote?.(post.slug, true)
+    onUpvote?.(post.slug, !post.is_upvoted)
     gatedAction(
       { type: "upvote", postSlug: post.slug },
       async () => {
         try {
           const result = await communityservice.toggleUpvote(post.slug)
-          onUpvote?.(post.slug, result.upvoted)
+          
         } catch (error) {
         }
       }
@@ -263,7 +263,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
   const handleShare = useCallback(async () => {
     try {
       await Share.share({
-        message: `Check out this post:${post?.name}  on SmartPyHub\nhttps://smartpipla.com/community/post/${post.slug}`,
+        message: `Check out this post:${post?.name}  on SmartPipla\nhttps://smartpipla.com/community/post/${post.slug}`,
       })
     } catch (error) {
     }
@@ -302,7 +302,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={handlePress} activeOpacity={0.97}>
+        <TouchableOpacity  activeOpacity={0.97}>
           {post.post_type === "text" ? (
 
 

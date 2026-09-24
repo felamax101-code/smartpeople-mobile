@@ -61,7 +61,7 @@ export default function EditPostScreen() {
 
   //    fetch categories 
   const { data: categoriesData } = useQuery({
-    queryKey: ["categories"],
+    queryKey: ["categories",slug],
     queryFn: feedService.getCategories,
     staleTime: 10 * 60 * 1000,
   })

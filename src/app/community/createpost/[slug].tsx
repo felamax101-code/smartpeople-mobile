@@ -68,8 +68,8 @@ function SellScreen() {
   const { location: gpsLocation } = useLocation()
 
   //  fetch categories 
-  const { data: categoriesData } = useQuery({
-    queryKey: ["com-categories",slug],
+  const { data: categoriesData,isError,refetch } = useQuery({
+    queryKey: ["com-categories",slug,user?.username??""],
     queryFn:()=> communityservice.getCategories(slug),
     staleTime: 10 * 60 * 1000,
   })
@@ -429,50 +429,63 @@ if (step === "image_edit") {
                 returnKeyType="next"
               />
               {/* category */}
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                  Category
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.categoryChips}
-                >
-                  {categories.map((cat) => (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={[
-                        styles.categoryChip,
-                        {
-                          backgroundColor:
-                            form.category === cat.id
-                              ? theme.primary
-                              : theme.surfaceSecondary,
-                          borderColor:
-                            form.category === cat.id
-                              ? theme.primary
-                              : theme.border,
-                        },
-                      ]}
-                      onPress={() => updateField("category", cat.id)}
-                    >
-                      {cat.icon && (
-                        <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                      )}
-                      <Text style={[
-                        styles.categoryChipText,
-                        {
-                          color:
-                            form.category === cat.id
-                              ? "#fff"
-                              : theme.textSecondary,
-                        },
-                      ]}>
-                        {cat.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <View style={styles.fieldGroup}>
+                            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                              Category
+                            </Text>
+                            {!categories.length || isError ? (<TouchableOpacity
+                              onPress={() => refetch()}
+                            >
+                              <Text
+                                style={[styles.fieldError, { color: theme.ALLwarning, fontSize: FontSize.lg }]}
+                              >
+                                Could not load categories,click to retry
+                              </Text>
+              
+                            </TouchableOpacity>
+              
+                            ) : (<ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              contentContainerStyle={styles.categoryChips}
+                            >
+                              {categories.map((cat) => (
+                                <TouchableOpacity
+                                  key={cat.id}
+                                  style={[
+                                    styles.categoryChip,
+                                    {
+                                      backgroundColor:
+                                        form.category === cat.id
+                                          ? theme.primary
+                                          : theme.surfaceSecondary,
+                                      borderColor:
+                                        form.category === cat.id
+                                          ? theme.primary
+                                          : theme.border,
+                                    },
+                                  ]}
+                                  onPress={() => updateField("category", cat.id)}
+                                >
+                                  {cat.icon && (
+                                    <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                                  )}
+                                  <Text style={[
+                                    styles.categoryChipText,
+                                    {
+                                      color:
+                                        form.category === cat.id
+                                          ? "#fff"
+                                          : theme.textSecondary,
+                                    },
+                                  ]}>
+                                    {cat.name}
+                                  </Text>
+              
+                                </TouchableOpacity>
+                              ))}
+                            </ScrollView>
+                            )}
                 {errors.category && (
                   <Text style={[styles.fieldError, { color: theme.error }]}>
                     {errors.category}

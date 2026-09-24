@@ -186,7 +186,7 @@ export default function FeedScreen() {
     })
 
     const { data: statusData, isLoading: isCheckingStatus } = useQuery({
-  queryKey: ["property-application-status"],
+  queryKey: ["property-application-status",user?.username??""],
   queryFn: propertyApplicationService.getMyStatus,
 })
     // const viewabilityConfig = { itemVisiblePercentThreshold: 65}
@@ -209,7 +209,7 @@ export default function FeedScreen() {
 
     //  fetch categories 
     const { data: categoriesData, refetch: refetchCategory } = useQuery({
-        queryKey: ["sp-categories"],
+        queryKey: ["sp-categories",user?.username??""],
         queryFn: spfeedService.getCategories,
         staleTime: 10 * 60 * 1000,  // categories rarely change — cache for 10 mins
     })
@@ -244,7 +244,7 @@ export default function FeedScreen() {
         refetch,
         isError,
     } = useInfiniteQuery({
-        queryKey: ["sp-feed", filters, selectedCategory, searchText],
+        queryKey: ["sp-feed", filters, selectedCategory, searchText,user?.username??""],
         queryFn: async ({ pageParam = 1 }) => {
             const response = await spfeedService.getFeed({
                 ...filters,

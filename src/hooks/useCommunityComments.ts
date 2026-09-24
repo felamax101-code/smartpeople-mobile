@@ -15,6 +15,7 @@ export const useCommunityComments = (slug: string) => {
   const [commentText, setCommentText] = useState("")
 const [replyingTo, setReplyingTo] = useState<Comment | null>(null)
 const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>>({})
+  const [replyiRootId,setRelyRootId]=useState<string|null>(null)
 
   // ── fetch comments ────────────────────────────────────────
   const {
@@ -59,7 +60,8 @@ const postCommentMutation = useMutation<Comment, Error, string, {tempComment: Co
       parent_id: null,
       reply_to: null,
       is_deleted: false,
-      is_edited:false
+      is_edited:false,
+      replied_to:null
     }
     queryClient.setQueryData(["com-comments", slug], (old: any) => ({
       ...old,
@@ -104,17 +106,19 @@ onError: (_, __, context) => {
 const postReplyMutation = useMutation<
  Comment,
   Error,
-  { commentId: string; body: string; replyToId?:  {
-      id: string
-      username: string
-      name:string |null
-      avatar: string | null
-      verification_badge: VerificationBadge
-    } },
+  {
+      commentId: string; body: string; replyToId?: {
+        id: string
+        username: string
+        name: string | null
+        avatar: string | null
+        verification_badge: VerificationBadge
+      };replied_to_comment_id:string
+    },
   {tempReply:Comment;commentId:string}>
   ({
-  mutationFn: ({ commentId, body, replyToId }) =>
-    communityservice.postReply(slug, commentId, body, replyToId?.id),
+  mutationFn: ({ commentId, body, replyToId ,replied_to_comment_id}) =>
+    communityservice.postReply(slug, commentId, body, replyToId?.id,replied_to_comment_id),
 
 //  commentId is already correctly resolved in handlePost
 onMutate: ({ body, commentId }) => {
@@ -131,7 +135,8 @@ onMutate: ({ body, commentId }) => {
     parent_id: commentId,
     reply_to: replyingTo ? { id: replyingTo?.author.id, username: replyingTo?.author.username } : null,
     is_deleted: false,
-    is_edited:false
+    is_edited:false,
+    replied_to:null
   }
 
   setOptimisticReplies(prev => ({
@@ -172,20 +177,22 @@ const handlePost = useCallback(() => {
   gatedAction(
     { type: "comment", postSlug: slug },
     async () => {
-      if (replyingTo) {
+      if (replyingTo && replyiRootId) {
         postReplyMutation.mutate({
-          commentId: replyingTo.parent_id ?? replyingTo.id,
-          body: commentText.trim(),
-          replyToId: replyingTo.author,
+           commentId: replyiRootId,
+            body: commentText.trim(),
+            replyToId: replyingTo.author,
+            replied_to_comment_id:replyingTo.id
         })
         setReplyingTo(null)
+          setRelyRootId(null)
       } else {
         postCommentMutation.mutate(commentText.trim())
       }
       setCommentText("")
     }
   )
-}, [commentText, replyingTo, slug, gatedAction])
+}, [commentText, replyingTo, slug, gatedAction,replyiRootId])
 
 
   return {
@@ -203,6 +210,7 @@ const handlePost = useCallback(() => {
     handlePost,
     isError,
     refetch,
+    setRelyRootId,
 isPosting: postCommentMutation.isPending || postReplyMutation.isPending,  
 ProcessError:postCommentMutation.isError ||postReplyMutation.isError 
 

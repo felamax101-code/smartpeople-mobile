@@ -24,13 +24,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput
 } from "react-native"
 import { Image } from "expo-image"
 import { router } from "expo-router"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthGate } from "@/hooks/useAuthGate"
 import { useAuthStore } from "@/stores/auth.store"
@@ -38,41 +37,48 @@ import { communityservice } from "@/services/community.sevice"
 import { Comment } from "@/types"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { CommunityRepliesThread } from "./CommunityReplyThreads"
-
+import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
+import { useToast } from "../activityIndicator/ToastProvider"
+import { useNotificationToast } from "../activityIndicator/ToastNotification"
 interface Props {
   comment: Comment
-  productSlug: string
+  postSlug: string
   // depth: 0 = top-level, 1 = reply, 2+ = deep reply
   depth?: number
   // called when user taps reply — lifts state to parent
-  onReplyPress?: (comment: Comment) => void
+  onReplyPress?: (comment: Comment, effectRootId: string) => void
   queryKey: string[]  // for cache invalidation
   optimisticReplies?: Record<string, Comment[]>
   onEditSuccess?: (commentId: string, newBody: string) => void
   onDeleteSuccess?: (CommentId: string) => void
-  onProcessError:any
+  onProcessError: any
+  rootCommentId?: string
+
 }
 
 export const CommunityCommentItem = React.memo(({
   comment,
-  productSlug,
+  postSlug,
   depth = 0,
   onReplyPress,
   queryKey,
   optimisticReplies = {},
   onDeleteSuccess,
   onEditSuccess,
-  onProcessError
+  onProcessError,
+  rootCommentId
 }: Props) => {
   const theme = useTheme()
   const { gatedAction } = useAuthGate()
-
+  const { showToast } = useToast()
   const [showReplies, setShowReplies] = useState(false)
   const [localUpvoted, setLocalUpvoted] = useState(comment.has_upvoted)
   const [localDownvoted, setLocalDownvoted] = useState(comment.has_downvoted)
   const [localUpvotes, setLocalUpvotes] = useState(comment.upvotes_count)
   const [localDownvotes, setLocalDownvotes] = useState(comment.downvotes_count)
+  const effectRootId = rootCommentId ?? comment.id
 
+  const { showNotifToast } = useNotificationToast()
 
   const { user } = useAuthStore()
   const isAuthor = user?.id === comment.author.id
@@ -92,7 +98,7 @@ export const CommunityCommentItem = React.memo(({
     "Other",
   ]
 
-  // ── vote mutation ─────────────────────────────────────────
+  //  vote mutation 
   const voteMutation = useMutation({
     mutationFn: (vote: "up" | "down") =>
       communityservice.voteComment(comment.id, vote),
@@ -123,7 +129,7 @@ export const CommunityCommentItem = React.memo(({
           }
         }
       }
-    },onError:()=>{
+    }, onError: () => {
       onProcessError(true)
     }
   })
@@ -136,12 +142,12 @@ export const CommunityCommentItem = React.memo(({
     onSuccess: () => {
       onDeleteSuccess?.(comment.id)
     },
-    onError:(e)=>{
+    onError: (e) => {
       onProcessError(true)
     }
   }
 
-)
+  )
 
   const editMutation = useMutation({
     mutationFn: (body: string) => communityservice.editComment(comment.id, body),
@@ -149,7 +155,7 @@ export const CommunityCommentItem = React.memo(({
       onEditSuccess?.(comment.id, editText)
       setIsEditing(false)
     },
-    onError:()=>{
+    onError: () => {
       onProcessError(true)
     }
   })
@@ -159,25 +165,19 @@ export const CommunityCommentItem = React.memo(({
       setShowReportModal(false)
       setReportReason("")
       setOtherReason("")
-      Alert.alert("Reported", "Thank you for your report.")
+      showNotifToast("Reported. Thank you for your report.", "success")
     },
-    onError:()=>{
+    onError: () => {
       onProcessError(true)
-    }  })
+    }
+  })
 
   const handleDelete = () => {
-    Alert.alert(
-      "Delete Comment",
-      "Are you sure you want to delete this comment?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteMutation.mutate(),
-        },
-      ]
-    )
+    showToast({
+      title: "Delete Comment",
+      message: "Are you sure you want to delete this comment?",
+      onConfirm: () => deleteMutation.mutate()
+    })
   }
 
   const handleEdit = () => setIsEditing(true)
@@ -208,28 +208,28 @@ export const CommunityCommentItem = React.memo(({
 
   const handleUpvote = useCallback(() => {
     gatedAction(
-      { type: "upvote", productSlug },
+      { type: "upvote", postSlug },
       () => voteMutation.mutate("up")
     )
-  }, [gatedAction, productSlug, voteMutation])
+  }, [gatedAction, postSlug, voteMutation])
 
   const handleDownvote = useCallback(() => {
     gatedAction(
-      { type: "upvote", productSlug },
+      { type: "upvote", postSlug },
       () => voteMutation.mutate("down")
     )
-  }, [gatedAction, productSlug, voteMutation])
+  }, [gatedAction, postSlug, voteMutation])
 
   const handleReply = useCallback(() => {
     gatedAction(
-      { type: "comment", productSlug },
-      () => onReplyPress?.(comment)
+      { type: "comment", postSlug },
+      () => onReplyPress?.(comment,effectRootId)
     )
-  }, [gatedAction, productSlug, comment, onReplyPress])
+  }, [gatedAction, postSlug, comment, onReplyPress])
   const handleProfilePress = useCallback(() => {
     router.push(`/profile/${comment.author.username}`)
   }, [comment.author.username])
-  // ── deleted comment ───────────────────────────────────────
+  //  deleted comment 
   if (comment.is_deleted) {
     return (
       <View style={[
@@ -240,11 +240,11 @@ export const CommunityCommentItem = React.memo(({
         <Text style={[styles.deletedText, { color: theme.textMuted }]}>
           🚫 This comment was deleted
         </Text>
-        {/* still show replies if any existed */}
+        {/* still show replies if any existed
         {comment.replies_count > 0 && depth === 0 && (
           <CommunityRepliesThread
             commentId={comment.id}
-            productSlug={productSlug}
+            postSlug={postSlug}
             optimisticReplies={optimisticReplies[comment.id] ?? []}
             onEditSuccess={onEditSuccess}
             onDeleteSuccess={onDeleteSuccess}
@@ -252,7 +252,7 @@ export const CommunityCommentItem = React.memo(({
               <CommunityCommentItem
                 key={reply.id}
                 comment={reply}
-                productSlug={productSlug}
+                postSlug={postSlug}
                 depth={1}
                 onReplyPress={onReplyPress}
                 queryKey={queryKey}
@@ -263,7 +263,7 @@ export const CommunityCommentItem = React.memo(({
               />
             )}
           />
-        )}
+        )} */}
       </View>
     )
   }
@@ -278,21 +278,25 @@ export const CommunityCommentItem = React.memo(({
       depth > 0 && { borderLeftColor: theme.border },
     ]}>
 
-      {/* ── author row ───────────────────────────────────── */}
+      {/*  author row  */}
       <TouchableOpacity
         style={styles.authorRow}
         onPress={handleProfilePress}
         activeOpacity={0.7}
       >
-        <Image
-          source={{ uri: comment.author.avatar ?? undefined }}
-          style={[
-            styles.avatar,
-            // smaller avatar for replies
-            depth > 0 && styles.avatarSmall,
-          ]}
-          contentFit="cover"
-        />
+        {comment.author.avatar === null ? (
+          <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(comment.author.username)}` }]}>
+            <Text>{comment.author.username.charAt(0)}</Text>
+          </View>) : (
+          <Image
+            source={{ uri: comment.author.avatar ?? undefined }}
+            style={[
+              styles.avatar,
+              // smaller avatar for replies
+              depth > 0 && styles.avatarSmall,
+              , { borderColor: theme.textPlaceholder, borderWidth: 1 }]}
+            contentFit="cover"
+          />)}
         <View style={styles.authorInfo}>
           <View style={styles.authorNameRow}>
             <Text style={[styles.authorName, { color: theme.textPrimary }]}>
@@ -325,7 +329,7 @@ export const CommunityCommentItem = React.memo(({
         </View>
       </TouchableOpacity>
 
-      {/* ── body ─────────────────────────────────────────── */}
+      {/*  body  */}
 
 
 
@@ -376,7 +380,7 @@ export const CommunityCommentItem = React.memo(({
 
 
 
-      {/* ── actions ──────────────────────────────────────── */}
+      {/*  actions  */}
       <View style={styles.actions}>
 
         {/* upvote */}
@@ -548,11 +552,11 @@ export const CommunityCommentItem = React.memo(({
         </Modal>
       </View>
 
-      {/* ── replies thread ────────────────────────────────── */}
+      {/*  replies thread  */}
       {showReplies && depth === 0 && (
         <CommunityRepliesThread
           commentId={comment.id}
-          productSlug={productSlug}
+          postSlug={postSlug}
           optimisticReplies={optimisticReplies[comment.id] ?? []}
           onEditSuccess={onEditSuccess}
           onDeleteSuccess={onDeleteSuccess}
@@ -560,9 +564,10 @@ export const CommunityCommentItem = React.memo(({
             <CommunityCommentItem
               key={reply.id}
               comment={reply}
-              productSlug={productSlug}
+              postSlug={postSlug}
               depth={1}
               onReplyPress={onReplyPress}
+              rootCommentId={effectRootId}
               queryKey={queryKey}
               optimisticReplies={optimisticReplies}
               onEditSuccess={onEditSuccess}      // ← reply-specific handler
@@ -594,17 +599,21 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: Spacing.sm,
     gap: Spacing.xs,
+    borderWidth: 0.5,
+    borderRadius: Radius.md,
+    marginBottom: 3
   },
   // indent replies with left border
   replyIndent: {
-    marginLeft: Spacing.lg,
-    paddingLeft: Spacing.md,
+    marginLeft: Spacing.sm,
+    paddingLeft: Spacing.sm,
     borderLeftWidth: 2,
   },
   authorRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: Spacing.sm,
+    paddingHorizontal: 1
   },
   avatar: {
     width: 36,
@@ -612,6 +621,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: Colors.gray[200],
     flexShrink: 0,
+    overflow: "hidden",
   },
   avatarSmall: {
     width: 28,
@@ -664,6 +674,13 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingVertical: 4,
     paddingHorizontal: 2,
+  },
+  usernamePlcaholder: {
+    width: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    height: 25,
+    borderRadius: 14,
   },
   actionIcon: {
     fontSize: 13,

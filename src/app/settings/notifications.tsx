@@ -19,6 +19,7 @@ import { SettingsSectionHeader, SettingsSectionCard } from "@/components/setting
 import { Spacing, FontSize, FontWeight } from "@/constants/colors"
 import { AnimatedBanner ,BannerType} from "@/components/activityIndicator/AnimatedBanner"
 
+
 const NOTIFICATION_PREFS_ENDPOINT = "/preference/notifications/"
 
 interface BannerState {

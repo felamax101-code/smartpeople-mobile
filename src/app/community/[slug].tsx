@@ -233,7 +233,7 @@ useEffect(()=>{
 
   // minimal info only (avatar, name, description)  sprinkled into the feed below
   const { data: suggestedGroupsData } = useQuery({
-    queryKey: ["groups", "suggestions"],
+    queryKey: ["groups", "suggestions",user?.username??""],
     queryFn: communityservice.getSuggestions,
     staleTime: 5 * 60 * 1000,
   })
@@ -356,8 +356,8 @@ useEffect(()=>{
 
     try {
       const data = await communityservice.joingroup(cslug ?? "")
-      queryClient.invalidateQueries({ queryKey: ["groups", "suggestions", user] })
-      queryClient.invalidateQueries({ queryKey: ["groups", "mine", user] })
+      queryClient.invalidateQueries({ queryKey: ["groups", "suggestions"] })
+      queryClient.invalidateQueries({ queryKey: ["groups", "mine" ] })
       if (data.message === "success") {
         setCMember("true")
         showBanner("success", `Joined ${communityname}`)
@@ -390,11 +390,11 @@ useEffect(()=>{
         }
       }
     );
-    queryClient.setQueryData(["com-post", post_slug], (old: Post) => ({
-      ...old,
-      is_saved: !old.is_saved,
-      saves_count:old.is_saved? old.saves_count-1:old.saves_count+1
-    }))
+    // queryClient.setQueryData(["com-post", post_slug], (old: Post) => ({
+    //   ...old,
+    //   is_saved: !old.is_saved,
+    //   saves_count:old.is_saved? old.saves_count-1:old.saves_count+1
+    // }))
   }, [queryClient, filters, selectedCategory, searchText, data])
 
   const openMenu = () => {

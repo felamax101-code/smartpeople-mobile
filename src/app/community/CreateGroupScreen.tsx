@@ -71,7 +71,7 @@ export default function CreateGroupScreen() {
     mutationFn: (payload: CreateGroupPayload) => communityservice.createGroup(payload),
     onSuccess: (response) => {
       // so it shows up next time they visit "My Groups"
-      queryClient.invalidateQueries({ queryKey: ["groups", "mine",user] })
+      queryClient.invalidateQueries({ queryKey: ["groups", "mine"] })
       const newSlug = response.slug
       router.replace(`/community/${newSlug}`)
     },

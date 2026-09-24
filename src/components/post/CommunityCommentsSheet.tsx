@@ -58,7 +58,8 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
     replyingTo,
     setReplyingTo,
     optimisticReplies,
-    ProcessError
+    ProcessError,
+    setRelyRootId
   } = useCommunityComments(slug)
 
 
@@ -160,12 +161,13 @@ const[processError,setProcessError]=useState<boolean>(false)
     ({ item }: { item: Comment }) => (
       <CommunityCommentItem
         comment={item}
-        productSlug={slug}
+        postSlug={slug}
         depth={0}
-        onReplyPress={(comment) => {
-          setReplyingTo(comment)
-          inputRef.current?.focus()
-        }}
+        onReplyPress={(comment:Comment,rootId:string) => {
+                 setReplyingTo(comment)
+                 setRelyRootId(rootId)
+                 inputRef.current?.focus()
+               }}
         queryKey={["com-comments", slug]}
         optimisticReplies={optimisticReplies}
         onEditSuccess={handleEditSuccess}

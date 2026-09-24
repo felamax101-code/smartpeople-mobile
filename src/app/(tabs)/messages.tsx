@@ -334,6 +334,11 @@ const handleDeleteConversation = async (id:string) => {
                     style={[styles.emptyIcon, { backgroundColor: theme.primary, color: theme.textPrimary, borderColor: theme.borderMuted }]}>
                     Create a group</Text>
                 </TouchableOpacity>}
+                <TouchableOpacity onPress={()=>refetch()}>
+                  <Text
+                    style={[styles.emptyIcon, { backgroundColor: theme.primary, color: theme.textPrimary, borderColor: theme.borderMuted }]}>
+                    Reload</Text>
+                </TouchableOpacity>
           </View>
         </View>
 

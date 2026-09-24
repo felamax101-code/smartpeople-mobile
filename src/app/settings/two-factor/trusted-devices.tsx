@@ -16,7 +16,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import api from "@/services/api"
 import { Spacing, Radius, FontSize, FontWeight, Colors } from "@/constants/colors"
-
+import { useAuthStore } from "@/stores/auth.store"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 interface TrustedDevice {
   id: string
   device_label: string
@@ -29,7 +30,8 @@ interface TrustedDevice {
 export default function TrustedDevicesScreen() {
   const theme = useTheme()
   const queryClient = useQueryClient()
-
+  const{showNotifToast}=useNotificationToast()
+const {user}=useAuthStore()
   const { data: devices, isLoading } = useQuery({
     queryKey: ["trusted-devices"],
     queryFn: async (): Promise<TrustedDevice[]> => {
@@ -44,7 +46,7 @@ export default function TrustedDevicesScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trusted-devices"] })
     },
-    onError: () => Alert.alert("Error", "Failed to remove device"),
+    onError: () => showNotifToast("Failed to remove devices","error")
   })
 
   const handleRemove = (device: TrustedDevice) => {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react"
 import {
   View,
@@ -14,7 +13,7 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useFocusEffect } from "expo-router"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { useLocation } from "@/hooks/useLocation"
@@ -24,13 +23,14 @@ import { GalleryPicker } from "@/components/createpost/GalleryPicker"
 import { MediaTypeSelector } from "@/components/createpost/MediaTypeSelector"
 import { ImageStrip } from "@/components/createpost/ImageStrip"
 import { FormInput } from "@/components/ui/FormInput"
-import { listingService } from "@/services/listing.service"
 import { feedService } from "@/services/feed.service"
 import { Category, Post } from "@/types"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { VideoEditScreen } from "@/components/editor/VideoEditScreen"
 import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
+import { useUploadQueue } from "@/components/createpost/UploadQueuecontext"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 //  screen steps 
 type Step =
   | "media_type"    // choose images or video
@@ -70,8 +70,8 @@ function SellScreen() {
   // const { location: gpsLocation } = useLocation()
 
   //  fetch categories 
-  const { data: categoriesData } = useQuery({
-    queryKey: ["categories"],
+  const { data: categoriesData ,isError,refetch} = useQuery({
+    queryKey: ["categories",user?.username],
     queryFn: feedService.getCategories,
     staleTime: 10 * 60 * 1000,
   })
@@ -80,64 +80,12 @@ function SellScreen() {
       gestureEnabled: step === "media_type", // only allow swipe-back on the very first step
     })
   }, [step])
-  //  submit mutation ─
-  const submitMutation = useMutation({
-    mutationFn: async () => {
-      setStep("uploading")
-      setopengalleryDisabled(true)
-      setUploadProgress({ done: 0, total: selectedUris.length })
-      // Build mediaFiles array from selected URIs
-      const mediaFiles = selectedUris.map((uri) => ({
-        uri,
-        name: uri.split("/").pop() ?? "file",
-        type: mediaType === "image" ? "image/jpeg" : "video/mp4",
-      }))
+  //  background upload 
+  const { startUpload } = useUploadQueue()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-      setUploadProgress({ done: selectedUris.length, total: selectedUris.length })
-      return listingService.createListing({
-        name: form.name.trim(),
-        description: form.description.trim(),
-        category: form.category,
-        post_type: mediaType,
-        mediaFiles,
-        mediaType: mediaType === "image" ? "photo" : "video",
-        location_display: form.location.trim(),
-        // location_lat: gpsLocation?.lat ?? 0,
-        // location_lng: gpsLocation?.lng ?? 0,
-      })
-    },
-    onSuccess: (post: Post) => {
-      setStep("success")
-      queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
-      // navigate to the new listing after short delay
-      setTimeout(() => {
-        router.push(`/post/${post.slug}`)
-      }, 1500)
-      setTimeout(() => {
-
-        setopengalleryDisabled(false)
-
-      }, 2000)
-      setStep("media_type")
-      setForm({
-        name: "",
-        description: "",
-        category: "",
-        location: "",
-      })
-
-      setthereIsErrors(false)
-      setMediaErrors(null)
-    },
-    onError: (error: any) => {
-      setopengalleryDisabled(false)
-      setStep("form")
-      const detail = error?.response?.data?.detail ?? "Failed to post listing. Try again."
-      showBanner("error", detail)
-    },
-  })
-  useEffect(()=>{
-    if (step==="media_type"){
+  useEffect(() => {
+    if (step === "media_type") {
       setForm({
         name: "",
         description: "",
@@ -146,7 +94,7 @@ function SellScreen() {
       });
       setSelectedUris([])
     }
-  },[step])
+  }, [step])
   const categories: Category[] = categoriesData?.data ?? []
   const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
@@ -170,8 +118,8 @@ function SellScreen() {
         }
 
         if (step === "form") {
-          
-           if (mediaType === "image") setStep("image_edit")
+
+          if (mediaType === "image") setStep("image_edit")
           else setStep("media_type")
         } else if (step === "uploading" || step === "success") {
           // don't let back interrupt an in-flight submit or the success screen
@@ -207,13 +155,54 @@ function SellScreen() {
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
+  const {showNotifToast}=useNotificationToast()
   const [thereIsErrors, setthereIsErrors] = useState(false)
   const handleSubmit = () => {
     if (!validate()) {
       setthereIsErrors(true)
       return
     }
-    submitMutation.mutate()
+    if (isSubmitting) return // guard against a double-tap firing two uploads
+    setIsSubmitting(true)
+
+    startUpload(
+      {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        categoryId: form.category,
+        locationDisplay: form.location.trim(),
+        postType: mediaType, // "text" | "image" | "video"
+        mediaType: mediaType === "image" ? "photo" : mediaType === "video" ? "video" : undefined,
+        mediaUris: mediaType === "text" ? [] : selectedUris,
+      },
+      {
+        onDone: (postId, postSlug) => {
+          queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
+          // TODO: also invalidate whatever query key feed list, so the
+          // new post shows up there without the user having to pull-to-refresh
+          router.push(`/post/${postSlug || postId}`)
+        },
+        onFailed: (error) => {
+          showNotifToast("Failed to upload post","error")
+        },
+      }
+    )
+
+    // leave immediately — the upload continues in the background via the
+    // floating badge. 
+    router.back()
+
+    setStep("media_type")
+    setForm({
+      name: "",
+      description: "",
+      category: "",
+      location: "",
+    })
+    setSelectedUris([])
+    setthereIsErrors(false)
+    setMediaErrors(null)
+    setIsSubmitting(false)
   }
   //  auth check 
   if (!user) {
@@ -381,7 +370,7 @@ function SellScreen() {
             setSelectedUris(uris)
             if (mediaType === "image") {
               setStep("image_edit")
-            }  else {
+            } else {
               setStep("form")
             }
           }}
@@ -447,7 +436,7 @@ function SellScreen() {
             </Text>
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={submitMutation.isPending}
+              disabled={isSubmitting}
             >
               <Text style={[styles.postButton, { color: theme.primary }]}>
                 Post
@@ -472,7 +461,18 @@ function SellScreen() {
                 <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
                   Category
                 </Text>
-                <ScrollView
+                {!categories.length || isError ? (<TouchableOpacity
+                  onPress={() => refetch()}
+                >
+                  <Text
+                    style={[styles.fieldError, { color: theme.ALLwarning, fontSize: FontSize.lg }]}
+                  >
+                    Could not load categories,click to retry
+                  </Text>
+
+                </TouchableOpacity>
+
+                ) : (<ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.categoryChips}
@@ -509,9 +509,11 @@ function SellScreen() {
                       ]}>
                         {cat.name}
                       </Text>
+
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
+                )}
                 {errors.category && (
                   <Text style={[styles.fieldError, { color: theme.error }]}>
                     {errors.category}
@@ -556,7 +558,7 @@ function SellScreen() {
                 <TouchableOpacity
                   style={[styles.submitButton, { backgroundColor: theme.primary }]}
                   onPress={handleSubmit}
-                  disabled={submitMutation.isPending}
+                  disabled={isSubmitting}
                   activeOpacity={0.85}
                 >
                   <Text style={styles.submitButtonText}>
@@ -708,7 +710,7 @@ function SellScreen() {
                   <TouchableOpacity
                     style={[styles.submitButton, { backgroundColor: theme.primary }]}
                     onPress={handleSubmit}
-                    disabled={submitMutation.isPending}
+                    disabled={isSubmitting}
                     activeOpacity={0.85}
                   >
                     <Text style={styles.submitButtonText}>
@@ -977,13 +979,3 @@ const styles = StyleSheet.create({
 
 
 export default SellScreen
-
-
-
-
-
-
-
-
-
-

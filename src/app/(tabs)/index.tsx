@@ -201,7 +201,7 @@ export default function FeedScreen() {
  
   //  fetch categories 
   const { data: categoriesData,refetch:refetchCategory } = useQuery({
-    queryKey: ["categories"],
+    queryKey: ["categories",user?.username??""],
     queryFn: feedService.getCategories,
     staleTime: 10 * 60 * 1000,  // categories rarely change — cache for 10 mins
   })
@@ -343,11 +343,11 @@ useEffect(() => {
         }
       }
     );
-    queryClient.setQueryData(["post", post_slug], (old: Post) => ({
-        ...old,
-        is_saved: !old.is_saved,
-        saves_count:old.is_saved?old.saves_count-1:old.saves_count+1
-      }))
+    // queryClient.setQueryData(["post", post_slug], (old: Post) => ({
+    //     ...old,
+    //     is_saved: !old.is_saved,
+    //     saves_count:old.is_saved?old.saves_count-1:old.saves_count+1
+    //   }))
   }, [queryClient, filters, selectedCategory, searchText, data])
 
   //  render post card 

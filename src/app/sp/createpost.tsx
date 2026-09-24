@@ -1,4 +1,4 @@
-import { useState, useCallback,useEffect } from "react"
+import { useState, useCallback, useEffect } from "react"
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   BackHandler
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { router,useLocalSearchParams ,useFocusEffect} from "expo-router"
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
@@ -33,13 +33,13 @@ type Step =
   | "media_type"    // choose images or video
   | "gallery"
   | "video_edit"
-  | "image_edit"  
+  | "image_edit"
   | "form"          // listing details form
   | "uploading"     // uploading to Cloudinary
-  | "success" 
+  | "success"
 
 type ListingType = "rental" | "sale"
-type RoomType = "single" |"bed_sitter"| "one_bedroom" | "two_bedroom" | "three_plus"
+type RoomType = "single" | "bed_sitter" | "one_bedroom" | "two_bedroom" | "three_plus"
 
 const LISTING_TYPE_OPTIONS: { id: ListingType; label: string }[] = [
   { id: "rental", label: "For Rent" },
@@ -67,8 +67,8 @@ function SellScreen() {
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
   const [opengalleryDisabled, setopengalleryDisabled] = useState(false)
   const [banner, setBanner] = useState<BannerState | null>(null);
-const [showMapPicker, setShowMapPicker] = useState(false)
-const [pinnedCoords, setPinnedCoords] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [showMapPicker, setShowMapPicker] = useState(false)
+  const [pinnedCoords, setPinnedCoords] = useState<{ latitude: number; longitude: number } | null>(null)
   //  form state 
   const [form, setForm] = useState({
     name: "",
@@ -81,22 +81,22 @@ const [pinnedCoords, setPinnedCoords] = useState<{ latitude: number; longitude: 
     rooms: "" as RoomType | "",
     deposit: "",
     monthlyInstallment: "",
-    roomsError:""
+    roomsError: ""
   })
   const [errors, setErrors] = useState<Partial<typeof form>>({})
   const [mediaError, setMediaErrors] = useState<string | null>()
   //  location (auto GPS) ─
   const { location: gpsLocation } = useLocation()
-const params = useLocalSearchParams<{ pickedLat?: string; pickedLng?: string }>()
+  const params = useLocalSearchParams<{ pickedLat?: string; pickedLng?: string }>()
 
-useEffect(() => {
-  if (params.pickedLat && params.pickedLng) {
-    setPinnedCoords({
-      latitude: Number(params.pickedLat),
-      longitude: Number(params.pickedLng),
-    })
-  }
-}, [params.pickedLat, params.pickedLng])
+  useEffect(() => {
+    if (params.pickedLat && params.pickedLng) {
+      setPinnedCoords({
+        latitude: Number(params.pickedLat),
+        longitude: Number(params.pickedLng),
+      })
+    }
+  }, [params.pickedLat, params.pickedLng])
   //  fetch categories 
   const { data: categoriesData, isError, refetch } = useQuery({
     queryKey: ["sp-categories"],
@@ -137,7 +137,7 @@ useEffect(() => {
         deposit: isSale ? form.deposit.replace(/,/g, "") : undefined,
         monthly_installment: isSale ? form.monthlyInstallment.replace(/,/g, "") : undefined,
         location_lat: pinnedCoords?.latitude ?? gpsLocation?.lat ?? 0,
-location_lng: pinnedCoords?.longitude ?? gpsLocation?.lng ?? 0,
+        location_lng: pinnedCoords?.longitude ?? gpsLocation?.lng ?? 0,
       })
     },
     onSuccess: (post: Post) => {
@@ -163,7 +163,7 @@ location_lng: pinnedCoords?.longitude ?? gpsLocation?.lng ?? 0,
         rooms: "",
         deposit: "",
         monthlyInstallment: "",
-        roomsError:""
+        roomsError: ""
       })
 
       setthereIsErrors(false)
@@ -190,7 +190,7 @@ location_lng: pinnedCoords?.longitude ?? gpsLocation?.lng ?? 0,
   const removeImage = useCallback((index: number) => {
     setSelectedUris((prev) => prev.filter((_, i) => i !== index))
   }, [])
-useFocusEffect(
+  useFocusEffect(
     useCallback(() => {
       const sub = BackHandler.addEventListener("hardwareBackPress", () => {
         if (step === "media_type") {
@@ -198,8 +198,8 @@ useFocusEffect(
         }
 
         if (step === "form") {
-          
-           if (mediaType === "image") setStep("image_edit")
+
+          if (mediaType === "image") setStep("image_edit")
           else setStep("media_type")
         } else if (step === "uploading" || step === "success") {
           // don't let back interrupt an in-flight submit or the success screen
@@ -249,13 +249,13 @@ useFocusEffect(
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-  const formatNumber = (value:string) => {
+  const formatNumber = (value: string) => {
     const digitsOnly = value.replace(/\D/g, ""); // strip everything but digits
     if (!digitsOnly) return "";
     return Number(digitsOnly).toLocaleString("en-US"); // "1234567" -> "1,234,567"
   };
 
-  
+
   const [thereIsErrors, setthereIsErrors] = useState(false)
   const handleSubmit = () => {
     if (!validate()) {
@@ -424,32 +424,32 @@ useFocusEffect(
           </View>
         </SafeAreaView>
 
-              <GalleryPicker
-        mediaType={mediaType}
-        onNext={(uris) => {
-          setSelectedUris(uris)
-          if (mediaType === "image") {
+        <GalleryPicker
+          mediaType={mediaType}
+          onNext={(uris) => {
+            setSelectedUris(uris)
+            if (mediaType === "image") {
               setStep("image_edit")
-            }  else {
+            } else {
               setStep("form")
             }
-        }}
-      />
+          }}
+        />
       </View>
     )
   }
-if (step === "image_edit") {
-  return (
-    <ImageEditScreen
-      imageUris={selectedUris}
-      onCancel={() => setStep("gallery")}
-      onDone={(finalUris) => {
-        setSelectedUris(finalUris)
-        setStep("form")
-      }}
-    />
-  )
-}
+  if (step === "image_edit") {
+    return (
+      <ImageEditScreen
+        imageUris={selectedUris}
+        onCancel={() => setStep("gallery")}
+        onDone={(finalUris) => {
+          setSelectedUris(finalUris)
+          setStep("form")
+        }}
+      />
+    )
+  }
   if (step === "video_edit") {
     return (
       <VideoEditScreen
@@ -539,23 +539,23 @@ if (step === "image_edit") {
             </Text>
           )}
           <View style={styles.form}>
-          <View>
-            {/* name */}
-            <FormInput
-              label="Title(eg.1 Bedroom To Let/House for sale)"
-              value={form.name}
-              onChangeText={(t) => updateField("name", t)}
-              error={errors.name}
-              placeholder="title"
-              maxLength={50}
-              returnKeyType="next"
-            />
-            <View style={styles.descriptionFooter}>
+            <View>
+              {/* name */}
+              <FormInput
+                label="Title(eg.1 Bedroom To Let/House for sale)"
+                value={form.name}
+                onChangeText={(t) => updateField("name", t)}
+                error={errors.name}
+                placeholder="title"
+                maxLength={50}
+                returnKeyType="next"
+              />
+              <View style={styles.descriptionFooter}>
 
-              <Text style={[styles.charCount, { color: form.name.length == 50 ? theme.error : theme.textMuted }]}>
-                {form.description.length} / 50
-              </Text>
-            </View>
+                <Text style={[styles.charCount, { color: form.name.length == 50 ? theme.error : theme.textMuted }]}>
+                  {form.description.length} / 50
+                </Text>
+              </View>
             </View>
 
             {/* category */}
@@ -566,11 +566,11 @@ if (step === "image_edit") {
               {!categories.length || isError ? (<TouchableOpacity
                 onPress={() => refetch()}
               >
-                <Text
+         Could not load categories,click to retry
+                            <Text
                   style={[styles.fieldError, { color: theme.ALLwarning, fontSize: FontSize.lg }]}
                 >
-                  Could not load categories,click to retry
-                </Text>
+             </Text>
 
               </TouchableOpacity>
 
@@ -713,144 +713,144 @@ if (step === "image_edit") {
             </View>
 
             {form.listingType === "rental" ? (
-            <View>
-            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-              Price (per month)
-            </Text>
-            
-            <TextInput
-              style={[
-                styles.descriptionInput,
-                {
-                  backgroundColor: theme.inputBackground,
-                  color: theme.textPrimary,
-                  borderColor: errors.price ? theme.error : theme.border,
-                },
-              ]}
-              value={formatNumber(form.price)}
-              onChangeText={(t) => updateField("price", t)}
-              placeholder="eg 10,000..."
-              placeholderTextColor={theme.textPlaceholder}
-              multiline
-              maxLength={11}
-              keyboardType="numeric"
-              textAlignVertical="top"
-            />
-             <View style={styles.descriptionFooter}>
-              {errors.price && (
-                <Text style={[styles.fieldError, { color: theme.error }]}>
-                  {errors.price}
+              <View>
+                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                  Price (per month)
                 </Text>
-              )}
-              <Text style={[styles.charCount, { color:(form.price.replace(/,/g, "")).length==9? theme.error :theme.textMuted}]}>
-                {(form.price.replace(/,/g, "")).length} / 9
-              </Text>
-            </View>
-            </View>
+
+                <TextInput
+                  style={[
+                    styles.descriptionInput,
+                    {
+                      backgroundColor: theme.inputBackground,
+                      color: theme.textPrimary,
+                      borderColor: errors.price ? theme.error : theme.border,
+                    },
+                  ]}
+                  value={formatNumber(form.price)}
+                  onChangeText={(t) => updateField("price", t)}
+                  placeholder="eg 10,000..."
+                  placeholderTextColor={theme.textPlaceholder}
+                  multiline
+                  maxLength={11}
+                  keyboardType="numeric"
+                  textAlignVertical="top"
+                />
+                <View style={styles.descriptionFooter}>
+                  {errors.price && (
+                    <Text style={[styles.fieldError, { color: theme.error }]}>
+                      {errors.price}
+                    </Text>
+                  )}
+                  <Text style={[styles.charCount, { color: (form.price.replace(/,/g, "")).length == 9 ? theme.error : theme.textMuted }]}>
+                    {(form.price.replace(/,/g, "")).length} / 9
+                  </Text>
+                </View>
+              </View>
             ) : (
-            <View>
-            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-              Deposit (or full price)
-            </Text>
-              <TextInput
-              style={[
-                styles.descriptionInput,
-                {
-                  backgroundColor: theme.inputBackground,
-                  color: theme.textPrimary,
-                  borderColor: errors.deposit ? theme.error : theme.border,
-                },
-              ]}
-              value={formatNumber(form.deposit)}
-              onChangeText={(t) => updateField("deposit", t)}
-              placeholder="eg 10,000..."
-              placeholderTextColor={theme.textPlaceholder}
-              multiline
-              maxLength={11}
-              keyboardType="numeric"
-              textAlignVertical="top"
-            />
-            <View style={styles.descriptionFooter}>
-              {errors.deposit && (
-                <Text style={[styles.fieldError, { color: theme.error }]}>
-                  {errors.deposit}
+              <View>
+                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                  Deposit (or full price)
                 </Text>
-              )}
-              <Text style={[styles.charCount, { color:(form.deposit.replace(/,/g, "")).length==9? theme.error :theme.textMuted}]}>
-                {(form.deposit.replace(/,/g, "")).length} / 9
-              </Text>
-            </View>
-            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-              Monthly Installments (Where applicable)(You can give more description about the price and payment in the description field below)
-            </Text>
-              <TextInput
-              style={[
-                styles.descriptionInput,
-                {
-                  backgroundColor: theme.inputBackground,
-                  color: theme.textPrimary,
-                  borderColor: theme.border,
-                },
-              ]}
-              value={formatNumber(form.monthlyInstallment)}
-              onChangeText={(t) => updateField("monthlyInstallment", t)}
-              placeholder="eg 10,000..."
-              placeholderTextColor={theme.textPlaceholder}
-              multiline
-              maxLength={11}
-              keyboardType="numeric"
-              textAlignVertical="top"
-            />
-            </View>
+                <TextInput
+                  style={[
+                    styles.descriptionInput,
+                    {
+                      backgroundColor: theme.inputBackground,
+                      color: theme.textPrimary,
+                      borderColor: errors.deposit ? theme.error : theme.border,
+                    },
+                  ]}
+                  value={formatNumber(form.deposit)}
+                  onChangeText={(t) => updateField("deposit", t)}
+                  placeholder="eg 10,000..."
+                  placeholderTextColor={theme.textPlaceholder}
+                  multiline
+                  maxLength={11}
+                  keyboardType="numeric"
+                  textAlignVertical="top"
+                />
+                <View style={styles.descriptionFooter}>
+                  {errors.deposit && (
+                    <Text style={[styles.fieldError, { color: theme.error }]}>
+                      {errors.deposit}
+                    </Text>
+                  )}
+                  <Text style={[styles.charCount, { color: (form.deposit.replace(/,/g, "")).length == 9 ? theme.error : theme.textMuted }]}>
+                    {(form.deposit.replace(/,/g, "")).length} / 9
+                  </Text>
+                </View>
+                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                  Monthly Installments (Where applicable)(You can give more description about the price and payment in the description field below)
+                </Text>
+                <TextInput
+                  style={[
+                    styles.descriptionInput,
+                    {
+                      backgroundColor: theme.inputBackground,
+                      color: theme.textPrimary,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                  value={formatNumber(form.monthlyInstallment)}
+                  onChangeText={(t) => updateField("monthlyInstallment", t)}
+                  placeholder="eg 10,000..."
+                  placeholderTextColor={theme.textPlaceholder}
+                  multiline
+                  maxLength={11}
+                  keyboardType="numeric"
+                  textAlignVertical="top"
+                />
+              </View>
             )}
-           <View>
             <View>
-            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-              Describe your post
-            </Text>
-            <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>
-               Explain more about price ,property description like size,condition etc
-            </Text>
-            </View>
-            <TextInput
-              style={[
-                styles.descriptionInput,
-                {
-                  backgroundColor: theme.inputBackground,
-                  color: theme.textPrimary,
-                  borderColor: errors.description ? theme.error : theme.border,
-                },
-              ]}
-              value={form.description}
-              onChangeText={(t) => updateField("description", t)}
-              placeholder="Write..."
-              placeholderTextColor={theme.textPlaceholder}
-              multiline
-              maxLength={5000}
-              textAlignVertical="top"
-            />
-            <View style={styles.descriptionFooter}>
-              {errors.description && (
-                <Text style={[styles.fieldError, { color: theme.error }]}>
-                  {errors.description}
+              <View>
+                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                  Describe your post
                 </Text>
-              )}
-              <Text style={[styles.charCount, { color: theme.textMuted }]}>
-                {form.description.length} / 5000
-              </Text>
-            </View>
+                <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>
+                  Explain more about price ,property description like size,condition etc
+                </Text>
+              </View>
+              <TextInput
+                style={[
+                  styles.descriptionInput,
+                  {
+                    backgroundColor: theme.inputBackground,
+                    color: theme.textPrimary,
+                    borderColor: errors.description ? theme.error : theme.border,
+                  },
+                ]}
+                value={form.description}
+                onChangeText={(t) => updateField("description", t)}
+                placeholder="Write..."
+                placeholderTextColor={theme.textPlaceholder}
+                multiline
+                maxLength={5000}
+                textAlignVertical="top"
+              />
+              <View style={styles.descriptionFooter}>
+                {errors.description && (
+                  <Text style={[styles.fieldError, { color: theme.error }]}>
+                    {errors.description}
+                  </Text>
+                )}
+                <Text style={[styles.charCount, { color: theme.textMuted }]}>
+                  {form.description.length} / 5000
+                </Text>
+              </View>
             </View>
             <View style={styles.fieldGroup}>
 
             </View>
             <View style={styles.fieldGroup}>
               <View>
-              <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                Where is your property located?
-              </Text>
-              <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>
-                Give a well-leading location starting from a well known place down to the exact location,seperating with comas. eg.Nairobi,upperhill..
-              </Text>
+                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                  Where is your property located?
+                </Text>
+                <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>
+                  Give a well-leading location starting from a well known place down to the exact location,seperating with comas. eg.Nairobi,upperhill..
+                </Text>
               </View>
               <TextInput
                 style={[
@@ -880,23 +880,23 @@ if (step === "image_edit") {
                 </Text>
               </View>
               <TouchableOpacity
-  style={[styles.mapPickButton, { borderColor: theme.border }]}
-  onPress={() =>
-  router.push({
-    pathname: "/sp/LocationPicker",
-    params: { lat: pinnedCoords?.latitude, lng: pinnedCoords?.longitude },
-  })}
->
-  <Text style={[styles.mapPickText, { color: theme.primary }]}>
-    {pinnedCoords ? "Change pinned location" : "Pin exact location on map"}
-  </Text>
-</TouchableOpacity>
+                style={[styles.mapPickButton, { borderColor: theme.border }]}
+                onPress={() =>
+                  router.push({
+                    pathname: "/sp/LocationPicker",
+                    params: { lat: pinnedCoords?.latitude, lng: pinnedCoords?.longitude },
+                  })}
+              >
+                <Text style={[styles.mapPickText, { color: theme.primary }]}>
+                  {pinnedCoords ? "Change pinned location" : "Pin exact location on map"}
+                </Text>
+              </TouchableOpacity>
 
-{pinnedCoords && (
-  <Text style={[styles.gpsStatus, { color: theme.textMuted }]}>
-    Pinned at {pinnedCoords.latitude.toFixed(5)}, {pinnedCoords.longitude.toFixed(5)}
-  </Text>
-)}
+              {pinnedCoords && (
+                <Text style={[styles.gpsStatus, { color: theme.textMuted }]}>
+                  Pinned at {pinnedCoords.latitude.toFixed(5)}, {pinnedCoords.longitude.toFixed(5)}
+                </Text>
+              )}
             </View>
             <Text style={[styles.fieldError, { color: theme.textPrimarylight }]}>
             </Text>
@@ -927,7 +927,7 @@ if (step === "image_edit") {
 
         </ScrollView>
       </KeyboardAvoidingView>
-      
+
     </SafeAreaView>
   )
 }
@@ -981,16 +981,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   mapPickButton: {
-  borderWidth: 1.5,
-  borderStyle: "dashed",
-  borderRadius: Radius.md,
-  paddingVertical: Spacing.sm,
-  alignItems: "center",
-},
-mapPickText: {
-  fontSize: FontSize.sm,
-  fontWeight: FontWeight.semibold,
-},
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm,
+    alignItems: "center",
+  },
+  mapPickText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
   headerBack: {
     fontSize: 22,
     fontWeight: FontWeight.bold,

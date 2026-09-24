@@ -24,7 +24,7 @@ import { communityservice } from "@/services/community.sevice"
 
 interface Props {
   commentId: string
-  productSlug: string
+  postSlug: string
   // parent decides how each reply renders — no circular import needed
   renderItem: (reply: Comment,onEditSuccess: any,onDeleteSuccess:any) => React.ReactNode
   onReplyPress?:(Comment:Comment)=>void
@@ -35,7 +35,7 @@ interface Props {
 
 export const CommunityRepliesThread = React.memo(({
   commentId,
-  productSlug,
+  postSlug,
   renderItem,
   optimisticReplies =[],
 }: Props) => {
@@ -45,7 +45,7 @@ export const CommunityRepliesThread = React.memo(({
 
 const { data, isLoading,refetch, isError,isFetching } = useQuery({
   queryKey: ["com-replies", commentId, page],
-  queryFn: () => communityservice.getReplies(productSlug, commentId, page),
+  queryFn: () => communityservice.getReplies(postSlug, commentId, page),
   staleTime: 2 * 60 * 1000,
 })
 
@@ -71,13 +71,13 @@ const handleReplyDelete = useCallback((commentId: string) => {
   )
 }, [])
 useEffect(() => {
-  if (data?.results) {
+  if (data?.data.comments) {
     if (page === 1) {
-      setAccumulatedReplies(data.results)
+      setAccumulatedReplies(data.data.comments)
     } else {
       setAccumulatedReplies(prev => {
         const existingIds = new Set(prev.map(r => r.id))
-        const newOnes = data.results.filter((r: Comment) => !existingIds.has(r.id))
+        const newOnes = data.data.comments.filter((r: Comment) => !existingIds.has(r.id))
         return [...prev, ...newOnes]
       })
     }
@@ -111,7 +111,7 @@ if (isError){
 
       
       {/* load more */}
-      {data?.next && (
+      {data?.data.pagination.has_next && (
         <TouchableOpacity
           style={styles.loadMore}
           onPress={() => setPage((p) => p + 1)}

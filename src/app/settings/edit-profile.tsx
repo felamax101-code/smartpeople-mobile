@@ -467,6 +467,7 @@ if(tab==="phone")
         location: form.location.trim(),
         avatarFile,
         phone: form.phone,
+        username:form.username
       }),
     onSuccess: (updated) => {
       setUser(updated)

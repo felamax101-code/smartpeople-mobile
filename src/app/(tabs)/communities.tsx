@@ -162,7 +162,7 @@ export default function MyGroupsScreen() {
     refetch,
     isError,
   } = useInfiniteQuery({
-    queryKey: ["groups", "mine", user],
+    queryKey: ["groups", "mine", user?.username??""],
     queryFn: ({ pageParam = 1 }) => communityservice.getUserGroups({ page: pageParam }),
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.data?.pagination?.has_next) return allPages.length + 1
@@ -178,7 +178,7 @@ export default function MyGroupsScreen() {
   const [suggestionVisisble, setsuggestionVisisble] = useState<boolean>(true)
   // ── fetch group suggestions shown at the bottom ───────────
   const { data: suggestedGroupsData } = useQuery({
-    queryKey: ["groups", "suggestions", user],
+    queryKey: ["groups", "suggestions", user?.username??""],
     queryFn: communityservice.getSuggestions,
     staleTime: 1000,
   })
@@ -194,7 +194,7 @@ export default function MyGroupsScreen() {
     refetch: refetchMyInvites,
     isError: isMyInvitesError,
   } = useInfiniteQuery({
-    queryKey: ["groups", "invites", user],
+    queryKey: ["groups", "invites", user?.username??""],
     queryFn: ({ pageParam = 1 }) => communityservice.getMyInvites(pageParam),
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.data?.pagination?.has_next) return allPages.length + 1
@@ -216,7 +216,7 @@ export default function MyGroupsScreen() {
     refetch: refetchMyRequests,
     isError: isMyRequestsError,
   } = useInfiniteQuery({
-    queryKey: ["groups", "requests", user],
+    queryKey: ["groups", "requests", user?.username??""],
     queryFn: ({ pageParam = 1 }) => communityservice.getMyRequests(pageParam),
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.data?.pagination?.has_next) return allPages.length + 1
@@ -237,8 +237,8 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     mutationFn: (inviteId: string) => communityservice.acceptInvite(inviteId),
     onSuccess: () => {
       showBanner("success","Invite accepted")
-      queryClient.invalidateQueries({ queryKey: ["groups", "invites", user] })
-      queryClient.invalidateQueries({ queryKey: ["groups", "mine", user] })
+      queryClient.invalidateQueries({ queryKey: ["groups", "invites", user?.username??""] })
+      queryClient.invalidateQueries({ queryKey: ["groups", "mine", user?.username??""] })
     },
     onError:()=>{
       showBanner("error","Something went wrong. Truy again")
@@ -249,7 +249,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     mutationFn: (inviteId: string) => communityservice.rejectInvite(inviteId),
     onSuccess: () => {
       showBanner("success","Request rejected")
-      queryClient.invalidateQueries({ queryKey: ["groups", "invites", user] })
+      queryClient.invalidateQueries({ queryKey: ["groups", "invites", user?.username??""] })
     },
       onError:()=>{
       showBanner("error","Something went wrong. Truy again")
@@ -260,7 +260,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     mutationFn: (requestId: string) => communityservice.cancelRequest(requestId),
     onSuccess: () => {
       showBanner("success","Request cancelled")
-      queryClient.invalidateQueries({ queryKey: ["groups", "requests", user] })
+      queryClient.invalidateQueries({ queryKey: ["groups", "requests", user?.username??""] })
     },
       onError:()=>{
       showBanner("error","Something went wrong. Truy again")

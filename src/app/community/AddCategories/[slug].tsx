@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   addButton: {
-    position: "fixed",
+   
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

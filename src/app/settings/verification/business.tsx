@@ -21,11 +21,11 @@ import { VerificationStatusCard } from "@/components/verification/VerificationSt
 import { DocumentUpload, PickedFile } from "@/components/verification/DocumentUpload"
 import { FormInput } from "@/components/ui/FormInput"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
-
+import { useAuthStore } from "@/stores/auth.store"
 export default function BusinessVerificationScreen() {
   const theme = useTheme()
   const queryClient = useQueryClient()
-
+const {user}=useAuthStore()
   const [form, setForm] = useState({
     business_name: "",
     rc_number: "",
@@ -36,7 +36,7 @@ export default function BusinessVerificationScreen() {
   const [thereiserror, setthereiserror] = useState(false)
 
   const { data: overview, refetch,isLoading } = useQuery({
-    queryKey: ["verification-status"],
+    queryKey: ["verification-status",user?.username??''],
     queryFn: verificationService.getStatus,
   })
 

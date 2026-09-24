@@ -226,7 +226,7 @@ const [banner, setBanner] = useState<BannerState | null>(null);
     refetch,
     isError,
   } = useInfiniteQuery({
-    queryKey: ["com-feed-approved", filters, selectedCategory, searchText, cslug],
+    queryKey: ["com-feed-approved", filters, selectedCategory, searchText, cslug,user?.username??""],
     queryFn: async ({ pageParam = 1 }) => {
       const response = await communityservice.getPendingFeed({
         ...filters,
@@ -257,7 +257,7 @@ const [banner, setBanner] = useState<BannerState | null>(null);
     isLoadingError: isLoadingErrorRejectedData,
     isError: isErrorRejectedData,
   } = useInfiniteQuery({
-    queryKey: ["com-feed-rejected", filters, selectedCategory, searchText, cslug],
+    queryKey: ["com-feed-rejected", filters, selectedCategory, searchText, cslug,user?.username??""],
     queryFn: async ({ pageParam = 1 }) => {
       const response = await communityservice.getRejectedFeed({
         ...filters,
@@ -305,7 +305,7 @@ const [banner, setBanner] = useState<BannerState | null>(null);
     data: communityInfo
 
   } = useQuery({
-    queryKey: ["communityInfo", cslug],
+    queryKey: ["communityInfo", cslug,user?.username??""],
     queryFn: () => communityservice.getCommunityInfo(cslug),
   })
   const handleSearch = useCallback((text: string) => {
