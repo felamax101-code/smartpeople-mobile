@@ -16,6 +16,8 @@ import {
   TouchableWithoutFeedback
 } from "react-native"
 import { Image } from "expo-image"
+import * as Clipboard from "expo-clipboard"
+
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
 import { useTheme } from "@/hooks/useTheme"
@@ -34,6 +36,10 @@ import { communityservice } from "@/services/community.sevice"
 import truncate from "@/hooks/useTruncateBody"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
+import { saveMediaToDevice } from "@/hooks/useSaveMediaToDevice"
+import { DownloadProgressRing } from "@/components/ui/DownloadProgress"
+import { parseText } from "@/hooks/useTextParser"
 // scroll offset at which header becomes solid
 const HEADER_SOLID_THRESHOLD = CARD_HEIGHT - 80
 interface BannerState {
@@ -44,6 +50,7 @@ interface BannerState {
 export default function PostDetailScreen() {
   const theme = useTheme()
   const { user } = useAuthStore()
+  const DOWNLOAD_TIMEOUT_MS = 60000 // 60s
 
   const { slug, action, communityname, communityslug } = useLocalSearchParams<{ slug: string; action?: string; communityname: string; communityslug: string }>()
   const queryClient = useQueryClient()
@@ -67,8 +74,19 @@ export default function PostDetailScreen() {
   const [menuVisible, setMenuVisible] = useState(false)
   const [banner, setBanner] = useState<BannerState | null>(null);
   const [expanded, setExpanded] = useState<boolean>(false)
-
+  const [shareModalVisible, setShareModalVisible] = useState<boolean>(false)
+  const [downloadStatus, setDownloadStatus] = useState<"idle" | "downloading" | "success" | "error">("idle")
+  const { showNotifToast } = useNotificationToast()
+  const [downloadProgress, setDownloadProgress] = useState(0)
   const { showToast } = useToast()
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: string } | null>(
+    post?.videos?.[0]
+      ? { type: "video", url: post?.videos[0].video ?? null }
+      : post?.images?.[0]
+        ? { type: "image", url: post?.images[0].image ?? null }
+        : null
+  )
   //  header opacity 
   // header transitions from transparent to solid as user scrolls past the image
   const headerBgOpacity = scrollY.interpolate({
@@ -156,16 +174,47 @@ export default function PostDetailScreen() {
   const handleDelete = async () => {
     try {
       await communityservice.deleteListing(slug)
-      await queryClient.invalidateQueries({ queryKey: ["post", slug] })
-      showBanner("success", "Deleted successfully")
-
+      await queryClient.invalidateQueries({ queryKey: ["com-post", slug] })
+      showNotifToast("Deleted successfully", "success")
+      await queryClient.invalidateQueries({ queryKey: ["user-listings", slug] })
       router.back()
 
     } catch (error: any) {
       showBanner("error", error?.response?.data?.detail ?? "Failed to delete listing.Try again")
     }
   }
+  const handleDownload = async () => {
+    if (post?.post_type === "text" || !activeMedia) return
 
+    setDownloadStatus("downloading")
+    setDownloadProgress(0)
+
+    try {
+      const ext = activeMedia.type === "video" ? "mp4" : "png"
+      const downloadPromise = saveMediaToDevice(
+        activeMedia.url,
+        `${post?.owner.username.replace(/[^a-zA-Z0-9-_]/g, "_")}-${post?.name.replace(/[^a-zA-Z0-9-_]/g, "_")}-${activeIndex}.${ext}`,
+        (p) => setDownloadProgress(p),
+        () => showNotifToast("Cannot download. Permission to access media denied", "error")
+      )
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Download timed out")), DOWNLOAD_TIMEOUT_MS)
+      })
+
+      await Promise.race([downloadPromise, timeoutPromise])
+      setDownloadStatus("success")
+      showNotifToast("Downloaded to gallery", "success")
+    } catch (err) {
+      setDownloadStatus("error")
+      showNotifToast("Download failed", "error")
+    } finally {
+      setTimeout(() => {
+        setDownloadStatus("idle")
+        setDownloadProgress(0)
+      }, 1400)
+    }
+  }
 
 
 
@@ -188,8 +237,11 @@ export default function PostDetailScreen() {
     }
   }
 
-  //  message seller 
-
+  const handleCopy = async () => {
+    if (!post?.description) return
+    setShareModalVisible(false)
+    await Clipboard.setStringAsync(post.description)
+  }
 
 
 
@@ -233,11 +285,11 @@ export default function PostDetailScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["bottom"]}
     >
-      {menuVisible && (
+      {(menuVisible) && (
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
-          onPress={() => setMenuVisible(false)}
+          onPress={() => { setMenuVisible(false) }}
         />
       )}
       {banner && (
@@ -273,14 +325,16 @@ export default function PostDetailScreen() {
             styles.headerIconWhite,
             { opacity: Animated.subtract(1, headerIconOpacity) }
           ]}>
-            ←
+            <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+
           </Animated.Text>
           {/* theme icon over content */}
           <Animated.Text style={[
             styles.headerIconTheme,
             { color: theme.textPrimary, opacity: headerIconOpacity }
           ]}>
-            ←
+            <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+
           </Animated.Text>
         </TouchableOpacity>
 
@@ -301,7 +355,8 @@ export default function PostDetailScreen() {
                 styles.headerIconWhite,
                 { opacity: Animated.subtract(1, headerIconOpacity) }
               ]}>
-                ⋮
+                <MaterialCommunityIcons name="dots-vertical" color={theme.primary} size={30} />
+
               </Animated.Text>
             </View>
           </TouchableWithoutFeedback>
@@ -379,7 +434,7 @@ export default function PostDetailScreen() {
                 </View>
 
                 <View>
-                  <Text style={[styles.textBody, { color: theme.textMuted }]}>{post.description}</Text>
+                  <Text style={[styles.textBody, { color: theme.textMuted }]}>{parseText(post.description)}</Text>
                 </View>
               </View>
 
@@ -393,19 +448,22 @@ export default function PostDetailScreen() {
 
             {post.owner.avatar === null ? (
               <TouchableOpacity
-                onPress={() => router.push( user?.username!=post.owner.username?  `/profile/${post.owner.username}`:`/profile`)}
+                onPress={() => router.push(user?.username != post.owner.username ? `/profile/${post.owner.username}` : `/profile`)}
                 style={[{ flexDirection: "row", alignItems: "center", gap: 2 }]}
               >
                 <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
                   <Text>{post.owner.username.charAt(0)}</Text>
                 </View>
                 <Text
+                  style={[{ color: theme.primary, fontWeight: FontWeight.bold }]}
+                >sc/</Text>
+                <Text
                   style={[{ color: theme.textPrimary }]}
-                >@{post.owner.username}</Text>
+                >{post.owner.username}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                onPress={() => router.push( user?.username!=post.owner.username?  `/profile/${post.owner.username}`:`/profile`)}
+                onPress={() => router.push(user?.username != post.owner.username ? `/profile/${post.owner.username}` : `/profile`)}
                 style={[{ flexDirection: "row", alignItems: "center", gap: 2 }]}
 
               >
@@ -414,7 +472,9 @@ export default function PostDetailScreen() {
                   style={styles.avatar}
                   transition={200}
                 />
-                <Text style={[{ color: theme.textPrimary }]}>@{post.owner.username}</Text>
+                <Text style={[{ color: theme.primary, fontWeight: FontWeight.bold }]}>sc/</Text>
+
+                <Text style={[{ color: theme.textPrimary }]}>{post.owner.username}</Text>
               </TouchableOpacity>
             )}
             <View style={[styles.interactionsRow, { position: "relative", flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 6, paddingBottom: 20, bottom: 10, right: 0, left: 0 }]}>
@@ -480,30 +540,34 @@ export default function PostDetailScreen() {
               slug={post.slug}
               isGroup={true}
               isVisible={true}
+              onActiveMediaChange={(item, index) => {
+                setActiveMedia(item)
+                setActiveIndex(index)
+              }}
             />
           </View>
           {/*  interactions row  */}
           <View style={styles.interactionsRow}>
             <View style={{ flexDirection: "column", gap: 4 }}>
-             <TouchableOpacity
+              <TouchableOpacity
                 style={[styles.interaction, { borderColor: "#383434" }]}
                 onPress={handleUpvote}
               >
                 <Text style={styles.interactionIcon}>
-                  {post.is_upvoted ?  <MaterialCommunityIcons name="chevron-up-circle-outline" size={30} color={`${theme.primary}`}/> : <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={"white"}/>}
+                  {post.is_upvoted ? <MaterialCommunityIcons name="chevron-up-circle-outline" size={30} color={`${theme.primary}`} /> : <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={"white"} />}
                 </Text>
                 <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
                   {post.upvotes_count}
                 </Text>
               </TouchableOpacity>
 
-            <TouchableOpacity
+              <TouchableOpacity
                 style={[styles.interaction, { borderColor: "#383434" }]}
                 onPress={() => setCommentsVisible(true)}
               >
                 <Text style={styles.interactionIcon}>
-                <MaterialCommunityIcons name="comment" color={`${theme.primary}`}size={30}/>
-                  
+                  <MaterialCommunityIcons name="comment" color={`${theme.primary}`} size={30} />
+
                 </Text>
                 <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
                   {post.comments_count}
@@ -525,8 +589,78 @@ export default function PostDetailScreen() {
 
               <TouchableOpacity
                 style={[styles.interaction, { borderColor: "#383434" }]}
-                onPress={handleShare}
+                onPress={() => setShareModalVisible((v) => !v)}
               >
+                {shareModalVisible && <View
+                  style={[{
+                    position: "absolute", backgroundColor: theme.backgroundMuted, borderWidth: 2, borderColor: theme.textPlaceholder,
+                    right: 3, bottom: 30, zIndex: 999, width: 150, gap: 10, borderRadius: Radius.md, paddingVertical: 6
+                  }]}
+                >
+                  <TouchableOpacity
+                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, justifyContent: "space-between", borderWidth: 0 }]}
+                    onPress={() => setShareModalVisible(false)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
+                      Select share action
+                    </Text>
+                    <View
+                      style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 3 }]}
+                    >
+                      <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
+                        Cancel
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+
+                  <TouchableOpacity
+                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+                    onPress={handleDownload}
+                    activeOpacity={0.7}
+                    disabled={downloadStatus === "downloading"}
+                  >
+                    {downloadStatus === "idle" ? (
+                      <>
+                        <MaterialCommunityIcons name="download" color={theme.primary} />
+                        <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+                          Download
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <DownloadProgressRing progress={downloadProgress} status={downloadStatus} size={16} />
+                        <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+                          {downloadStatus === "downloading" ? `${Math.round(downloadProgress * 100)}%` : downloadStatus === "success" ? "Saved" : "Failed"}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  {post.description &&
+                    <TouchableOpacity
+                      style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+                      onPress={handleCopy}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons name="content-copy" color={theme.primary} />
+                      <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+                        Copy text
+                      </Text>
+                    </TouchableOpacity>}
+
+                  <TouchableOpacity
+                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+                    onPress={handleShare}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="message-text" color={theme.primary} />
+                    <Text style={[{ color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+                      Via another app
+                    </Text>
+                  </TouchableOpacity>
+                </View>}
                 <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: 12 }]}>Share</Text>
                 <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
 
@@ -541,24 +675,27 @@ export default function PostDetailScreen() {
 
           <View
 
-            style={[styles.commentsPreview, { backgroundColor: expanded?"rgba(0,0,0,0.5)" :"rgba(0,0,0,0.1)"}]}
+            style={[styles.commentsPreview, { backgroundColor: expanded ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.1)" }]}
           >
             {post.owner.avatar === null ? (
               <TouchableOpacity
-                onPress={() => router.push( user?.username!=post.owner.username?  `/profile/${post.owner.username}`:`/profile`)}
-                style={[{ flexDirection: "row", alignItems: "center", gap: 2 }]}
+                onPress={() => router.push(user?.username != post.owner.username ? `/profile/${post.owner.username}` : `/profile`)}
+                style={[{ flexDirection: "row", alignItems: "center", gap: 2, marginRight: 100 }]}
               >
                 <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
                   <Text>{post.owner.username.charAt(0)}</Text>
                 </View>
                 <Text
+                  style={[{ color: theme.primary, fontWeight: FontWeight.bold }]}
+                >sc/</Text>
+                <Text
                   style={[{ color: theme.textPrimary }]}
-                >@{post.owner.username}</Text>
+                >{post.owner.username}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                onPress={() => router.push( user?.username!=post.owner.username?  `/profile/${post.owner.username}`:`/profile`)}
-                style={[{ flexDirection: "row", alignItems: "center", gap: 2,marginRight:100 }]}
+                onPress={() => router.push(user?.username != post.owner.username ? `/profile/${post.owner.username}` : `/profile`)}
+                style={[{ flexDirection: "row", alignItems: "center", gap: 2, marginRight: 100 }]}
               >
                 <Image
                   source={{ uri: post.owner.avatar }}
@@ -566,8 +703,11 @@ export default function PostDetailScreen() {
                   transition={200}
                 />
                 <Text
+                  style={[{ color: theme.primary, fontWeight: FontWeight.bold }]}
+                >sc/</Text>
+                <Text
                   style={[{ color: theme.textPrimary }]}
-                >@{post.owner.username}</Text>
+                >{post.owner.username}</Text>
               </TouchableOpacity>
             )}
             <Text
@@ -576,14 +716,14 @@ export default function PostDetailScreen() {
               {post.name}
             </Text>
             <ScrollView
-             style={[{maxHeight:500}]}>
-            <Text
-              style={[styles.commentsPreviewText, { color: theme.textPrimary }]}
-            >{expanded ?
-              post.description
-              : truncate(post.description, 50)}
+              style={[{ maxHeight: 500 }]}>
+              <Text
+                style={[styles.commentsPreviewText, { color: theme.textPrimary }]}
+              >{expanded ?
+                parseText(post.description)
+                             : truncate(parseText(post.description) as unknown as string, 50)}
 
-            </Text>
+              </Text>
             </ScrollView>
             {post.description.length > 50 && (
               <TouchableOpacity
@@ -779,7 +919,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     right: 3,
-    bottom: 100,
+    bottom: 110,
     justifyContent: "space-between",
     gap: Spacing.lg,
   },
@@ -816,11 +956,19 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
   },
+  interactionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: Radius.md,
+    borderWidth: 2,
+    paddingHorizontal: Spacing.xs,
+    gap: 4,
+  },
   commentsPreview: {
     position: "absolute",
     bottom: 50,
-    left:0,
-    right:0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 6,
     borderTopLeftRadius: Radius.md,
     borderTopRightRadius: Radius.md

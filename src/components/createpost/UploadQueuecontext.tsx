@@ -1,9 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 import * as Crypto from "expo-crypto"
-import api from "@/services/api" // TODO: adjust to wherever your configured axios instance actually lives
+import api from "@/services/api" 
+import { PostVideo } from "@/types"
+import { useNotificationToast } from "../activityIndicator/ToastNotification"
 
 const CREATE_POST_PATH = "/posts/"
 const VIDEO_STATUS_PATH = (videoId: string) => `/post-videos/${videoId}/status/`
+
+const GROUP_VIDEO_STATUS_PATH = (videoId: string) => `/post-videos/${videoId}/status/`
 
 export type UploadStatus = "uploading" | "processing" | "done" | "failed"
 
@@ -39,7 +43,7 @@ interface StartUploadOptions {
 
 interface UploadQueueContextValue {
   uploads: UploadEntry[]
-  startUpload: (input: CreatePostInput, options?: StartUploadOptions) => string
+  startUpload: (input: CreatePostInput, options?: StartUploadOptions,isGroup?:boolean,slug?:string) => string
   dismissUpload: (id: string) => void
 }
 
@@ -52,7 +56,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
   const [uploads, setUploads] = useState<UploadEntry[]>([])
   const pollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({})
   const callbacks = useRef<Record<string, StartUploadOptions>>({})
-
+    const {showNotifToast}=useNotificationToast()
   const updateUpload = useCallback((id: string, patch: Partial<UploadEntry>) => {
     setUploads((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)))
   }, [])
@@ -76,21 +80,26 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
 
   // polls every still-processing video for one upload until all resolve
   const pollVideoStatuses = useCallback(
-    (uploadId: string, postId: string, postSlug: string, videoIds: string[]) => {
+    (uploadId: string, postId: string, postSlug: string, videoIds: string[],isGroup?:boolean) => {
       const pending = new Set(videoIds)
       const failed = new Set<string>()
 
       pollTimers.current[uploadId] = setInterval(async () => {
         try {
+           
           await Promise.all(
             Array.from(pending).map(async (videoId) => {
               // goes through `api` too — status checks stay authenticated and
               // benefit from the same 401-refresh handling as everything else
-              const res = await api.get(VIDEO_STATUS_PATH(videoId))
+              const res = await api.get(isGroup?GROUP_VIDEO_STATUS_PATH(videoId): VIDEO_STATUS_PATH(videoId))
+            
               const data = res.data
+            
               if (data.status === "done") {
+                showNotifToast("Post uploaded","success")
                 pending.delete(videoId)
               } else if (data.status === "failed") {
+                showNotifToast("Upload failed","error")
                 pending.delete(videoId)
                 failed.add(videoId)
               }
@@ -118,7 +127,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
   )
 
   const startUpload = useCallback(
-    (input: CreatePostInput, options?: StartUploadOptions) => {
+    (input: CreatePostInput, options?: StartUploadOptions,isGroup?:boolean,slug?:string) => {
       const clientUploadId = Crypto.randomUUID()
       const id = clientUploadId
       callbacks.current[id] = options ?? {}
@@ -159,12 +168,13 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
       })
 
       api
-        .post(CREATE_POST_PATH, formData, {
+        .post(isGroup?`/groups/${slug}/posts/`: CREATE_POST_PATH, formData, {
           headers: { "Content-Type": "multipart/form-data" }, // overrides the instance's default JSON header for this request
           timeout: 120000, // 2 min — the instance-wide 15s default is fine for JSON but too short for a video upload on a slow connection
           onUploadProgress: (progressEvent) => {
             const total = progressEvent.total
             if (total) {
+                showNotifToast("Uploading post","success")
               const pct = Math.round((progressEvent.loaded / total) * 100)
               updateUpload(id, { progress: pct })
             }
@@ -182,12 +192,12 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
             return
           }
 
-          const videos: any[] = data.videos ?? []
+          const videos: PostVideo[] = data.videos ?? []
           const videoIds = videos.map((v) => v.id)
           const pendingVideoIds = videos
             .filter((v) => v.processing_status === "processing")
             .map((v) => v.id)
-
+          console.log("pendingVideoIds",pendingVideoIds.length)
           updateUpload(id, {
             progress: 100,
             postId,
@@ -197,7 +207,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
           })
 
           if (pendingVideoIds.length > 0) {
-            pollVideoStatuses(id, postId, postSlug ?? "", pendingVideoIds)
+            pollVideoStatuses(id, postId, postSlug ?? "", pendingVideoIds,isGroup)
           } else {
             // text/image posts, or a post with no video needing processing
             callbacks.current[id]?.onDone?.(postId, postSlug ?? "")
@@ -212,11 +222,12 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
           // spot to add a "check by client_upload_id before giving up" step.
           //
           // Also note: this .catch only sees errors axios doesn't resolve on its
-          // own. A 401 is handled transparently by your interceptor (refresh +
+          // own. A 401 is handled transparently by  interceptor (refresh +
           // retry) and never reaches here unless the refresh itself also fails.
           const message = err?.response?.data?.detail || err?.message || "Upload failed"
           updateUpload(id, { status: "failed", error: message })
           callbacks.current[id]?.onFailed?.(message)
+          console.log("message",message)
         })
 
       return id

@@ -38,7 +38,6 @@ const getInitials = (name: string): string => {
     .map((word) => word[0]?.toUpperCase() ?? "")
     .join("")
 }
-
 export const GroupConversationItem = ({ conversation , typing, typingUsers = 0}: Props) => {
   const theme = useTheme()
   const { user } = useAuthStore()
@@ -47,7 +46,7 @@ export const GroupConversationItem = ({ conversation , typing, typingUsers = 0}:
   const swipeableRef = useRef<Swipeable>(null)
 
   const timeAgo = formatTimeAgo(conversation.last_message_at)
-
+console.log(conversation.group_avatar)
   // ── member names subtitle 
   // Show up to 2 other participants by name, then "+N more" if there are more.
   // The current user is excluded — they know they're in the group.
@@ -220,8 +219,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   avatar: {
-    width: 52,
-    height: 52,
+    width: 40,
+    height: 40,
     borderRadius: 26,
     backgroundColor: Colors.gray[200],
   },
@@ -237,11 +236,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   usernamePlcaholder: {
-    width: 28,
+    width: 40,
     alignItems: "center",
     justifyContent: "center",
-    height: 28,
-    borderRadius: 14,
+    height: 40,
+     borderRadius: 26,
   },
   unreadDot: {
     position: "absolute",

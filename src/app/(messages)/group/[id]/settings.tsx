@@ -1,4 +1,4 @@
-// ── app/messages/group/[id]/settings.tsx ─────────────────────────────────────
+//  app/messages/group/[id]/settings.tsx ─
 
 import React, { useState, useCallback, useRef } from "react"
 import {
@@ -12,6 +12,8 @@ import {
   Alert,
   Modal,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
@@ -23,14 +25,9 @@ import { useGroupManagement, GroupMember } from "@/hooks/useGroupManagement"
 import { useConversations } from "@/hooks/useConversations"
 import { messagingService, UserSearchResult } from "@/services/messaging.service"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
+import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
+//  avatar helpers (same as GroupConversationItem + [id].tsx) ─
 
-// ── avatar helpers (same as GroupConversationItem + [id].tsx) ─────────────────
-const AVATAR_COLORS = [
-  "#5B6AF0", "#E05C97", "#F0A030", "#30A8C8",
-  "#7AC74F", "#E05050", "#9B59B6", "#1ABC9C",
-]
-const getAvatarColor = (name: string) =>
-  AVATAR_COLORS[name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length]
 const getInitials = (name: string) =>
   name.trim().split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")
 
@@ -55,7 +52,7 @@ export default function GroupSettingsScreen() {
     isError,
   } = useGroupManagement(conversationId)
 
-  // ── load conversation for group name / avatar / admin check ──────────────
+  //  load conversation for group name / avatar / admin check 
   const { data: conversations } = useQuery({
     queryKey: ["conversations"],
     queryFn: messagingService.getConversations,
@@ -65,7 +62,7 @@ export default function GroupSettingsScreen() {
   // current user's admin status — checked from participants list
   const isAdmin = members.find((m) => m.id === user?.id)?.is_admin ?? false
 
-  // ── edit group name state ─────────────────────────────────────────────────
+  //  edit group name state ─
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(conversation?.group_name ?? "")
   const nameInputRef = useRef<TextInput>(null)
@@ -91,7 +88,7 @@ export default function GroupSettingsScreen() {
     setTimeout(() => nameInputRef.current?.focus(), 100)
   }
 
-  // ── add members modal state ───────────────────────────────────────────────
+  //  add members modal state ─
   const [showAddModal, setShowAddModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([])
@@ -159,7 +156,7 @@ export default function GroupSettingsScreen() {
     setSearchResults([])
   }
 
-  // ── remove a member ────────────────────────────────────────────────────────
+  //  remove a member 
   const handleRemoveMember = (member: GroupMember) => {
     Alert.alert(
       "Remove member",
@@ -181,7 +178,7 @@ export default function GroupSettingsScreen() {
     )
   }
 
-  // ── leave group ────────────────────────────────────────────────────────────
+  //  leave group 
   const handleLeave = () => {
     Alert.alert(
       "Leave group",
@@ -203,52 +200,61 @@ export default function GroupSettingsScreen() {
     )
   }
 
-  // ── render one member row ──────────────────────────────────────────────────
+  //  render one member row 
   const renderMember = ({ item }: { item: GroupMember }) => {
     const isSelf = item.id === user?.id
 
     return (
-        
+
       <View style={[styles.memberRow, { borderBottomColor: theme.border }]}>
         {/* avatar */}
 
         <TouchableOpacity
-            style={styles.headerUser}
-            onPress={() =>  router.push(`/profile/${item.username}`)}>
-        <Image
-          source={{ uri: item.avatar ?? undefined }}
-          style={styles.memberAvatar}
-          contentFit="cover"
-        />
+          style={styles.headerUser}
+          onPress={() => router.push(`/profile/${item.username}`)}>
+          {item.avatar == null || !item.avatar || item.avatar == undefined ?
+            (
 
-        {/* name + admin badge */}
-        <View style={styles.memberInfo}>
-          <View style={styles.memberNameRow}>
-            <Text style={[styles.memberUsername, { color: theme.textPrimary }]}>
-              @{item.username}
-              {isSelf && (
-                <Text style={[styles.selfLabel, { color: theme.textMuted }]}> (You)</Text>
-              )}
-            </Text>
-
-            {/* admin crown badge */}
-            {item.is_admin && (
-              <View style={[styles.adminBadge, { backgroundColor: theme.primary + "20" }]}>
-                <Text style={[styles.adminBadgeText, { color: theme.primary }]}>
-                  👑 Admin
-                </Text>
+              <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(item.username)}` }]}>
+                <Text style={[{fontSize:FontSize.lg,color:"#fff"}]}>  {item.username.charAt(0)}</Text>
               </View>
+            ) : (
+              <Image
+                source={{ uri: item.avatar }}
+                style={styles.memberAvatar}
+                contentFit="cover"
+              />
+            )
+          }
+
+          {/* name + admin badge */}
+          <View style={styles.memberInfo}>
+            <View style={styles.memberNameRow}>
+              <Text style={[styles.memberUsername, { color: theme.textPrimary }]}>
+                @{item.username}
+                {isSelf && (
+                  <Text style={[styles.selfLabel, { color: theme.textMuted }]}> (You)</Text>
+                )}
+              </Text>
+
+              {/* admin crown badge */}
+              {item.is_admin && (
+                <View style={[styles.adminBadge, { backgroundColor: theme.primary + "20" }]}>
+                  <Text style={[styles.adminBadgeText, { color: theme.primary }]}>
+                    👑 Admin
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {item.joined_at && (
+              <Text style={[styles.joinedAt, { color: theme.textMuted }]}>
+                Joined {new Date(item.joined_at).toLocaleDateString("en-KE", {
+                  month: "short", day: "numeric", year: "numeric",
+                })}
+              </Text>
             )}
           </View>
-
-          {item.joined_at && (
-            <Text style={[styles.joinedAt, { color: theme.textMuted }]}>
-              Joined {new Date(item.joined_at).toLocaleDateString("en-KE", {
-                month: "short", day: "numeric", year: "numeric",
-              })}
-            </Text>
-          )}
-        </View>
         </TouchableOpacity>
 
         {/* remove button — admin only, can't remove self (use Leave instead) */}
@@ -270,7 +276,6 @@ export default function GroupSettingsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
 
-      {/* ── header ───────────────────────────────────────────────────────── */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -289,9 +294,9 @@ export default function GroupSettingsScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* ── group avatar section ─────────────────────────────────────── */}
+        {/*  group avatar section ─ */}
         <View style={styles.avatarSection}>
-          {conversation?.group_avatar ? (
+          {conversation?.group_avatar != null || conversation?.group_avatar || conversation?.group_avatar != undefined ? (
             <Image
               source={{ uri: conversation.group_avatar }}
               style={styles.largeAvatar}
@@ -321,7 +326,7 @@ export default function GroupSettingsScreen() {
           )}
         </View>
 
-        {/* ── group name section ───────────────────────────────────────── */}
+        {/*  group name section ─ */}
         <View style={[styles.section, { borderBottomColor: theme.border }]}>
           <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>GROUP NAME</Text>
 
@@ -363,7 +368,7 @@ export default function GroupSettingsScreen() {
                 {/* pencil icon — admin only */}
                 {isAdmin && (
                   <TouchableOpacity onPress={handleStartEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Text style={[styles.editIcon, { color: theme.primary }]}>✏️</Text>
+                    <Text style={[styles.editIcon, { color: theme.primary, fontSize: FontSize.lg, fontWeight: FontWeight.bold }]}>Edit</Text>
                   </TouchableOpacity>
                 )}
               </>
@@ -371,7 +376,7 @@ export default function GroupSettingsScreen() {
           </View>
         </View>
 
-        {/* ── members section ──────────────────────────────────────────── */}
+        {/*  members section  */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
@@ -393,25 +398,25 @@ export default function GroupSettingsScreen() {
 
           {membersLoading ? (
             <ActivityIndicator color={theme.primary} style={styles.membersLoader} />
-          ):
-           isError ? (
-                    <View style={styles.loading}>
-                      <Text style={styles.errorIcon}>⚠️</Text>
-                      <Text style={[styles.errorText, { color: theme.textMuted }]}>Failed to load members</Text>
-                      <TouchableOpacity style={[styles.retryBtn, { borderColor: theme.primary }]} onPress={()=>refetch()}>
-                        <Text style={[styles.retryText, { color: theme.primary }]}>Try again</Text>
-                      </TouchableOpacity>
-                    </View>) : (
-            <FlatList
-              data={members}
-              keyExtractor={(item) => item.id}
-              renderItem={renderMember}
-              scrollEnabled={false}  // parent ScrollView handles scrolling
-            />
-          )}
+          ) :
+            isError ? (
+              <View style={styles.loading}>
+                <Text style={styles.errorIcon}>⚠️</Text>
+                <Text style={[styles.errorText, { color: theme.textMuted }]}>Failed to load members</Text>
+                <TouchableOpacity style={[styles.retryBtn, { borderColor: theme.primary }]} onPress={() => refetch()}>
+                  <Text style={[styles.retryText, { color: theme.primary }]}>Try again</Text>
+                </TouchableOpacity>
+              </View>) : (
+              <FlatList
+                data={members}
+                keyExtractor={(item) => item.id}
+                renderItem={renderMember}
+                scrollEnabled={false}  // parent ScrollView handles scrolling
+              />
+            )}
         </View>
 
-        {/* ── leave group button — available to everyone ────────────────── */}
+        {/*  leave group button — available to everyone  */}
         <TouchableOpacity
           style={[styles.leaveBtn, { borderColor: Colors.error ?? "#EF4444" }]}
           onPress={handleLeave}
@@ -420,127 +425,145 @@ export default function GroupSettingsScreen() {
           {isLeaving
             ? <ActivityIndicator color={Colors.error ?? "#EF4444"} size="small" />
             : <Text style={[styles.leaveBtnText, { color: Colors.error ?? "#EF4444" }]}>
-                🚪  Leave Group
-              </Text>}
+              Leave Group
+            </Text>}
         </TouchableOpacity>
 
         {/* bottom padding so leave button isn't flush to the screen edge */}
         <View style={{ height: Spacing.xl }} />
       </ScrollView>
 
-      {/* ══════════════════════════════════════════════════════════════════
+      {/* 
           ADD MEMBERS MODAL — admin only
           Same search + chip pattern as the group creation screen
-      ══════════════════════════════════════════════════════════════════ */}
-      <Modal
-        visible={showAddModal}
-        transparent
-        animationType="slide"
-        onRequestClose={handleCloseAddModal}
+       */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={handleCloseAddModal}
-        />
-        <View style={[styles.modalSheet, { backgroundColor: theme.surface }]}>
-
-          {/* modal header */}
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
-              Add Members
-            </Text>
-            <TouchableOpacity onPress={handleCloseAddModal}>
-              <Text style={[styles.modalClose, { color: theme.textMuted }]}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* selected users chips */}
-          {selectedToAdd.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.chipsScroll}
-              contentContainerStyle={styles.chipsContent}
-            >
-              {selectedToAdd.map((member) => (
-                <TouchableOpacity
-                  key={member.id}
-                  style={[styles.chip, { backgroundColor: theme.primary + "20" }]}
-                  onPress={() => handleRemoveFromSelected(member.id)}
-                >
-                  <Image source={{ uri: member.avatar ?? undefined }} style={styles.chipAvatar} contentFit="cover" />
-                  <Text style={[styles.chipText, { color: theme.primary }]}>@{member.username}</Text>
-                  <Text style={[styles.chipRemove, { color: theme.primary }]}>×</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-
-          {/* search bar */}
-          <View style={[styles.searchRow, { borderColor: theme.border }]}>
-            <TextInput
-              style={[styles.searchInput, { color: theme.textPrimary }]}
-              placeholder="Search by username..."
-              placeholderTextColor={theme.textMuted}
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-            />
-            {isSearching && <ActivityIndicator size="small" color={theme.primary} />}
-          </View>
-
-          {/* search results */}
-          <FlatList
-            data={searchResults}
-            keyExtractor={(item) => item.id}
-            keyboardShouldPersistTaps="handled"
-            style={styles.resultsList}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.resultRow, { borderBottomColor: theme.border }]}
-                onPress={() => handleSelectToAdd(item)}
-              >
-                <Image source={{ uri: item.avatar ?? undefined }} style={styles.resultAvatar} contentFit="cover" />
-                <Text style={[styles.resultUsername, { color: theme.textPrimary }]}>
-                  @{item.username}
-                </Text>
-                <Text style={[styles.resultAdd, { color: theme.primary }]}>＋</Text>
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              searchQuery.length > 0 && !isSearching ? (
-                <View style={styles.emptyResults}>
-                  <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-                    No users found for "{searchQuery}"
-                  </Text>
-                </View>
-              ) : null
-            }
-          />
-
-          {/* confirm add button */}
+        <Modal
+          visible={showAddModal}
+          transparent
+          animationType="slide"
+          onRequestClose={handleCloseAddModal}
+        >
           <TouchableOpacity
-            style={[
-              styles.confirmBtn,
-              { backgroundColor: selectedToAdd.length > 0 ? theme.primary : theme.border },
-            ]}
-            onPress={handleConfirmAdd}
-            disabled={selectedToAdd.length === 0 || isAddingMembers}
-          >
-            {isAddingMembers
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.confirmBtnText}>
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={handleCloseAddModal}
+          />
+          <View style={[styles.modalSheet, { backgroundColor: theme.surface }]}>
+
+            {/* modal header */}
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
+                Add Members
+              </Text>
+              <TouchableOpacity onPress={handleCloseAddModal}>
+                <Text style={[styles.modalClose, { color: theme.textMuted }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* selected users chips */}
+            {selectedToAdd.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipsScroll}
+                contentContainerStyle={styles.chipsContent}
+              >
+                {selectedToAdd.map((member) => (
+                  <TouchableOpacity
+                    key={member.id}
+                    style={[styles.chip, { backgroundColor: theme.primary + "20" }]}
+                    onPress={() => handleRemoveFromSelected(member.id)}
+                  >
+                    {(member?.avatar === null || member?.avatar === undefined || !member.avatar.trim()) ?
+                      (<View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(member?.username ?? "DM")}` }]}>
+                        <Text>{member?.username.charAt(0)}</Text>
+                      </View>
+                      ) : (
+                        <Image source={{ uri: member.avatar ?? undefined }} style={styles.chipAvatar} contentFit="cover" />
+                      )}
+
+                    <Text style={[styles.chipText, { color: theme.primary }]}>@{member.username}</Text>
+                    <Text style={[styles.chipRemove, { color: theme.primary }]}>×</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* search bar */}
+            <View style={[styles.searchRow, { borderColor: theme.border }]}>
+              <TextInput
+                style={[styles.searchInput, { color: theme.textPrimary }]}
+                placeholder="Search by username..."
+                placeholderTextColor={theme.textMuted}
+                value={searchQuery}
+                onChangeText={handleSearchChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+              />
+              {isSearching && <ActivityIndicator size="small" color={theme.primary} />}
+            </View>
+
+            {/* search results */}
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
+              style={styles.resultsList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.resultRow, { borderBottomColor: theme.border }]}
+                  onPress={() => handleSelectToAdd(item)}
+                >
+                  {(item?.avatar === null || item?.avatar === undefined || !item.avatar.trim()) ?
+                      (<View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(item?.username ?? "DM")}` }]}>
+                        <Text>{item?.username.charAt(0)}</Text>
+                      </View>
+                      ) : (
+                        <Image source={{ uri: item.avatar ?? undefined }} style={styles.chipAvatar} contentFit="cover" />
+                      )}
+                  <Text style={[styles.resultUsername, { color: theme.textPrimary }]}>
+                    @{item.username}
+                  </Text>
+                  <Text style={[styles.resultAdd, { color: theme.primary }]}>＋</Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                searchQuery.length > 0 && !isSearching ? (
+                  <View style={styles.emptyResults}>
+                    <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+                      No users found for "{searchQuery}"
+                    </Text>
+                  </View>
+                ) : null
+              }
+            />
+
+            {/* confirm add button */}
+            <TouchableOpacity
+              style={[
+                styles.confirmBtn,
+                { backgroundColor: selectedToAdd.length > 0 ? theme.primary : theme.border },
+              ]}
+              onPress={handleConfirmAdd}
+              disabled={selectedToAdd.length === 0 || isAddingMembers}
+            >
+              {isAddingMembers
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={styles.confirmBtnText}>
                   Add {selectedToAdd.length > 0 ? `${selectedToAdd.length} member${selectedToAdd.length > 1 ? "s" : ""}` : "Members"}
                 </Text>}
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-        </View>
-      </Modal>
+          </View>
+        </Modal>
+      </KeyboardAvoidingView>
 
-    </SafeAreaView>
+    </SafeAreaView >
   )
 }
 
@@ -589,6 +612,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+  },
+  usernamePlcaholder: {
+    width: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    height: 28,
+    borderRadius: 14,
   },
   editAvatarIcon: { fontSize: 16 },
 
@@ -717,7 +747,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
     padding: Spacing.lg,
-    maxHeight: "80%",
+    minHeight: "80%",
     gap: Spacing.sm,
   },
   modalHeader: {
@@ -773,11 +803,11 @@ const styles = StyleSheet.create({
   },
   confirmBtnText: { color: "#fff", fontSize: FontSize.md, fontWeight: FontWeight.bold },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-   errorIcon: { fontSize: 32, marginBottom: Spacing.sm, textAlign: "center" },
+  errorIcon: { fontSize: 32, marginBottom: Spacing.sm, textAlign: "center" },
   errorText: { fontSize: FontSize.sm, textAlign: "center", marginBottom: Spacing.md },
   retryBtn: { borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
-   retryText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-   headerUser: {
+  retryText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  headerUser: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",

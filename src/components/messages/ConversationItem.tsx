@@ -28,13 +28,13 @@ interface Props {
 export const ConversationItem = ({ conversation, onDelete, typing, }: Props) => {
   const theme = useTheme()
   const { user } = useAuthStore()
-
   // get the other participant (not current user)
   const other = conversation.participants.find((p) => p.id !== user?.id)
     ?? conversation.participants[0]
   const timeAgo = formatTimeAgo(conversation.last_message_at)
   const swipeableRef = useRef<Swipeable>(null)
   const handleDelete = () => { onDelete(conversation.id) }
+  console.log("dm",other.avatar)
   const renderRightActions = () => (
     <TouchableOpacity
       style={styles.deleteAction}
@@ -157,8 +157,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   avatar: {
-    width: 52,
-    height: 52,
+    width: 40,
+    height: 40,
     borderRadius: 26,
     backgroundColor: Colors.gray[200],
   },
@@ -177,11 +177,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   usernamePlcaholder: {
-    width: 28,
+    width: 40,
     alignItems: "center",
     justifyContent: "center",
-    height: 28,
-    borderRadius: 14,
+    height: 40,
+ borderRadius: 26,
   },
   topRow: {
     flexDirection: "row",

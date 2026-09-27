@@ -61,8 +61,7 @@ export interface ReactionSummary {
   reacted_by_me: boolean
   reactors: string[]
 }
-
-export interface QuotedMessage {
+  export interface QuotedMessage {
   id: string
   sender_id: string
   sender_username: string
@@ -134,8 +133,9 @@ export interface GroupMember {
 }
 
 export interface UpdateGroupPayload {
+ conversationId: string
   group_name?: string
-  group_avatar?: string
+  group_avatar?: { uri: string; name: string; type: string }
 }
 export interface MessageApiResponse{
   success:boolean,
@@ -333,16 +333,34 @@ export const messagingService = {
    * Pass only the fields you want to change — both are optional
    * but at least one must be present (validated server-side).
    */
-  updateGroup: async (
-    conversationId: string,
-    payload: UpdateGroupPayload
-  ): Promise<Conversation> => {
-    const { data } = await messagingApi.patch(
-      `/conversations/groups/${conversationId}/`,
-      payload
-    )
-    return data
-  },
+
+ 
+updateGroup: async ({
+  conversationId,
+  group_name,
+  group_avatar,
+}: UpdateGroupPayload): Promise<Conversation> => {
+  const formData = new FormData()
+ 
+  if (group_name !== undefined) {
+    formData.append("group_name", group_name)
+  }
+ 
+  if (group_avatar !== undefined) {
+    formData.append("group_avatar", group_avatar as any)
+  }
+ 
+  const { data } = await messagingApi.patch(
+    `/conversations/groups/${conversationId}/`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+    // Note: on React Native, letting axios/fetch set the Content-Type
+    // automatically (with the multipart boundary) is safer than setting
+    // it manually. If uploads fail with a boundary error, remove this
+    // headers override.
+  )
+  return data
+},
 
 
 

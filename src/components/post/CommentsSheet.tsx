@@ -414,8 +414,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   closeIcon: {
-    fontSize: 14,
-    fontWeight: FontWeight.bold,
+    fontSize: 20,
+    fontWeight: FontWeight.extrabold,
   },
   commentsList: {
     paddingHorizontal: Spacing.xs,

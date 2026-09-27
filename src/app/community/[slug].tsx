@@ -1,6 +1,6 @@
 
 
-import  { useState, useCallback, useRef, useEffect, useMemo } from "react"
+import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import {
   View,
   StyleSheet,
@@ -33,6 +33,7 @@ import { communityservice } from "@/services/community.sevice"
 import GuidelinesModal from "@/components/community/GuideLines"
 import { AnimatedBanner, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
+import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
 import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 
@@ -68,7 +69,7 @@ export default function FeedScreen() {
 
   const [banner, setBanner] = useState<BannerState | null>(null);
   const slideAnim = useRef(new Animated.Value(-300)).current // 300 = drawer width
-  const [cMember,setCMember]=useState<string>("false")
+  const [cMember, setCMember] = useState<string>("false")
 
   const handleWSEventRef = useRef<(event: any) => void>(null)
   handleWSEventRef.current = useCallback((event: any) => {
@@ -202,10 +203,10 @@ export default function FeedScreen() {
     userId: user?.id ?? "",
     onEvent: stableHandler,
   })
-useEffect(()=>{
-  setCMember(is_member)
-} 
-,[])
+  useEffect(() => {
+    setCMember(is_member)
+  }
+    , [])
 
 
   const flatListRef = useRef<FlatList>(null)
@@ -233,7 +234,7 @@ useEffect(()=>{
 
   // minimal info only (avatar, name, description)  sprinkled into the feed below
   const { data: suggestedGroupsData } = useQuery({
-    queryKey: ["groups", "suggestions",user?.username??""],
+    queryKey: ["groups", "suggestions", user?.username ?? ""],
     queryFn: communityservice.getSuggestions,
     staleTime: 5 * 60 * 1000,
   })
@@ -311,6 +312,7 @@ useEffect(()=>{
   }, [])
   // update the local cache immediately  don't wait for API response
   const handleUpvote = useCallback((slug: string, upvoted: boolean) => {
+    console.log("poi")
     queryClient.setQueryData(
       ["com-feed", filters, selectedCategory, searchText, cslug],
       (old: typeof data) => {
@@ -325,8 +327,8 @@ useEffect(()=>{
                 p.slug === slug
                   ? {
                     ...p,
-                     is_upvoted: !p.is_upvoted,
-                      upvotes_count: p.upvotes_count + (p.is_upvoted && p.upvotes_count >= 0 ? -1 : 1),
+                    is_upvoted: !p.is_upvoted,
+                    upvotes_count: p.upvotes_count + (p.is_upvoted && p.upvotes_count >= 0 ? -1 : 1),
                   }
                   : p
               ),
@@ -357,7 +359,7 @@ useEffect(()=>{
     try {
       const data = await communityservice.joingroup(cslug ?? "")
       queryClient.invalidateQueries({ queryKey: ["groups", "suggestions"] })
-      queryClient.invalidateQueries({ queryKey: ["groups", "mine" ] })
+      queryClient.invalidateQueries({ queryKey: ["groups", "mine"] })
       if (data.message === "success") {
         setCMember("true")
         showBanner("success", `Joined ${communityname}`)
@@ -372,6 +374,7 @@ useEffect(()=>{
   }
 
   const handleSave = useCallback((post_slug: string, saved: boolean) => {
+    console.log("ggg")
     queryClient.setQueryData(
       ["com-feed", filters, selectedCategory, searchText, cslug],
       (old: typeof data) => {
@@ -383,7 +386,7 @@ useEffect(()=>{
             data: {
               ...page.data,
               posts: page.data.posts.map((p: Post) =>
-                p.slug === post_slug ? { ...p, is_saved: saved ,saves_count:saved?p.saves_count+1:p.saves_count-1} : p
+                p.slug === post_slug ? { ...p, is_saved: !p.is_saved, saves_count: p.saves_count + (p.is_saved && p.saves_count >= 0 ? -1 : 1) } : p
               ),
             },
           })),
@@ -583,6 +586,22 @@ useEffect(()=>{
               <View style={[styles.menuText, { backgroundColor: theme.background }]}>
                 <Text style={[styles.menuInnerText, { color: theme.textPrimary }]}>Comminity Guidlines</Text>
               </View></TouchableOpacity>
+              <TouchableOpacity onPress={
+                () => {
+                  router.push({
+                    pathname: `/community/communityinfo/${cslug}` as any,
+                    params: {
+                      slug: cslug,
+                      role:communityInfo?.role
+                    },
+
+                  })
+                  setMenuVisible(false)
+                }}>
+                <View style={[styles.menuText, { backgroundColor: theme.background }]}>
+                  <Text style={[styles.menuInnerText, { color: theme.textPrimary }]}>Comminity Info</Text>
+                </View>
+              </TouchableOpacity>
           </Animated.View>
         </>
       )}
@@ -635,23 +654,37 @@ useEffect(()=>{
           </View>
         </View>
         <View style={[styles.options, {}]}>
-          {(communityInfo?.cover_image==null || communityInfo?.cover_image==undefined)?(
-        <View style={[styles.avatar,{backgroundColor:getAvatarColor(communityInfo?.name??"")}]}>
-          <Text>{communityInfo?.name.charAt(0)}</Text>  
-        </View>
-        
-          ):(
-          <Image
-            source={{ uri: communityInfo?.cover_image ?? "" }}
-            style={styles.avatar}
-          />)}
+          {(communityInfo?.cover_image == null || communityInfo?.cover_image == undefined) ? (
+            <View style={[styles.avatar, { backgroundColor: getAvatarColor(communityInfo?.name ?? "") }]}>
+              <Text>{communityInfo?.name.charAt(0)}</Text>
+            </View>
+
+          ) : (
+            <Image
+              source={{ uri: communityInfo?.cover_image ?? "" }}
+              style={styles.avatar}
+            />)}
           <View style={[styles.groupname, { backgroundColor: theme.textPrimary, borderColor: Colors.success }]}>
             <Text numberOfLines={1}>{communityname}</Text></View>
 
           {cMember === "true" ? (
-            <Text onPress={() => router.push(`/community/createpost/${cslug}`)} style={[styles.innerText, { backgroundColor: theme.textPrimary }]}>Create Post</Text>
+            <View
+              style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 5 }]}
+            >
+              <Text onPress={() => router.push({
+                pathname: `/community/createpost/${cslug}`,
+                params: {
+                  cname: communityname
+                }
+              })} style={[styles.innerText, { color: theme.textPrimary, fontWeight: FontWeight.bold }]}>Create Post</Text>
+            </View>
           ) : is_member === "false" ? (
-            <Text onPress={() => handleJoin()} style={[styles.innerText, { backgroundColor: theme.textPrimary }]}>{joining ? "Joining" : "Join"}</Text>
+            <View
+              style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 5 }]}
+
+            >
+              <Text onPress={() => handleJoin()} style={[styles.innerText, { color: theme.textPrimary }]}>{joining ? "Joining" : "Join"}</Text>
+            </View>
           ) : null
           }
         </View>
@@ -717,18 +750,19 @@ useEffect(()=>{
             maxToRenderPerBatch={3}         // render 3 at a time
             windowSize={5}                  // keep 5 screens worth in memory
             initialNumToRender={2}          // start with just 2
-            // getItemLayout={(_, index) => ({
-            //   length: SCREEN_HEIGHT,        // approximate  actual varies by content
-            //   offset: SCREEN_HEIGHT * index,
-            //   index,
-            // })}
+          // getItemLayout={(_, index) => ({
+          //   length: SCREEN_HEIGHT,        // approximate  actual varies by content
+          //   offset: SCREEN_HEIGHT * index,
+          //   index,
+          // })}
           />
         )}
 
       {/*  auth prompt modal  */}
       {/* mounts at root level  shown globally when guest taps auth-required action */}
       <AuthPrompt />
-      <GuidelinesModal visible={guideLineModalVisisble} title={`${communityname}GuideLine `} onClose={() => setGuideLineModalVisisble(false)} guidelines={communityInfo?.rules ?? []} />
+      <UploadProgressBadge />
+      <GuidelinesModal visible={guideLineModalVisisble} title={`${communityname}${" "}GuideLine `} onClose={() => setGuideLineModalVisisble(false)} guidelines={communityInfo?.rules ?? []} />
     </SafeAreaView>
   )
 }
@@ -964,7 +998,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     paddingHorizontal: 2,
     borderWidth: 1,
-    maxWidth:150
+    maxWidth: 150
 
 
   },

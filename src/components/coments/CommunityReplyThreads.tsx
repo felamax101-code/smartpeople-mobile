@@ -111,7 +111,7 @@ if (isError){
 
       
       {/* load more */}
-      {data?.data.pagination.has_next && (
+      {data?.data?.pagination?.has_next && (
         <TouchableOpacity
           style={styles.loadMore}
           onPress={() => setPage((p) => p + 1)}

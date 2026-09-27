@@ -18,6 +18,7 @@ import { Colors, FontSize, FontWeight, Radius } from "@/constants/colors"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useTheme } from "@/hooks/useTheme"
 import { useEvent } from "expo"
+import { ToastProvider } from "../activityIndicator/ToastProvider"
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 export const CARD_HEIGHT = SCREEN_HEIGHT * 0.60
@@ -38,7 +39,7 @@ interface Props {
   deposit?: string | null
   installments?: string | null
   listing_type?: string | null
-onActiveMediaChange?: (
+  onActiveMediaChange?: (
     item: { type: "image" | "video"; url: string } | null,
     index: number
   ) => void
@@ -64,6 +65,7 @@ export const ImageCarousel = ({
   const [isFocused, setIsFocused] = useState(true)
   const theme = useTheme()
   const router = useRouter()
+
   // pause all videos when screen loses focus (navigating away)
   useFocusEffect(
     useCallback(() => {
@@ -72,10 +74,14 @@ export const ImageCarousel = ({
     }, [])
   )
   //if videos + images are received -join them
-  const mediaItems = [
-    ...(video || []).map((v) => ({ type: "video" as const, url: v.video })),
-    ...(images || []).map((img) => ({ type: "image" as const, url: img.image })),
-  ]
+const mediaItems = [
+  ...(video || [])
+    .filter((v) => !!v.video?.trim())
+    .map((v) => ({ type: "video" as const, url: v.video })),
+  ...(images || [])
+    .filter((img) => !!img.image?.trim())
+    .map((img) => ({ type: "image" as const, url: img.image })),
+]
 
   const totalItems = mediaItems.length
 
@@ -95,9 +101,17 @@ export const ImageCarousel = ({
 
     })
   }, [slug])
-useEffect(() => {
-  onActiveMediaChange?.(mediaItems[currentIndex] ?? null, currentIndex)
-}, [currentIndex, mediaItems.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    onActiveMediaChange?.(mediaItems[currentIndex] ?? null, currentIndex)
+  }, [currentIndex, mediaItems.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (totalItems === 0) {
+    
+  return (
+    <View style={[styles.container, { height: isDetail ? SCREEN_HEIGHT : CARD_HEIGHT, backgroundColor: "black", alignItems: "center", justifyContent: "center" }]}>
+      <Text style={{ color: "#fff" }}>No media available</Text>
+    </View>
+  )
+}
   return (
     <View style={[styles.container, { height: isDetail ? SCREEN_HEIGHT : CARD_HEIGHT }]}>
 
@@ -246,10 +260,13 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP }: { url: str
     p.loop = true
     p.muted = false
     p.playbackRate = SPEEDS[1]
+    p.timeUpdateEventInterval = 0.5
+
   })
 
   const { isPlaying } = useEvent(player, "playingChange", { isPlaying: player.playing })
-
+  const { status, error } = useEvent(player, "statusChange", { status: player.status })
+  const timeUpdate = useEvent(player, "timeUpdate")
   // play/pause effect —  only handles the isActive/visibility side
   useEffect(() => {
     if (isActive) {
@@ -262,24 +279,27 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP }: { url: str
   // sync mute
   useEffect(() => {
     player.muted = !isDetail ? isMuted : false
-  }, [isMuted, isDetail])
+  }, [isMuted, isDetail, player])
 
   // sync speed
   useEffect(() => {
     player.playbackRate = SPEEDS[speedIndex]
-  }, [speedIndex])
+  }, [speedIndex, player])
 
   // poll position every 500ms
+  // position now comes from the timeUpdate event, not a poll
   useEffect(() => {
-    if (!isActive) return
-    const id = setInterval(() => {
-      if (!seeking) {
-        setPosition(player.currentTime ?? 0)
-        setDuration(player.duration ?? 0)
-      }
-    }, 500)
-    return () => clearInterval(id)
-  }, [isActive, seeking])
+    if (!seeking && timeUpdate?.currentTime != null) {
+      setPosition(timeUpdate.currentTime)
+    }
+  }, [timeUpdate, seeking])
+
+  // duration becomes known once the player is ready
+  useEffect(() => {
+    if (status === "readyToPlay") {
+      setDuration(player.duration ?? 0)
+    }
+  }, [status])
 
   const cycleSpeed = () => setSpeedIndex((i) => (i + 1) % SPEEDS.length)
 
@@ -313,22 +333,30 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP }: { url: str
     const sec = Math.floor(s % 60)
     return `${m}:${sec.toString().padStart(2, "0")}`
   }
-
+if (status === "error") {
+  return (
+    <View style={[styles.image, { alignItems: "center", justifyContent: "center", backgroundColor: "black" }]}>
+      <Text style={{ color: "#fff" }}>
+        <MaterialCommunityIcons size={20} name="alert-circle-outline" /> Video unavailable
+      </Text>
+    </View>
+  )
+}
   return (
     <View style={{ flex: 1 }}>
       <VideoView
         player={player}
         style={styles.image}
         contentFit={isDetail ? "contain" : "cover"}
-        nativeControls={isDetail}
+        nativeControls={false}
       />
 
       {/* ── video controls overlay ── */}
-      {!isDetail &&
-        <View style={vc.overlay} pointerEvents="box-none">
+      {
+        <View style={[vc.overlay,{paddingBottom: isDetail?110:12,}]} pointerEvents="box-none">
 
           {/* centre row: skip-back | play-pause | skip-forward */}
-          <View style={vc.centreRow}>
+          <View style={[vc.centreRow]}>
             <TouchableOpacity style={vc.iconBtn} onPress={() => skipSeconds(-10)}>
               <Text style={vc.iconText}>
                 <MaterialCommunityIcons size={15} name="rewind-10" />
@@ -360,7 +388,7 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP }: { url: str
           </View>
 
           {/* bottom: seek bar + time + mute + speed */}
-          <View style={vc.bottomBar}>
+          <View style={[vc.bottomBar,{paddingRight:isDetail?50:undefined}]}>
             {/* seek bar */}
             <View
               style={[{ flex: 1, height: 30, backgroundColor: "transparent" }]}
@@ -485,7 +513,7 @@ const vc = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
-    paddingBottom: 12,
+    
   },
   centreRow: {
     flexDirection: "row",
@@ -522,6 +550,7 @@ const vc = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
+    
     gap: 8,
   },
   seekBarTrack: {

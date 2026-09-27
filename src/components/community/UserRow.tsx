@@ -19,12 +19,7 @@ export function UserRow({ avatarUrl, username, info, children }: UserRowProps) {
         <TouchableOpacity
           onPress={() => router.push(`/profile/${username}`)}>
 
-          {avatarUrl && avatarUrl != null ? (
-            <Image
-              source={avatarUrl as any}
-              style={styles.avatar}
-            />
-          ) : (
+          {!avatarUrl || avatarUrl==undefined || avatarUrl == null || !avatarUrl.trim() ? (
             <View
               style={[styles.usernamePlacaholder, { backgroundColor: getAvatarColor(username) }]}
             >
@@ -32,6 +27,11 @@ export function UserRow({ avatarUrl, username, info, children }: UserRowProps) {
                 style={[{ color: "white" }]}
               >{username.charAt(0)}</Text>
             </View>
+          ) : (
+            <Image
+              source={avatarUrl as any}
+              style={styles.avatar}
+            />
           )}
         </TouchableOpacity>
         <TouchableOpacity

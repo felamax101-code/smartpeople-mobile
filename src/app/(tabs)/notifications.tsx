@@ -1,6 +1,6 @@
 
 
-import  { useState, useCallback, useMemo } from "react"
+import  { useState, useCallback, useMemo ,useEffect} from "react"
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { useNotifications, NotificationFilter } from "@/hooks/useNotifications"
 import { NotificationItem } from "@/components/notifications/NotificationItem"
+import { messagingService } from "@/services/messaging.service"
+import { useMessageStore } from "@/stores/message.store"
 import { NotificationDateGroup } from "@/components/notifications/NotificationDateGroup"
 import { Notification } from "@/types"
 import { Spacing, Radius, FontSize, FontWeight, Colors } from "@/constants/colors"
@@ -55,6 +57,7 @@ export default function NotificationsScreen() {
   const { user } = useAuthStore()
   const [activeFilter, setActiveFilter] = useState<NotificationFilter>("all")
   const {showToast}=useToast()
+  const {setUnreadMessageCount}=useMessageStore()
   const {
     notifications,
     isLoading,
@@ -109,7 +112,13 @@ export default function NotificationsScreen() {
   })
     
   }, [deleteAll])
-
+useEffect(()=>{
+    if(!user) return
+    
+    messagingService.getUnreadCount().then(setUnreadMessageCount)
+    
+    
+  },[])
   //  render item 
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => {

@@ -28,6 +28,9 @@ import { SavedListingsGrid } from "@/components/profile/SavedProductGrid"
 import { useToast } from "@/components/activityIndicator/ToastProvider"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
+import { messagingService } from "@/services/messaging.service"
+import { useMessageStore } from "@/stores/message.store"
+import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
 type Tab = "My posts" | "reviews" | "about" | "saved"
 
 // 
@@ -86,6 +89,8 @@ function AuthenticatedProfile({ user, theme }: { user: any; theme: any }) {
   const [activeTab, setActiveTab] = useState<Tab>("My posts")
   const [showReviewForm, setShowReviewForm] = useState(false)
   const queryClient = useQueryClient()
+    const {setUnreadMessageCount}=useMessageStore()
+
   const [myExistingReview, setMyExistingReview] = useState<{
     rating: number
     comment: string
@@ -115,6 +120,13 @@ function AuthenticatedProfile({ user, theme }: { user: any; theme: any }) {
       setUser(profile)
     }
   }, [profile])
+  useEffect(()=>{
+      if(!user) return
+      
+      messagingService.getUnreadCount().then(setUnreadMessageCount)
+      
+      
+    },[])
   const {
     listings,
     totalCount: listingsCount,
@@ -361,6 +373,7 @@ function AuthenticatedProfile({ user, theme }: { user: any; theme: any }) {
           />
         )}
       </ScrollView>
+      <UploadProgressBadge/>
     </SafeAreaView>
   )
 }

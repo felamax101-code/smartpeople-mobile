@@ -32,7 +32,7 @@ export interface RemoveMemberPayload {
 export interface UpdateGroupPayload {
     conversationId: string
     group_name?: string
-    group_avatar?: string
+    group_avatar?: { uri: string; name: string; type: string }
 }
 
 //  Hook 
@@ -109,19 +109,17 @@ export const useGroupManagement = (conversationId?: string) => {
     })
 
     //  update group name / avatar (admin only) 
-    const updateGroupMutation = useMutation({
-        mutationFn: ({ conversationId, ...rest }: UpdateGroupPayload) =>
-            messagingService.updateGroup(conversationId, rest),
-
-        onSuccess: (updated) => {
-            // Update the conversation in the list with the new name/avatar
-            queryClient.setQueryData(
-                ["conversations"],
-                (old: any[] | undefined) =>
-                    old?.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)) ?? []
-            )
-        },
-    })
+   const updateGroupMutation = useMutation({
+  mutationFn: (payload: UpdateGroupPayload) => messagingService.updateGroup(payload),
+ 
+  onSuccess: (updated) => {
+    queryClient.setQueryData(
+      ["conversations"],
+      (old: any[] | undefined) =>
+        old?.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)) ?? []
+    )
+  },
+})
 
     //  handle group WS events (call these from your WS onEvent handler) 
 

@@ -29,12 +29,15 @@ import { useWebSocket } from "@/hooks/useWebSocket"
 import { loadFeedCache,saveFeedCache } from "@/hooks/useFeedCacheHelper"
 import LoadingIndicator from "@/components/ui/loadingindicator"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
-
+import { useMessageStore } from "@/stores/message.store"
+import { messagingService } from "@/services/messaging.service"
+import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 // how many posts from the end to trigger prefetch
 const PREFETCH_THRESHOLD = 3
 export default function FeedScreen() {
+  const {setUnreadMessageCount}=useMessageStore()
   const theme = useTheme()
   const scrollOffsetRef=useRef(0)
   const [filters, setFilters] = useState<FeedFilters>({
@@ -180,7 +183,13 @@ export default function FeedScreen() {
     onEvent: stableHandler,
   })
 
-
+  useEffect(()=>{
+    if(!user) return
+    
+    messagingService.getUnreadCount().then(setUnreadMessageCount)
+    
+    
+  },[user])
   // const viewabilityConfig = { itemVisiblePercentThreshold: 65}
 
   const flatListRef = useRef<FlatList>(null)
@@ -502,7 +511,7 @@ useEffect(() => {
               onPress={()=>setCategorydropdownVisible((v)=>!v)}
               >
                 <Text
-                style={[{color:theme.primary,fontSize:FontSize.lg}]}
+                style={[{color:theme.textPrimary,fontSize:FontSize.lg}]}
                 >
                   More
                 </Text>
@@ -584,7 +593,7 @@ useEffect(() => {
       {/*  auth prompt modal  */}
       {/* mounts at root level — shown globally when guest taps auth-required action */}
       <AuthPrompt />
-
+<UploadProgressBadge/>
     </SafeAreaView>
   )
 }

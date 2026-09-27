@@ -31,6 +31,7 @@ import { useAuthStore } from "@/stores/auth.store"
 import { DownloadProgressRing } from "../ui/DownloadProgress"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
 import { useToast } from "../activityIndicator/ToastProvider"
+import { parseText } from "@/hooks/useTextParser"
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
 
 interface Props {
@@ -292,7 +293,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
                     setExpanded((v) => !v) :
                     null
                 } activeOpacity={0.8}>
-                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? post.description : truncate(post.description)}</Text>
+                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : truncate(parseText(post.description) as unknown as string)}</Text>
                 </TouchableOpacity>
               </View>
               {post.description.length > 150 && (
@@ -319,7 +320,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
                     null
                 } activeOpacity={0.8}>
                   <View>
-                    <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? post.description : truncate(post.description)}</Text>
+                    <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : truncate(parseText(post.description) as unknown as string)}</Text>
 
                   </View>
                 </TouchableOpacity>
@@ -435,11 +436,16 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
                   onPress={() => setShareModalVisible(false)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
-                    Select share action            </Text>
-                  <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
-                    Cancel
-                  </Text>
+                 <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
+                      Select share action
+                       </Text>
+                      <View
+                      style={[{backgroundColor:theme.primary,borderRadius:Radius.md,paddingHorizontal:3}]}
+                      >
+                    <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
+                      Cancel
+                    </Text>
+                    </View>
                 </TouchableOpacity>
                 {!isSP && <TouchableOpacity
                   style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}

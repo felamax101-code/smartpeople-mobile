@@ -495,8 +495,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   resultAvatar: {
-    width: 44,
-    height: 44,
+    width: 28,
+    height: 28,
     borderRadius: 22,
     backgroundColor: Colors.gray[200],
   },

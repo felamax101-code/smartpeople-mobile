@@ -33,6 +33,7 @@ import { useToast } from "@/components/activityIndicator/ToastProvider"
 import truncate from "@/hooks/useTruncateBody"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
 import {MaterialCommunityIcons} from "@expo/vector-icons"
+import { parseText } from "@/hooks/useTextParser"
 // scroll offset at which header becomes solid
 const HEADER_SOLID_THRESHOLD = CARD_HEIGHT - 80
 interface BannerState {
@@ -461,8 +462,8 @@ export default function PostDetailScreen() {
             <Text
               style={[styles.commentsPreviewText, { color:"white" }]}
             >{expanded ?
-              post.description
-              : truncate(post.description, 50)}
+              parseText(post.description)
+              : truncate(parseText(post.description) as unknown as string, 50)}
 
             </Text>
             

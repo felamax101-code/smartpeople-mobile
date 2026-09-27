@@ -12,7 +12,7 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme"
-import { useRouter } from "expo-router"
+import { useRouter,useLocalSearchParams } from "expo-router"
 import { useSearch, } from "@/hooks/useSearch"
 import { SearchResultCard } from "@/components/search/SearchResultCard"
 import { SearchFilterBar } from "@/components/search/SearchFilterBar"
@@ -20,10 +20,12 @@ import { AuthPrompt } from "@/components/auth/AuthPrompt"
 import { Post, SearchableUser } from "@/types"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { useQueryClient } from "@tanstack/react-query"
-
+import { useMessageStore } from "@/stores/message.store"
+import { messagingService } from "@/services/messaging.service"
 import { UserRow } from "@/components/community/UserRow"
 import { ActionButton } from "@/components/community/ActionButton"
-
+import { useAuthStore } from "@/stores/auth.store"
+import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
 type TABS = "posts" | "users" | "communities"
 
 
@@ -42,8 +44,11 @@ export default function SearchScreen() {
   const router = useRouter()
   const inputRef = useRef<TextInput>(null)
   const queryClient = useQueryClient()
+    const { search } = useLocalSearchParams<{ search: string;  }>();
+  
+  const {setUnreadMessageCount}=useMessageStore()
   const [activeTab, setActiveTab] = useState<TABS>("posts")
-
+const {user}=useAuthStore()
   const {
     query,
     setQuery,
@@ -98,7 +103,13 @@ export default function SearchScreen() {
       }
     )
   }, [queryClient, debouncedQuery, filters])
-
+useEffect(()=>{
+    if(!user) return
+    
+    messagingService.getUnreadCount().then(setUnreadMessageCount)
+    
+    
+  },[])
   const handleSave = useCallback((postId: string, saved: boolean) => {
     queryClient.setQueryData(
       ["search", debouncedQuery, filters],
@@ -140,7 +151,11 @@ export default function SearchScreen() {
     ),
     []
   )
-
+useEffect(()=>{
+  if(search){
+    setQuery(search)
+  }
+},[search])
   const renderResult = useCallback(
     ({ item }: { item: Post }) => (
       <SearchResultCard
@@ -456,7 +471,7 @@ export default function SearchScreen() {
 
 
 
-
+<UploadProgressBadge/>
       <AuthPrompt />
     </SafeAreaView>
   )

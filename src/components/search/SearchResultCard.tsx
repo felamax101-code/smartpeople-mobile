@@ -19,7 +19,7 @@ import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/color
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
 import truncate from "@/hooks/useTruncateBody"
 import {Ionicons} from "@expo/vector-icons"
-
+import {MaterialCommunityIcons} from "@expo/vector-icons"
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
 const GRID_IMAGE = (SCREEN_WIDTH / 2) - Spacing.lg
 const LIST_IMAGE = 90
@@ -259,16 +259,20 @@ export const SearchResultCard = ({
             onPress={handleUpvote}
           >
             <Text style={styles.interactionIcon}>
-              {post.is_upvoted ? "❤️" : "🤍"}
+                              {post.is_upvoted ? <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={`${theme.primary}`} /> : <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={"white"} />}
+              
             </Text>
-            <Text style={[styles.interactionCount, { color: theme.textMuted }]}>
+            <Text style={[styles.interactionCount, { color: "#fff" }]}>
               {post.upvotes_count}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.interaction}>
-            <Text style={styles.interactionIcon}>💬</Text>
-            <Text style={[styles.interactionCount, { color: theme.textMuted }]}>
+            <Text style={styles.interactionIcon}>
+                              <MaterialCommunityIcons name="comment-outline" color={`${theme.primary}`} size={20} />
+              
+            </Text>
+            <Text style={[styles.interactionCount, { color: "#fff" }]}>
               {post.comments_count}
             </Text>
           </View>

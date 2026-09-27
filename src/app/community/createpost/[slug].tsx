@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react"
+import { useState, useCallback,useEffect } from "react"
 import {
   View,
   Text,
@@ -14,8 +14,9 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams ,useFocusEffect} from "expo-router"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery,useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
+import { useUploadQueue } from "@/components/createpost/UploadQueuecontext"
 
 import { useAuthStore } from "@/stores/auth.store"
 import { useLocation } from "@/hooks/useLocation"
@@ -30,6 +31,7 @@ import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIn
 import { communityservice } from "@/services/community.sevice"
 import { VideoEditScreen } from "@/components/editor/VideoEditScreen"
 import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 //  screen steps ─
 type Step =
   | "media_type"    // choose images or video
@@ -43,8 +45,8 @@ type Step =
 function SellScreen() {
   const theme = useTheme()
   const { user } = useAuthStore()
-  const { slug } = useLocalSearchParams<{ slug: string }>()
-
+  const { slug,cname } = useLocalSearchParams<{ slug: string,cname:string }>()
+const queryClient=useQueryClient()
 
   //  step state 
   const [step, setStep] = useState<Step>("media_type")
@@ -53,7 +55,8 @@ function SellScreen() {
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
   const [opengalleryDisabled, setopengalleryDisabled] = useState(false)
   const [banner, setBanner] = useState<BannerState | null>(null);
-
+  const [isSubmitting, setIsSubmitting] = useState(false)
+const {showNotifToast}=useNotificationToast()
   //  form state 
   const [form, setForm] = useState({
     name: "",
@@ -66,6 +69,7 @@ function SellScreen() {
   const [mediaError, setMediaErrors] = useState<string | null>()
   //  location (auto GPS) 
   const { location: gpsLocation } = useLocation()
+  const { startUpload } = useUploadQueue()
 
   //  fetch categories 
   const { data: categoriesData,isError,refetch } = useQuery({
@@ -74,66 +78,20 @@ function SellScreen() {
     staleTime: 10 * 60 * 1000,
   })
 
-  //  submit mutation 
-  const submitMutation = useMutation({
-    mutationFn: async () => {
-      setStep("uploading")
-      setopengalleryDisabled(true)
-      setUploadProgress({ done: 0, total: selectedUris.length })
-      // Build mediaFiles array from selected URIs
-      const mediaFiles = selectedUris.map((uri) => ({
-        uri,
-        name: uri.split("/").pop() ?? "file",
-        type: mediaType === "image" ? "image/jpeg" : "video/mp4",
-      }))
-
-      setUploadProgress({ done: selectedUris.length, total: selectedUris.length })
-      return communitylistingService.createListing({
-        name: form.name.trim(),
-        description: form.description.trim(),
-        category: form.category,
-        post_type: mediaType,
-        mediaFiles,
-        mediaType: mediaType === "image" ? "photo" : "video",
-        location_display: form.location.trim(),
-        location_lat: gpsLocation?.lat ?? 0,
-        location_lng: gpsLocation?.lng ?? 0,
-      }, slug)
-    },
-    onSuccess: (post: Post) => {
-      setStep("success")
-      // navigate to the new listing after short delay
-      setTimeout(() => {
-        router.push(`/community/post/${post.slug}`)
+  const categories: Category[] = categoriesData?.data ?? []
 
 
-      }, 1500)
-      setTimeout(() => {
-
-        setopengalleryDisabled(false)
-
-      }, 2000)
-      setStep("media_type")
+  useEffect(() => {
+    if (step === "media_type") {
       setForm({
         name: "",
         description: "",
         category: "",
         location: "",
-      })
-
-      setthereIsErrors(false)
-      setMediaErrors(null)
-    },
-    onError: (error: any) => {
-      setopengalleryDisabled(false)
-      setStep("form")
-      const detail = error?.response?.data?.detail ?? "Failed to post listing. Try again."
-      showBanner("error", detail)
-    },
-  })
-  const categories: Category[] = categoriesData?.data ?? []
-
-
+      });
+      setSelectedUris([])
+    }
+  }, [step])
   useFocusEffect(
       useCallback(() => {
         const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -194,13 +152,58 @@ function SellScreen() {
     return Object.keys(newErrors).length === 0
   }
   const [thereIsErrors, setthereIsErrors] = useState(false)
-  const handleSubmit = () => {
-    if (!validate()) {
-      setthereIsErrors(true)
-      return
-    }
-    submitMutation.mutate()
-  }
+ const handleSubmit = () => {
+     if (!validate()) {
+       setthereIsErrors(true)
+       return
+     }
+     if (isSubmitting) return // guard against a double-tap firing two uploads
+     setIsSubmitting(true)
+     setopengalleryDisabled(true)
+ 
+     startUpload(
+       {
+         name: form.name.trim(),
+         description: form.description.trim(),
+         categoryId: form.category,
+         locationDisplay: form.location.trim(),
+         postType: mediaType, // "text" | "image" | "video"
+         mediaType: mediaType === "image" ? "photo" : mediaType === "video" ? "video" : undefined,
+         mediaUris: mediaType === "text" ? [] : selectedUris,
+       },
+       {
+         onDone: (postId, postSlug) => {
+           queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
+          setTimeout(()=>{
+            router.push(`/community/post/${postSlug}`)
+          },3000)
+           
+         },
+         onFailed: (error) => {
+           showNotifToast("Failed to upload post","error")
+         },
+       },
+       true,slug
+       
+     )
+ 
+     // leave immediately — the upload continues in the background via the
+     // floating badge. 
+     router.back()
+ 
+     setStep("media_type")
+     setForm({
+       name: "",
+       description: "",
+       category: "",
+       location: "",
+     })
+     setSelectedUris([])
+     setthereIsErrors(false)
+     setMediaErrors(null)
+     setIsSubmitting(false)
+     setopengalleryDisabled(false)
+   }
   //  auth check 
   if (!user) {
     return (
@@ -293,6 +296,9 @@ function SellScreen() {
           <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
             New post
           </Text>
+           {cname && <Text style={[styles.headerTitle, { color: theme.primary,fontSize:FontSize.lg,fontWeight:FontWeight.bold }]}>
+              [To {cname}]
+            </Text>}
           <View style={{ width: 40 }} />
         </View>
 
@@ -404,11 +410,14 @@ if (step === "image_edit") {
               <Text style={[styles.headerBack, { color: theme.textPrimary }]}>←</Text>
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-              post Details
+              Post Details
             </Text>
+            {cname && <Text style={[styles.headerTitle, { color: theme.primary,fontSize:FontSize.lg,fontWeight:FontWeight.bold }]}>
+              [To {cname}]
+            </Text>}
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={submitMutation.isPending}
+              disabled={isSubmitting}
             >
               <Text style={[styles.postButton, { color: theme.primary }]}>
                 Post
@@ -530,7 +539,7 @@ if (step === "image_edit") {
                 <TouchableOpacity
                   style={[styles.submitButton, { backgroundColor: theme.primary }]}
                   onPress={handleSubmit}
-                  disabled={submitMutation.isPending}
+                 disabled={isSubmitting}
                   activeOpacity={0.85}
                 >
                   <Text style={styles.submitButtonText}>
@@ -679,20 +688,19 @@ if (step === "image_edit") {
                       Correct the above errors                  </Text>
                   )}
                   {/* submit button */}
-                  <TouchableOpacity
-                    style={[styles.submitButton, { backgroundColor: theme.primary }]}
-                    onPress={handleSubmit}
-                    disabled={submitMutation.isPending}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.submitButtonText}>
-                      🏷️ Post
-                    </Text>
-                  </TouchableOpacity>
+                 <TouchableOpacity
+                                     style={[styles.submitButton, { backgroundColor: theme.primary }]}
+                                     onPress={handleSubmit}
+                                     disabled={isSubmitting}
+                                     activeOpacity={0.85}
+                                   >
+                                     <Text style={styles.submitButtonText}>
+                                       Post
+                                     </Text>
+                                   </TouchableOpacity>
 
-                  {/* pending notice */}
                   <Text style={[styles.pendingNotice, { color: theme.textMuted }]}>
-                    ℹ️ Posts are reviewed by our team before going live. Usually within a moment.
+                    Posts are reviewed by our team before going live. Usually within a moment.
                   </Text>
 
                 </View>

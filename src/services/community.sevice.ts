@@ -84,6 +84,8 @@ export interface CreateGroupPayload {
   privacy: GroupPrivacy
   rules: string[]
   cover_image?: string | null
+  members?:string
+  members_count?:number
 }
 
 export interface CreateGroupResponse {
@@ -141,7 +143,7 @@ export const communityservice = {
   },
 
   deleteListing: async (slug: string): Promise<void> => {
-    const { data } = await api.post(`/groups/posts/`, { slug })
+    const { data } = await api.delete(`/groups/post/${slug}/`)
     return data
   },
   //  post detail 
@@ -290,6 +292,19 @@ export const communityservice = {
   }> => {
     const { data } = await api.post("/groups/join/community/", {
       slug: slug
+    })
+    return data
+  },
+  leavegroup: async (slug: string): Promise<{
+
+
+    message: string
+
+  }> => {
+    const { data } = await api.delete("/groups/join/community/", {
+    params:{ 
+       slug: slug
+      }
     })
     return data
   },

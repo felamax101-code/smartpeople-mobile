@@ -10,6 +10,7 @@ import { StatusBar } from "expo-status-bar";
 import {Stack} from 'expo-router';
 import { AppReady } from '@/components/AppReady';
 import { ToastNotificationProvider } from '@/components/activityIndicator/ToastNotification';
+import { UploadQueueProvider } from '@/components/createpost/UploadQueuecontext';
 SplashScreen.preventAutoHideAsync();
 
 function InnerLayout() {
@@ -46,15 +47,19 @@ export default function TabLayout(
 
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        
       <AppReady>
       <ToastProvider>
         <ToastNotificationProvider>
+          <UploadQueueProvider>
       <QueryClientProviders>
         <InnerLayout/>
       </QueryClientProviders>
+      </UploadQueueProvider>
       </ToastNotificationProvider>
       </ToastProvider>
       </AppReady>
+      
       </GestureHandlerRootView>
     </ThemeProvider>
   );

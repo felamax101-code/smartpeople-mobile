@@ -9,7 +9,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
@@ -20,6 +19,7 @@ import { useTheme } from "@/hooks/useTheme"
 import { useGroupManagement } from "@/hooks/useGroupManagement"
 import { messagingService } from "@/services/messaging.service"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 
 export default function GroupAvatarScreen() {
   const theme = useTheme()
@@ -29,7 +29,7 @@ export default function GroupAvatarScreen() {
   // local preview URI — shown after the user picks before they confirm
   const [previewUri, setPreviewUri] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-
+  const {showNotifToast}=useNotificationToast()
   const isBusy = isUploading || isUpdating
 
   // ── Step 1: pick an image ─────────────────────────────────────────────────
@@ -41,13 +41,13 @@ export default function GroupAvatarScreen() {
     if (source === "camera") {
       const { status } = await ImagePicker.requestCameraPermissionsAsync()
       if (status !== "granted") {
-        Alert.alert("Permission needed", "Camera access is required to take a photo.")
+        showNotifToast("Permission needed.Camera access is required to take a photo.","error")
         return
       }
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
       if (status !== "granted") {
-        Alert.alert("Permission needed", "Photo library access is required.")
+        showNotifToast("Permission needed. Photo library access is required.","error")
         return
       }
     }
@@ -91,39 +91,31 @@ export default function GroupAvatarScreen() {
   // Uploads to your FastAPI /upload/ endpoint as multipart/form-data,
   // then saves the returned URL to the group via PATCH /groups/{id}/
   const handleSave = async () => {
-    if (!previewUri) return
-
-    try {
-      setIsUploading(true)
-
-      // build a FormData object — React Native's fetch handles multipart natively
-      const formData = new FormData()
-      formData.append("file", {
-        uri: previewUri,
-        name: `group-avatar-${conversationId}.jpg`,
-        type: "image/jpeg",
-      } as any)   // 'as any' needed — RN's FormData type doesn't match the web spec
-
-      const uploadedUrl = await messagingService.uploadImage(formData)
-
-      // save URL to the group — triggers group_updated WS event to all members
-      updateGroup(
-        { conversationId, group_avatar: uploadedUrl },
-        {
-          onSuccess: () => {
-            router.back()   // return to settings screen — header updates automatically
-          },
-          onError: () => {
-            Alert.alert("Error", "Avatar uploaded but failed to save. Try again.")
-          },
-        }
-      )
-    } catch {
-      Alert.alert("Upload failed", "Could not upload image. Check your connection.")
-    } finally {
-      setIsUploading(false)
-    }
+  if (!previewUri) return
+ 
+  try {
+    setIsUploading(true)
+ 
+    updateGroup(
+      {
+        conversationId,
+        group_avatar: {
+          uri: previewUri,
+          name: `group-avatar-${conversationId}.jpg`,
+          type: "image/jpeg",
+        },
+      },
+      {
+        onSuccess: () => router.back(),
+        onError: () => showNotifToast("Avatar upload failed. Try again.", "error"),
+      }
+    )
+  } catch {
+    showNotifToast("Upload failed", "error")
+  } finally {
+    setIsUploading(false)
   }
+}
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>

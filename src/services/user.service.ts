@@ -99,7 +99,7 @@ export const userService = {
     page = 1
   ): Promise<FeedApiResponse> => {
     const { data } = await api.get(ENDPOINTS.FEED, {
-      params: { seller: username, page, status: "approved" },
+      params: { user: username, page, status: "approved" },
     })
     return data
   },

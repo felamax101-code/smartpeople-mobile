@@ -3,23 +3,15 @@ import { Tabs } from "expo-router"
 import { Text ,View} from "react-native"
 import { useTheme } from "@/hooks/useTheme"
 import { useMessageStore } from "@/stores/message.store"
-import { messagingService } from "@/services/messaging.service"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useAuthStore } from "@/stores/auth.store"
 export default function TabLayout() {
   // ALL hooks at top — no conditions before these
   const theme = useTheme()
   const {user}=useAuthStore()
-  const {unreadMesageCount,setUnreadMessageCount}=useMessageStore()
+  const {unreadMesageCount}=useMessageStore()
 
-  useEffect(()=>{
-    if(!user) return
-    const interval=setInterval(async()=>{
-      const res= await messagingService.getUnreadCount()
-      setUnreadMessageCount(res)
-    },12000)
-    return ()=>clearInterval(interval)
-  })
+
   return (
     <Tabs
       screenOptions={{

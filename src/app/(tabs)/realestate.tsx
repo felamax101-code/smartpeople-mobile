@@ -31,7 +31,10 @@ import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { loadFeedCache, saveFeedCache } from "@/hooks/useFeedCacheHelper"
 import LoadingIndicator from "@/components/ui/loadingindicator"
 import { propertyApplicationService } from "@/hooks/useSPapplication"
+import { useMessageStore } from "@/stores/message.store"
+import { messagingService } from "@/services/messaging.service"
 import { spfeedService } from "@/services/realestate.service"
+import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 // how many posts from the end to trigger prefetch
@@ -46,145 +49,20 @@ export default function FeedScreen() {
     const [searchText, setSearchText] = useState("")
     const [filterVisible, setFilterVisible] = useState(false)
       const [menuVisible, setMenuVisible] = useState<boolean>(false)
-    
+    const {setUnreadMessageCount}=useMessageStore()
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
     const [categorydropdownVisisble, setCategorydropdownVisible] = useState<boolean>(false)
     const queryClient = useQueryClient()
     const feedQueryKey = ["feed", filters, selectedCategory, searchText]
     const { user } = useAuthStore()
-    const handleWSEventRef = useRef<(event: any) => void>(null)
-    handleWSEventRef.current = useCallback((event: any) => {
-        switch (event.type) {
-            case "new_post": {
-                queryClient.setQueryData(feedQueryKey, (old: any) => {
-                    if (!old?.pages?.length) return old
-                    const alreadyExist = old.pages.some((page: any) =>
-                        page.data.posts?.some((p: any) => p.id === event.data.id))
-                    if (alreadyExist) return old
-                    return {
-                        ...old,
-                        pages: [
-                            {
-                                //                 ...old.pages[0],
-                                data: {
-                                    ...old.pages[0].data,
-                                    posts: [
-                                        event.data,
-                                        ...old.pages[0].data.posts,
-                                    ],
-                                },
-                            },
-                            ...old.pages.slice(1),
-                        ],
-                    }
-                })
-                break
-            }
-
-            case "post_removed": {
-                queryClient.setQueryData(feedQueryKey, (old: any) => {
-                    if (!old?.pages) return old
-
-                    return {
-                        ...old,
-                        pages: old.pages.map((page: any) => ({
-                            ...page,
-                            data: {
-                                ...page.data,
-                                posts: page.data.posts.filter(
-                                    (p: any) => p.id !== event.data.id
-                                ),
-                            },
-                        })),
-                    }
-                })
-                break
-            }
-
-            case "post_updated": {
-                queryClient.setQueryData(feedQueryKey, (old: any) => {
-                    if (!old?.pages) return old
-
-                    return {
-                        ...old,
-                        pages: old.pages.map((page: any) => ({
-                            ...page,
-                            data: {
-                                ...page.data,
-                                posts: page.data.posts.map((p: any) =>
-                                    p.id === event.data.id
-                                        ? { ...p, ...event.data }
-                                        : p
-                                ),
-                            },
-                        })),
-                    }
-                })
-                break
-            }
-
-            case "change_upvotes_count_post": {
-                queryClient.setQueryData(feedQueryKey, (old: any) => {
-                    if (!old?.pages) return old
-
-                    return {
-                        ...old,
-                        pages: old.pages.map((page: any) => ({
-                            ...page,
-                            data: {
-                                ...page.data,
-                                posts: page.data.posts.map((p: Post) =>
-                                    p.id === event.data.id
-                                        ? { ...p, ...event.data }
-                                        : p
-                                ),
-                            },
-                        })),
-                    }
-                })
-                break
-            }
-
-            case "change_comments_count_post": {
-                queryClient.setQueryData(feedQueryKey, (old: any) => {
-                    if (!old?.pages) return old
-
-                    return {
-                        ...old,
-                        pages: old.pages.map((page: any) => ({
-                            ...page,
-                            data: {
-                                ...page.data,
-                                posts: page.data.posts.map((p: any) =>
-                                    p.id === event.data.id
-                                        ? { ...p, ...event.data }
-                                        : p
-                                ),
-                            },
-                        })),
-                    }
-                });
-                queryClient.setQueryData(["post", event.data.slug], (old: any) => ({
-                    ...old,
-                    comments_count: event.data.comments_count,
-                }));
-                break
-            }
-
-
-
-        }
-    }, [feedQueryKey])
-
-    const stableHandler = useCallback((event: any) => {
-        handleWSEventRef.current?.(event)
-    }, [])
-
-    const { status } = useWebSocket({
-        userId: user?.id ?? "",
-        onEvent: stableHandler,
-    })
-
+   
+    useEffect(()=>{
+    if(!user) return
+    
+    messagingService.getUnreadCount().then(setUnreadMessageCount)
+    
+    
+  },[])
     const { data: statusData, isLoading: isCheckingStatus } = useQuery({
   queryKey: ["property-application-status",user?.username??""],
   queryFn: propertyApplicationService.getMyStatus,
@@ -264,26 +142,7 @@ export default function FeedScreen() {
         initialPageParam: 1,
         staleTime: 2 * 60 * 1000,  // feed stays fresh for 2 mins before background refetch
     })
-    // useEffect(() => {
-    //     // Only hydrate the default view (no active filters/search),
-    //     // since that's the state the user lands on when opening the app
-    //     if (!selectedCategory && !searchText) {
-    //         loadFeedCache().then((cached) => {
-    //             if (cached) {
-    //                 queryClient.setQueryData(["sp-feed", filters, selectedCategory, searchText], {
-    //                     pages: [cached.page],
-    //                     pageParams: [1],
-    //                 });
-    //             }
-    //         });
-    //     }
-    // }, []);
-    // useEffect(() => {
-    //     if (data?.pages?.[0] && !selectedCategory && !searchText) {
-    //         saveFeedCache(data.pages[0]);
-    //     }
-    // }, [data?.pages?.[0]]);
-    // flatten all pages into a single post array
+    
     const posts: Post[] = data?.pages.flatMap((page: any) => page.data.posts ?? []) ?? []
 
     //  prefetch next page 
@@ -662,6 +521,7 @@ export default function FeedScreen() {
             {/*  auth prompt modal  */}
             {/* mounts at root level — shown globally when guest taps auth-required action */}
             <AuthPrompt />
+            <UploadProgressBadge/>
             <FilterModal
                 visible={filterVisible}
                 initialValues={filters}

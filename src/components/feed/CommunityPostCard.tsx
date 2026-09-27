@@ -9,9 +9,10 @@ import {
   Dimensions,
   Share,
   ActivityIndicator,
+  BackHandler
 } from "react-native"
 import { Image } from "expo-image"  // expo-image has better caching than RN Image
-import { useRouter, useNavigation } from "expo-router"
+import { useRouter, useNavigation ,useFocusEffect} from "expo-router"
 import { Post } from "@/types"
 import * as Clipboard from "expo-clipboard"
 
@@ -31,6 +32,7 @@ import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
 import { saveMediaToDevice } from "@/hooks/useSaveMediaToDevice"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
 import { DownloadProgressRing } from "../ui/DownloadProgress"
+import { parseText } from "@/hooks/useTextParser"
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
 
@@ -76,6 +78,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
 
   //  save 
   const handleSave = useCallback(() => {
+    onSave?.(post.slug, true)
     gatedAction(
       { type: "save", postId: post.id, postSlug: post.slug },
       async () => {
@@ -248,17 +251,21 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
       }
     })
   }, [post.slug])
-
-  //  view post detail 
-  const handlePress = useCallback(() => {
-    router.push({
-      pathname: `/community/post/${post.slug}` as any,
-      params: {
-        communityname: communityname,
-        communityslug: communityslug
+ useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (shareModalVisible) {
+          setShareModalVisible(false)
+          return true // consume the event, don't navigate back
+        }
+        return false // let default back behavior happen
       }
-    })
-  }, [post.slug])
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress)
+      return () => subscription.remove()
+    }, [shareModalVisible])
+  )
+
   //  share 
   const handleShare = useCallback(async () => {
     try {
@@ -312,7 +319,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
               </View>
 
               <View>
-                <Text style={[styles.textBody, { color: theme.textMuted }]}>{expanded ? post.description : truncate(post.description)}</Text>
+                <Text style={[styles.textBody, { color: theme.textMuted }]}>{expanded ?parseText(post.description) : truncate(parseText(post.description) as unknown as string)}</Text>
               </View>
               {post.description.length > 150 && (
                 <TouchableOpacity
@@ -333,7 +340,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
                 </View>
 
                 <View>
-                  <Text style={[styles.textBody, { color: theme.textMuted }]}>{expanded ? post.description : truncate(post.description)}</Text>
+                  <Text style={[styles.textBody, { color: theme.textMuted }]}>{expanded ? parseText(post.description) : truncate(parseText(post.description) as unknown as string)}</Text>
                 </View>
                 {post.description.length > 150 && (
                   <TouchableOpacity
@@ -428,7 +435,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
               {/* share — no auth required */}
               <TouchableOpacity
                 style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                onPress={handleShare}
+                onPress={()=>setShareModalVisible((v)=>!v)}
                 activeOpacity={0.7}
               >
                 {shareModalVisible && <View
@@ -438,15 +445,20 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
                   }]}
                 >
                   <TouchableOpacity
-                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, gap: 1, borderWidth: 0 }]}
-                    onPress={() => setShareModalVisible(false)}
+                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, borderWidth: 0,justifyContent:"space-around" }]}
+                    onPress={() => setShareModalVisible((false))}
                     activeOpacity={0.7}
                   >
                     <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
-                      Select share action            </Text>
+                      Select share action
+                       </Text>
+                      <View
+                      style={[{backgroundColor:theme.primary,borderRadius:Radius.md,paddingHorizontal:3}]}
+                      >
                     <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
                       Cancel
                     </Text>
+                    </View>
                   </TouchableOpacity>
                   {/* {!isSP && <TouchableOpacity
                                   style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}

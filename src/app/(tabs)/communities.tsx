@@ -18,6 +18,8 @@ import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/color
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { router } from "expo-router"
+import { useMessageStore } from "@/stores/message.store"
+import { messagingService } from "@/services/messaging.service"
 import { AnimatedBanner, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 // how many rows from the end of a list to trigger prefetch
 const PREFETCH_THRESHOLD = 3
@@ -55,7 +57,7 @@ interface BannerState {
   message: string;
 }
 
-// ── invite card ────────────────────────────────────────────
+//  invite card 
 function InviteCard({
   item,
   onAccept,
@@ -108,7 +110,7 @@ function InviteCard({
   )
 }
 
-// ── request card ───────────────────────────────────────────
+//  request card ─
 function RequestCard({
   item,
   onCancel,
@@ -150,8 +152,8 @@ export default function MyGroupsScreen() {
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState<TabKey>("all")
   const [banner, setBanner] = useState<BannerState | null>(null);
-
-  // ── fetch the user's joined groups, paginated ─────────────
+  const {setUnreadMessageCount}=useMessageStore()
+  //  fetch the user's joined groups, paginated ─
   const {
     data,
     fetchNextPage,
@@ -176,14 +178,22 @@ export default function MyGroupsScreen() {
   const myAdminGroups = groups.filter((g: GroupSuggestion) => g.role === "admin")
   const visibleGroups = activeTab === "mine" ? myAdminGroups : groups
   const [suggestionVisisble, setsuggestionVisisble] = useState<boolean>(true)
-  // ── fetch group suggestions shown at the bottom ───────────
+  //  fetch group suggestions shown at the bottom ─
   const { data: suggestedGroupsData } = useQuery({
     queryKey: ["groups", "suggestions", user?.username??""],
     queryFn: communityservice.getSuggestions,
     staleTime: 1000,
   })
-
-  // ── fetch my pending invites ───────────────────────────────
+  useEffect(()=>{
+    if(!user) return
+    
+    messagingService.getUnreadCount()
+    .then(setUnreadMessageCount)
+    .catch((e)=>{})
+    
+    
+  },[])
+  //  fetch my pending invites ─
   const {
     data: myInvitesData,
     fetchNextPage: fetchMyInvitesNextPage,
@@ -205,7 +215,7 @@ export default function MyGroupsScreen() {
     enabled: !!user && activeTab === "invites",
   })
   const invites: InviteItem[] = myInvitesData?.pages.flatMap((page) => page.data.invites ?? []) ?? []
-  // ── fetch my pending join requests ──────────────────────────
+  //  fetch my pending join requests 
   const {
     data: myRequestsData,
     fetchNextPage: fetchMyRequestsNextPage,
@@ -232,7 +242,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
   }, []);
 
-  // ── mutations: accept / reject invite, cancel request ──────
+  //  mutations: accept / reject invite, cancel request 
   const acceptInviteMutation = useMutation({
     mutationFn: (inviteId: string) => communityservice.acceptInvite(inviteId),
     onSuccess: () => {
@@ -271,7 +281,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
   const handleRejectInvite = useCallback((id: string) => rejectInviteMutation.mutate(id), [rejectInviteMutation])
   const handleCancelRequest = useCallback((id: string) => cancelRequestMutation.mutate(id), [cancelRequestMutation])
 
-  // ── animated error banner ───────────────────────────────────
+  //  animated error banner ─
   const wasErrorRef = useRef(false)
 
   useEffect(() => {
@@ -286,7 +296,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
   
 
   
-  // ── prefetch next page (joined groups) ──────────────────────
+  //  prefetch next page (joined groups) 
   const prefetchNextPage = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage()
@@ -305,7 +315,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     }
   }, [myRequestsHasNextPage, myRequestsIsFetchingNextPage, fetchMyRequestsNextPage])
 
-  // ── render a joined-group row ─────────────────────────────
+  //  render a joined-group row ─
   const renderGroup = useCallback(
     ({ item, index }: { item: GroupSuggestion; index: number }) => {
       if (index === visibleGroups.length - PREFETCH_THRESHOLD) {
@@ -350,7 +360,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     [requests.length, prefetchNextRequests, handleCancelRequest, cancelRequestMutation]
   )
 
-  // ── footer: "loading more" spinner ──────────────────────────
+  //  footer: "loading more" spinner 
   const renderFooter = (loadingMore: boolean) => () =>
     loadingMore ? (
       <View style={styles.loadingFooter}>
@@ -359,7 +369,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
       </View>
     ) : null
 
-  // ── empty states ─────────────────────────────────────────────
+  //  empty states ─
   const renderEmptyGroups = () => {
     if (isLoading) return null
     return (

@@ -25,6 +25,8 @@ import { ImageStrip } from "@/components/createpost/ImageStrip"
 import { FormInput } from "@/components/ui/FormInput"
 import { feedService } from "@/services/feed.service"
 import { Category, Post } from "@/types"
+import { useMessageStore } from "@/stores/message.store"
+import { messagingService } from "@/services/messaging.service"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { VideoEditScreen } from "@/components/editor/VideoEditScreen"
@@ -47,7 +49,7 @@ function SellScreen() {
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
   const navigation = useNavigation()
-
+  const {setUnreadMessageCount}=useMessageStore()
   //  step state 
   const [step, setStep] = useState<Step>("media_type")
   const [mediaType, setMediaType] = useState<"image" | "video" | "text">("image")
@@ -95,6 +97,15 @@ function SellScreen() {
       setSelectedUris([])
     }
   }, [step])
+    useEffect(()=>{
+      if(!user) return
+      
+      messagingService.getUnreadCount()
+      .then(setUnreadMessageCount)
+      .catch((e)=>{})
+      
+      
+    },[])
   const categories: Category[] = categoriesData?.data ?? []
   const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
@@ -109,6 +120,7 @@ function SellScreen() {
   const removeImage = useCallback((index: number) => {
     setSelectedUris((prev) => prev.filter((_, i) => i !== index))
   }, [])
+
 
   useFocusEffect(
     useCallback(() => {
@@ -155,6 +167,7 @@ function SellScreen() {
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
+  
   const {showNotifToast}=useNotificationToast()
   const [thereIsErrors, setthereIsErrors] = useState(false)
   const handleSubmit = () => {
@@ -178,9 +191,8 @@ function SellScreen() {
       {
         onDone: (postId, postSlug) => {
           queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
-          // TODO: also invalidate whatever query key feed list, so the
-          // new post shows up there without the user having to pull-to-refresh
-          router.push(`/post/${postSlug || postId}`)
+        
+          router.push(`/post/${postSlug}`)
         },
         onFailed: (error) => {
           showNotifToast("Failed to upload post","error")

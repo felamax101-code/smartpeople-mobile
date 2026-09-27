@@ -275,7 +275,7 @@ export const CommunityCommentItem = React.memo(({
       styles.container,
       // indent replies with a left border line
       depth > 0 && styles.replyIndent,
-      depth > 0 && { borderLeftColor: theme.border },
+      depth > 0 && { borderLeftColor: theme.border },{borderColor:theme.textMuted}
     ]}>
 
       {/*  author row  */}
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: Spacing.sm,
     gap: Spacing.xs,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderRadius: Radius.md,
     marginBottom: 3
   },
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
   replyIndent: {
     marginLeft: Spacing.sm,
     paddingLeft: Spacing.sm,
-    borderLeftWidth: 2,
+    borderWidth: 0.5,
   },
   authorRow: {
     flexDirection: "row",

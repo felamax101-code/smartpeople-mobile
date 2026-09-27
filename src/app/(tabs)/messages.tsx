@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useMemo, useState } from "react"
+import React, { useCallback, useRef, useMemo, useState ,useEffect} from "react"
 import {
   View,
   Text,
@@ -23,8 +23,8 @@ import { Spacing, FontSize, FontWeight, Radius } from "@/constants/colors"
 import { Conversation } from "@/services/messaging.service"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
-
-
+import { useMessageStore } from "@/stores/message.store"
+import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
 
 
 type TabType = "all" | "dm" | "groups"
@@ -32,6 +32,7 @@ export default function MessagesScreen() {
   const theme = useTheme()
   const { user } = useAuthStore()
   const queryClient=useQueryClient()
+  const {setUnreadMessageCount}=useMessageStore()
     const [banner, setBanner] = useState<BannerState | null>(null);
    const [typing, SetTypng] = useState<{ conversation_id: string | null, typing: boolean  }>({
     conversation_id: null,
@@ -124,6 +125,13 @@ export default function MessagesScreen() {
     userId: user?.id ?? "",
     onEvent: stableHandler,
   })
+  useEffect(()=>{
+      if(!user) return
+      
+      messagingService.getUnreadCount().then(setUnreadMessageCount)
+      
+      
+    },[user])
 
  const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
@@ -357,6 +365,7 @@ const handleDeleteConversation = async (id:string) => {
           showsVerticalScrollIndicator={false}
         />
       )}
+      <UploadProgressBadge/>
     </SafeAreaView>
   )
 }

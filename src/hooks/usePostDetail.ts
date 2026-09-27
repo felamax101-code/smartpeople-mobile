@@ -48,7 +48,7 @@ export const usePostDetail = (slug: string) => {
           : old.upvotes_count + 1,
       }))
       queryClient.setQueryData(
-            ["feed", filters, selectedCategory, searchText],
+            ["com-feed", filters, selectedCategory, searchText],
             (old: any) => {
               if (!old) return old
               return {
@@ -93,12 +93,12 @@ export const usePostDetail = (slug: string) => {
       const previous = queryClient.getQueryData(["post", slug])
       queryClient.setQueryData(["post", slug], (old: Post) => ({
         ...old,
-        saves_count:old.is_saved? old.saves_count-1:old.saves_count+1 ,
+        saves_count:(old.is_saved && old.saves_count>=0)? old.saves_count-1:old.saves_count+1 ,
         is_saved: !old.is_saved,
         
       }));
        queryClient.setQueryData(
-            ["feed", filters, selectedCategory, searchText],
+            ["com-feed", filters, selectedCategory, searchText],
             (old: any) => {
               if (!old) return old
               return {
@@ -118,6 +118,7 @@ export const usePostDetail = (slug: string) => {
       return { previous }
     },
     onError: (_, __, context) => {
+      console.log("ttttft")
       queryClient.setQueryData(["post", slug], context?.previous)
     },
   })

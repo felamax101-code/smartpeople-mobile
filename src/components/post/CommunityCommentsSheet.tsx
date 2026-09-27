@@ -96,7 +96,7 @@ const[processError,setProcessError]=useState<boolean>(false)
       })),
     }))
   }, [slug])
-  // ── slide animation ───────────────────────────────────────
+  //  slide animation ─
   useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, {
@@ -133,7 +133,7 @@ const[processError,setProcessError]=useState<boolean>(false)
 
 
 
-  // ── android back button ───────────────────────────────────
+  //  android back button ─
   // when sheet is open, back button closes sheet instead of navigating back
   useEffect(() => {
     if (!visible) return
@@ -156,7 +156,7 @@ const[processError,setProcessError]=useState<boolean>(false)
 
     },2000)
   }
-  // ── render comment ────────────────────────────────────────
+  //  render comment 
   const renderComment = useCallback(
     ({ item }: { item: Comment }) => (
       <CommunityCommentItem
@@ -180,7 +180,7 @@ const[processError,setProcessError]=useState<boolean>(false)
 
 
 
-  // ── footer ────────────────────────────────────────────────
+  //  footer 
   const renderFooter = () => {
     if (!isFetchingNextPage) return null
     return (
@@ -190,7 +190,7 @@ const[processError,setProcessError]=useState<boolean>(false)
     )
   }
 
-  // ── empty state ───────────────────────────────────────────
+  //  empty state ─
   const renderEmpty = () => {
     if (isLoading) return (
       <View style={styles.emptyState}>
@@ -228,14 +228,14 @@ return(
       onRequestClose={onClose}  // called on Android back press — but we handle it above
       statusBarTranslucent
     >
-      {/* ── backdrop ─────────────────────────────────────── */}
+      {/*  backdrop ─ */}
       <TouchableOpacity
         style={styles.backdrop}
         activeOpacity={1}
         onPress={onClose}
       />
 
-      {/* ── sheet ────────────────────────────────────────── */}
+      {/*  sheet  */}
       <Animated.View
         style={[
           styles.sheet,
@@ -247,7 +247,7 @@ return(
         ]}
       >
 
-        {/* ── sheet header ───────────────────────────── */}
+        {/*  sheet header ─ */}
         <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
           {/* drag handle */}
           <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
@@ -271,7 +271,7 @@ return(
             </Text>)}
         </View>
 
-        {/* ── comments list ──────────────────────────── */}
+        {/*  comments list  */}
         <FlatList
           data={comments}
           keyExtractor={(item) => item.id}
@@ -287,7 +287,7 @@ return(
         />
 
 
-        {/* ── replying-to banner ─────────────────────────────── */}
+        {/*  replying-to banner ─ */}
         {replyingTo && (
           <View style={[styles.replyingToBanner, { backgroundColor: theme.surfaceSecondary }]}>
             <Text style={[styles.replyingToText, { color: theme.textSecondary }]}>
@@ -300,7 +300,7 @@ return(
           </View>
         )}
 
-        {/* ── comment input ───────────────────────────── */}
+        {/*  comment input ─ */}
         <View style={[
           styles.inputBar,
           {
@@ -357,7 +357,7 @@ return(
   )
 }
 
-// ── helpers ───────────────────────────────────────────────────
+//  helpers ─
 const formatTimeAgo = (dateString: string): string => {
   const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
   if (seconds < 60) return "just now"
@@ -412,11 +412,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   closeIcon: {
-    fontSize: 14,
-    fontWeight: FontWeight.bold,
+    fontSize: 20,
+    fontWeight: FontWeight.extrabold,
   },
   commentsList: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xs,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xl,
   },
