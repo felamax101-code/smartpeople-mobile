@@ -13,6 +13,8 @@ import {
   ActivityIndicator,
 } from "react-native"
 import { router } from "expo-router"
+import * as WebBrowser from 'expo-web-browser';
+
 import { useMutation } from "@tanstack/react-query"
 import { FormInput } from "@/components/ui/FormInput"
 import { PasswordStrengthBar } from "@/components/ui/PasswordStrengthBar"
@@ -184,7 +186,7 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/*  header  */}
+        
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -205,7 +207,7 @@ export default function RegisterScreen() {
             Create your account
           </Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Become smartpeopler
+            Become SmartPiplian
           </Text>
         </View>
 
@@ -292,9 +294,25 @@ export default function RegisterScreen() {
             placeholder="Repeat your password"
             returnKeyType="done"
             onSubmitEditing={handleContinue}
-           
-          />
 
+          />
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+          By pressing <Text  style={[{color:theme.primary}]} >[Continue]</Text> you agree you to our <Text
+            style={[{color:theme.primary}]} 
+           onPress={async() => { await WebBrowser.openBrowserAsync("https://smartpipla.com/terms", {
+                              presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+                              toolbarColor: '#6366F1',
+                            }) }}
+          >Terms of Service</Text> and <Text   style={[{color:theme.primary}]}
+           onPress={async() => {
+          
+                         await WebBrowser.openBrowserAsync("https://smartpipla.com/privacy", {
+                              presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+                              toolbarColor: '#6366F1',
+                            })
+                       }}
+           >Privacy Policy</Text>
+          </Text>
           {/* continue button */}
           <TouchableOpacity
             style={[
@@ -337,15 +355,16 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xxl,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 56,
-    paddingBottom: Spacing.md,
+    marginTop:40
+   
+   
   },
   backIcon: {
     fontSize: 24,
@@ -365,11 +384,11 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     gap: Spacing.xs,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.extrabold,
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
     letterSpacing: -0.5,
   },
   subtitle: {

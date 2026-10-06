@@ -7,24 +7,36 @@ import {
   TouchableOpacity,
   StyleSheet,
   Text,
-  Alert,
   Animated,
-  
+  Modal
 } from "react-native"
+import { File } from "expo-file-system"
+import { SafeAreaProvider } from "react-native-safe-area-context"
+import { MediaType } from "@/hooks/useMediaPicker"
 import { useTheme } from "@/hooks/useTheme"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { MessageWithExtras } from "@/hooks/useConversationDetail"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { InAppCamera, CapturedAsset } from "../imageedit/InAppCamera"
 import * as ImagePicker from "expo-image-picker"
 import { useAuthStore } from "@/stores/auth.store"
+import { ImageEditScreen } from "../imageedit/ImageEditScreen"
+import { useNotificationToast } from "../activityIndicator/ToastNotification"
+import NativeVideoTrim, { showEditor, isValidFile, type Spec } from "react-native-video-trim"
 
+const MAX_VIDEO_MS = 60_000 // library and expo-image-picker both use milliseconds
+
+// the library returns a bare path, expo-file-system wants a file:// URI
+const toFileUri = (path: string) =>
+  path.startsWith("file://") || path.startsWith("http") ? path : `file://${path}`
 export interface PickedMediaAsset {
   uri: string
   type: "image" | "video"
   width?: number
   height?: number
   duration?: number   // videos only
-  mimeType:string |undefined
+  mimeType: string | undefined
+  fileSize?: number   // bytes
 }
 
 const MAX_MEDIA_ITEMS = 5
@@ -59,7 +71,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, Props>(({
   replyingTo,
   onCancelReply,
 }, ref) => {
-const {user}=useAuthStore()
+  const { user } = useAuthStore()
   const inputRef = useRef<TextInput>(null)
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
@@ -68,13 +80,15 @@ const {user}=useAuthStore()
   const [text, setText] = useState("")
   const [showOfferModal, setShowOfferModal] = useState(false)
   const [offerAmount, setOfferAmount] = useState("")
+  const {showNotifToast}=useNotificationToast()
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [mediapickerVisisble, setMediaPickerMediaVisisble] = useState<boolean>(false)
+  const [pendingAssets, setPendingAssets] = useState<PickedMediaAsset[] | null>(null)
   //  reply bar animation 
   // Slides down from height 0 with a spring when a reply target is set,
   // and springs back to 0 when cancelled or sent.
   const replyAnim = useRef(new Animated.Value(0)).current
-
+  const [cameraMode, setCameraMode] = useState<MediaType | null>(null)
   useEffect(() => {
     Animated.spring(replyAnim, {
       toValue: replyingTo ? 1 : 0,
@@ -105,16 +119,7 @@ const {user}=useAuthStore()
     setText("")
   }, [text, isSending, onSendText, onTyping])
 
-  const handleSendOffer = useCallback(() => {
-    const amount = Number(offerAmount.replace(/[^0-9]/g, ""))
-    if (!amount || amount <= 0) {
-      Alert.alert("Invalid amount", "Please enter a valid offer amount")
-      return
-    }
-    onSendOffer(amount)
-    setOfferAmount("")
-    setShowOfferModal(false)
-  }, [offerAmount, onSendOffer])
+  
 
   //  media: normalize a raw picker asset into our own shape, tagging it
   //    image vs video so everything downstream    can branch on `type` without re-inspecting the file. 
@@ -124,15 +129,112 @@ const {user}=useAuthStore()
     width: asset.width,
     height: asset.height,
     duration: asset.duration ?? undefined,
-    mimeType:asset.mimeType 
+    mimeType: asset.mimeType
   })
+  // Opens the native editor and resolves with the trimmed asset, or null if the
+// user cancelled or something failed.
+const trimVideo = useCallback(
+  async (asset: PickedMediaAsset): Promise<PickedMediaAsset | null> => {
+    const { isValid } = await isValidFile(asset.uri)
+    if (!isValid) {
+      showNotifToast("This video can't be opened.", "error")
+      return null
+    }
 
+    return new Promise((resolve) => {
+      const native = NativeVideoTrim as Spec
+      const subs: { remove: () => void }[] = []
+      const finish = (result: PickedMediaAsset | null) => {
+        subs.forEach((s) => s.remove())   // always unsubscribe
+        resolve(result)
+      }
+
+      subs.push(
+        native.onFinishTrimming(({ outputPath, duration }) => {
+          const uri = toFileUri(outputPath)
+          finish({
+            ...asset,
+            uri,
+            duration,
+            mimeType: "video/mp4",
+            width: undefined,    // edit tools may have cropped/rotated
+            height: undefined,
+            fileSize: getFileSize(uri),   // new file, re-read
+          })
+        })
+      )
+      subs.push(native.onCancel(() => finish(null)))
+      subs.push(
+        native.onError(({ message }) => {
+          showNotifToast(message || "Could not trim this video.", "error")
+          finish(null)
+        })
+      )
+
+      showEditor(asset.uri, {
+        maxDuration: MAX_VIDEO_MS,
+        enablePreciseTrimming: true,   // otherwise output can overshoot 60s
+        headerText: "Trim video (max 60s)",
+        closeWhenFinish: true,
+      })
+    })
+  },
+  [showNotifToast]
+)
+const handlePicked = useCallback(
+  async (assets: PickedMediaAsset[]) => {
+    const processed: PickedMediaAsset[] = []
+
+    for (const a of assets) {
+      if (a.type === "video" && a.duration && a.duration > MAX_VIDEO_MS) {
+        const trimmed = await trimVideo(a)   // one editor at a time
+        if (trimmed) processed.push(trimmed)
+        else showNotifToast("Video skipped: it must be 60 seconds or less.", "error")
+      } else {
+        processed.push(a)
+      }
+    }
+
+    if (processed.length === 0) return
+
+    const withSize = processed.map((a) => ({
+      ...a,
+      fileSize: a.fileSize ?? getFileSize(a.uri),
+    }))
+
+    if (withSize.some((a) => a.type === "image")) {
+      setPendingAssets(withSize)   // image editor, as before
+    } else {
+      onSendMedia(withSize)
+    }
+  },
+  [onSendMedia, trimVideo, showNotifToast]
+)
+
+const handleEditDone = useCallback((editedUris: string[]) => {
+  if (!pendingAssets) return
+  let i = 0
+  const merged = pendingAssets.map((a) => {
+    if (a.type === "video") return a
+    const uri = editedUris[i++]
+    return {
+      ...a,
+      uri,
+      mimeType: mimeFromUri(uri),
+      width: undefined,            // crop/rotate changed these
+      height: undefined,
+      fileSize: getFileSize(uri),  // re-read, the edited file is a new file
+    }
+  })
+  setPendingAssets(null)
+  onSendMedia(merged)
+}, [pendingAssets, onSendMedia])
   const pickFromLibrary = useCallback(async () => {
     setMediaPickerMediaVisisble(false)
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow access to your photos and videos to send media.")
+      showNotifToast("Permission needed. Allow access to your photos and videos to send media.","error")
       return
     }
 
@@ -146,29 +248,30 @@ const {user}=useAuthStore()
     if (result.canceled) return
 
     const assets = result.assets.slice(0, MAX_MEDIA_ITEMS).map(toPickedAsset)
-    onSendMedia (assets)
-  }, [onSendMedia])
-
-  const pickFromCamera = useCallback(async () => {
+    handlePicked(assets)
+  }, [onSendMedia,handlePicked])
+  const openCamera = useCallback((mode: MediaType) => {
     setMediaPickerMediaVisisble(false)
+    setCameraMode(mode)
+  }, [])
 
-    const { status } = await ImagePicker.requestCameraPermissionsAsync()
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow camera access to take a photo or video.")
-      return
-    }
+  const handleCameraCapture = useCallback((asset: CapturedAsset) => {
+    setCameraMode(null)
+    const ext = asset.uri.split(".").pop()?.toLowerCase()
+    const mimeType =
+      asset.type === "image"
+        ? ext === "png" ? "image/png" : "image/jpeg"
+        : ext === "mov" ? "video/quicktime" : "video/mp4"
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ["images", "videos"],
-      quality: 0.7,
-    })
-
-    if (result.canceled) return
-
-    
-    onSendMedia([toPickedAsset(result.assets[0])])
-  }, [onSendMedia])
-
+    handlePicked([{
+  uri: asset.uri,
+  type: asset.type,
+  width: asset.width,
+  height: asset.height,
+  duration: asset.duration,
+  mimeType,
+}])
+  }, [onSendMedia,handlePicked])
   return (
     <>
       {/*  reply bar  */}
@@ -190,7 +293,7 @@ const {user}=useAuthStore()
 
             <View style={styles.replyTextContainer}>
               <Text style={[styles.replyLabel, { color: theme.primary }]} numberOfLines={1}>
-                Replying to @{ user?.username===replyingTo.sender_username?"Yourself": replyingTo.sender_username}
+                Replying to @{user?.username === replyingTo.sender_username ? "Yourself" : replyingTo.sender_username}
               </Text>
               <Text style={[styles.replyPreview, { color: theme.textSecondary }]} numberOfLines={1}>
                 {getReplyPreviewText(replyingTo)}
@@ -213,22 +316,22 @@ const {user}=useAuthStore()
         styles.container,
         { backgroundColor: theme.surface, borderTopColor: theme.border }
       ]}>
-       
-          <TouchableOpacity
-            style={[styles.offerButton, { backgroundColor: theme.primaryLight,borderColor:theme.textPrimary }]}
-            onPress={() => setMediaPickerMediaVisisble((v) => !v)}
-          >
-            <Text style={[styles.offerButtonText, { color: theme.primary }]}>
-              <MaterialCommunityIcons name="plus-circle-outline" color={`${theme.textMuted}`} size={19} />
-            </Text>
-          </TouchableOpacity>
-       
+
+        <TouchableOpacity
+          style={[styles.offerButton, { backgroundColor: theme.primaryLight, borderColor: theme.textPrimary }]}
+          onPress={() => setMediaPickerMediaVisisble((v) => !v)}
+        >
+          <Text style={[styles.offerButtonText, { color: theme.primary }]}>
+            <MaterialCommunityIcons name="plus-circle-outline" color={`${theme.textMuted}`} size={19} />
+          </Text>
+        </TouchableOpacity>
+
 
         <TextInput
           ref={inputRef}
           style={[
             styles.input,
-            { backgroundColor: theme.inputBackground, color: theme.textPrimary,borderColor:theme.success },
+            { backgroundColor: theme.inputBackground, color: theme.textPrimary, borderColor: theme.success },
           ]}
           value={text}
           onChangeText={handleTextChange}
@@ -274,22 +377,72 @@ const {user}=useAuthStore()
             <View style={{ marginTop: 10, flexDirection: "column", gap: 6 }}>
               <TouchableOpacity onPress={pickFromLibrary}>
                 <Text style={[styles.mediaItem, { color: theme.textPrimary, backgroundColor: theme.backgroundMuted }]}>
-                  <MaterialCommunityIcons name="folder" size={15}/> Library
+                  <MaterialCommunityIcons name="folder" size={15} /> Library
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={pickFromCamera}>
+              <TouchableOpacity onPress={() => openCamera("image")}>
                 <Text style={[styles.mediaItem, { color: theme.textPrimary, backgroundColor: theme.backgroundMuted }]}>
-                   <MaterialCommunityIcons name="camera" size={15}/> Camera
+                  <MaterialCommunityIcons name="camera" size={15} /> Photo
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => openCamera("video")}>
+                <Text style={[styles.mediaItem, { color: theme.textPrimary, backgroundColor: theme.backgroundMuted }]}>
+                  <MaterialCommunityIcons name="video" size={15} /> Video
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
+         
         </>
       )}
+       <Modal
+            visible={cameraMode !== null}
+            animationType="slide"
+            presentationStyle="fullScreen"
+            onRequestClose={() => setCameraMode(null)}   // Android back button
+          >
+            {cameraMode && (
+              <InAppCamera
+                mediaType={cameraMode}
+                onCapture={handleCameraCapture}
+                onClose={() => setCameraMode(null)}
+              />
+            )}
+          </Modal>
+          <Modal
+  visible={pendingAssets !== null}
+  animationType="slide"
+  presentationStyle="fullScreen"
+  statusBarTranslucent
+  onRequestClose={() => setPendingAssets(null)}
+>
+  <SafeAreaProvider>
+    {pendingAssets && (
+      <ImageEditScreen
+        imageUris={pendingAssets.filter((a) => a.type === "image").map((a) => a.uri)}
+        onCancel={() => setPendingAssets(null)}
+        onDone={handleEditDone}
+      />
+    )}
+  </SafeAreaProvider>
+</Modal>
     </>
   )
 })
+const getFileSize = (uri: string): number | undefined => {
+  try {
+    return new File(uri).size ?? undefined
+  } catch {
+    return undefined
+  }
+}
 
+const mimeFromUri = (uri: string) => {
+  const ext = uri.split(".").pop()?.toLowerCase()
+  if (ext === "png") return "image/png"
+  if (ext === "webp") return "image/webp"
+  return "image/jpeg"
+}
 const styles = StyleSheet.create({
   //  reply bar 
   replyBar: {
@@ -317,16 +470,16 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   mediaTitle: {
-    marginHorizontal:2,
-    marginVertical:4 ,
+    marginHorizontal: 2,
+    marginVertical: 4,
     borderRadius: Radius.lg,
-    borderWidth:1,
-    paddingHorizontal:2
+    borderWidth: 1,
+    paddingHorizontal: 2
   },
-   mediaItem: {
+  mediaItem: {
     fontSize: FontSize.sm,
-    marginHorizontal:6,
-    paddingHorizontal:8,
+    marginHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: Radius.lg,
 
@@ -348,13 +501,13 @@ const styles = StyleSheet.create({
   },
   offerButton: {
     width: 40, height: 40, borderRadius: 20,
-    alignItems: "center", justifyContent: "center", flexShrink: 0,borderWidth:0.5
+    alignItems: "center", justifyContent: "center", flexShrink: 0, borderWidth: 0.5
   },
   offerButtonText: { fontSize: 18 },
   input: {
     flex: 1, borderRadius: Radius.xl,
     paddingHorizontal: Spacing.md, paddingTop: 10, paddingBottom: 10,
-    fontSize: FontSize.md, maxHeight: 120, minHeight: 40,borderWidth:0.5
+    fontSize: FontSize.md, maxHeight: 120, minHeight: 40, borderWidth: 0.5
   },
   sendButton: {
     width: 40, height: 40, borderRadius: 20,

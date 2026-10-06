@@ -97,11 +97,11 @@ export const SPProfileHeader = ({
           />
         ) : ( */}
                 <View
-                    style={[styles.usernamePlacaholder, { backgroundColor: getAvatarColor(profile.username) }]}
+                    style={[styles.usernamePlacaholder, { backgroundColor: getAvatarColor(profile.name?? profile.org_name??"smartproperty") }]}
                 >
                     <Text
                         style={[{ color: "white", fontSize: FontSize.lg, fontWeight: 700, fontFamily: "Poppins" }]}
-                    >{profile.username.charAt(0)}</Text>
+                    >{profile.name? profile.name.charAt(0):profile.org_name? profile.org_name?.charAt(0):"S"}</Text>
                 </View>
                 {/* )} */}
 
@@ -117,8 +117,9 @@ export const SPProfileHeader = ({
 
                 {/* name + badge */}
                 <View style={styles.nameRow}>
+                    <View></View>
                     <Text style={[styles.username, { color: theme.primary }]}>
-                        {profile.name ? "SmartPropert Account personal name:" : "SmartPropert Account organization name:"}
+                        {profile.name ? "SmartProperty Account personal name:" : "SmartPropert Account organization name:"}
                     </Text>
                     <Text style={[styles.displayName, { color: theme.textPrimary }]}>
                         {profile.name ? profile.name : profile.org_name}
@@ -127,12 +128,19 @@ export const SPProfileHeader = ({
                 </View>
 
                 {/* username */}
+                <View>
                 <Text style={[styles.username, { color: theme.primary }]}>
-                    username:
+                   SmartPiplian username:
                 </Text>
+                <TouchableOpacity
+                onPress={()=>router.push(isOwn?`/profile`:`/profile/${profile.username}`)}
+                activeOpacity={0.5}
+                >
                 <Text style={[styles.username, { color: theme.textPrimary }]}>
                     @{profile.username}
                 </Text>
+                </TouchableOpacity>
+                </View>
 
                 {/* location + joined */}
                 <View style={styles.metaRow}>
@@ -141,12 +149,14 @@ export const SPProfileHeader = ({
               🏳️ {profile.location}
             </Text>
           )} */}
+          <View>
                     <Text style={[styles.username, { color: theme.primary }]}>
                         This SmartProperty account was created on:
                     </Text>
                     <Text style={[styles.meta, { color: theme.textPrimary, fontFamily: "Consolas" }]}>
                         {memberSince}
                     </Text>
+                    </View>
                 </View>
 
                 {/* bio
@@ -220,7 +230,7 @@ const styles = StyleSheet.create({
     nameRow: {
         flexDirection: "row",
         alignItems: "center",
-        gap: Spacing.sm,
+       
         flexWrap: "wrap",
     },
     displayName: {

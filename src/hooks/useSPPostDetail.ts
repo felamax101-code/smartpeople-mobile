@@ -6,10 +6,12 @@ import { useAuthGate } from "@/hooks/useAuthGate"
 import { Post  } from "@/types"
 import {useState} from "react"
 import { FeedFilters } from "@/types"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 export const useSPPostDetail = (slug: string) => {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const { gatedAction } = useAuthGate()
+  const {showNotifToast}=useNotificationToast()
   const [filters, setFilters] = useState<FeedFilters>({
       sort: "newest",
       page: 1,
@@ -43,12 +45,12 @@ export const useSPPostDetail = (slug: string) => {
       queryClient.setQueryData(["sp-post", slug], (old: Post) => ({
         ...old,
         is_upvoted: !old.is_upvoted,
-        upvotes_count: old.is_upvoted
+        upvotes_count: old.is_upvoted && old.upvotes_count>=0
           ? old.upvotes_count - 1
           : old.upvotes_count + 1,
       }))
       queryClient.setQueryData(
-            ["feed", filters, selectedCategory, searchText],
+            ["sp-feed", filters, selectedCategory, searchText],
             (old: any) => {
               if (!old) return old
               return {
@@ -93,12 +95,13 @@ export const useSPPostDetail = (slug: string) => {
       const previous = queryClient.getQueryData(["sp-post", slug])
       queryClient.setQueryData(["sp-post", slug], (old: Post) => ({
         ...old,
-        saves_count:old.is_saved? old.saves_count-1:old.saves_count+1 ,
+        saves_count:old.is_saved && old.saves_count>=0? old.saves_count-1:old.saves_count+1 ,
         is_saved: !old.is_saved,
         
       }));
+      showNotifToast(post?.is_saved?"Removed from your profile":"Saved to your profile","success");
        queryClient.setQueryData(
-            ["feed", filters, selectedCategory, searchText],
+            ["sp-feed", filters, selectedCategory, searchText],
             (old: any) => {
               if (!old) return old
               return {
@@ -119,6 +122,7 @@ export const useSPPostDetail = (slug: string) => {
     },
     onError: (_, __, context) => {
       queryClient.setQueryData(["sp-post", slug], context?.previous)
+      showNotifToast("Error saving post","error")
     },
   })
 

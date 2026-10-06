@@ -216,7 +216,7 @@ export const messagingService = {
       formData,
       {
         headers: { "Content-Type": "multipart/form-data" },
-
+        timeout:300000,
         onUploadProgress: (event) => {
           if (!onUploadProgress || !event.total || !isMedia) return
           onUploadProgress(Math.round((event.loaded * 100) / event.total))

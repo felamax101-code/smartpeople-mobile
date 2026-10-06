@@ -3,15 +3,15 @@
 import React from "react"
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { useTheme } from "@/hooks/useTheme"
-import { ProductCondition } from "@/services/listing.service"
+import { PostCondition } from "@/services/listing.service"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 
 interface Props {
-  selected: ProductCondition
-  onChange: (condition: ProductCondition) => void
+  selected: PostCondition
+  onChange: (condition: PostCondition) => void
 }
 
-const OPTIONS: { value: ProductCondition; label: string; icon: string }[] = [
+const OPTIONS: { value: PostCondition; label: string; icon: string }[] = [
   { value: "new", label: "New", icon: "✨" },
   { value: "used", label: "Used", icon: "📦" },
   { value: "refurbished", label: "Refurbished", icon: "🔧" },

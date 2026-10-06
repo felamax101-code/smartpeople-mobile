@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import {
   CameraView,
   CameraType,
@@ -9,7 +9,8 @@ import {
 import { useTheme } from "@/hooks/useTheme"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { MediaType } from "@/hooks/useMediaPicker"
-
+import { useNotificationToast } from "../activityIndicator/ToastNotification"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 export interface CapturedAsset {
   uri: string
   type: "image" | "video"
@@ -29,14 +30,16 @@ const MAX_VIDEO_SECONDS = 60
 export const InAppCamera = ({ mediaType, onCapture, onClose }: Props) => {
   const theme = useTheme()
   const cameraRef = useRef<CameraView>(null)
-
+  const {showNotifToast}=useNotificationToast()
   const [permission, requestPermission] = useCameraPermissions()
   const [micPermission, requestMicPermission] = useMicrophonePermissions()
   const [facing, setFacing] = useState<CameraType>("back")
   const [isRecording, setIsRecording] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
   const recordTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
-
+const [elapsed, setElapsed] = useState(0)            // whole seconds, drives the UI
+const startedAt = useRef<number | null>(null)
+const tickInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   React.useEffect(() => {
     if (!permission?.granted) requestPermission()
     if (mediaType === "video" && !micPermission?.granted) requestMicPermission()
@@ -46,6 +49,8 @@ export const InAppCamera = ({ mediaType, onCapture, onClose }: Props) => {
   React.useEffect(() => {
     return () => {
       if (recordTimeout.current) clearTimeout(recordTimeout.current)
+      if (tickInterval.current) clearInterval(tickInterval.current)
+
     }
   }, [])
 
@@ -60,6 +65,9 @@ export const InAppCamera = ({ mediaType, onCapture, onClose }: Props) => {
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <Text style={[styles.permText, { color: theme.textPrimary }]}>
           Camera access is needed to take a {mediaType === "image" ? "photo" : "video"}.
+        </Text>
+        <Text style={[styles.infopermText, { color: theme.textPrimary }]}>
+         Click <Text style={[{color:theme.primary}]}>[Grant Permission]</Text> or go to settings⇒apps⇒SmartPipla app ⇒ permissions ⇒ and give access to your media
         </Text>
         <TouchableOpacity
           style={[styles.permButton, { backgroundColor: theme.primary }]}
@@ -88,7 +96,7 @@ export const InAppCamera = ({ mediaType, onCapture, onClose }: Props) => {
         })
       }
     } catch (err) {
-      Alert.alert("Could not take photo", "Please try again.")
+     showNotifToast("Could not take photo.Please try again.","error")
     } finally {
       setIsBusy(false)
     }
@@ -100,28 +108,40 @@ export const InAppCamera = ({ mediaType, onCapture, onClose }: Props) => {
     }
   }
 
-  const startRecording = async () => {
-    if (isBusy || !cameraRef.current || isRecording) return
-    setIsRecording(true)
-    setIsBusy(true)
+const startRecording = async () => {
+  if (isBusy || !cameraRef.current || isRecording) return
+  setIsRecording(true)
+  setIsBusy(true)
+  setElapsed(0)
 
-    recordTimeout.current = setTimeout(() => {
-      stopRecording()
-    }, MAX_VIDEO_SECONDS * 1000)
-
-    try {
-      const video = await cameraRef.current.recordAsync()
-      if (video) {
-        onCapture({ uri: video.uri, type: "video" })
-      }
-    } catch (err) {
-      Alert.alert("Could not record video", "Please try again.")
-    } finally {
-      if (recordTimeout.current) clearTimeout(recordTimeout.current)
-      setIsRecording(false)
-      setIsBusy(false)
+  startedAt.current = Date.now()
+  tickInterval.current = setInterval(() => {
+    if (startedAt.current) {
+      setElapsed(Math.floor((Date.now() - startedAt.current) / 1000))
     }
+  }, 250)   // ticks faster than 1s so the display never skips a second
+
+  recordTimeout.current = setTimeout(() => {
+    stopRecording()
+  }, MAX_VIDEO_SECONDS * 1000)
+
+  try {
+    const video = await cameraRef.current.recordAsync()
+    if (video) {
+      const durationMs = startedAt.current ? Date.now() - startedAt.current : undefined
+      onCapture({ uri: video.uri, type: "video", duration: durationMs })
+    }
+  } catch (err) {
+    showNotifToast("Could not record video. Please try again.", "error")
+  } finally {
+    if (recordTimeout.current) clearTimeout(recordTimeout.current)
+    if (tickInterval.current) clearInterval(tickInterval.current)
+    startedAt.current = null
+    setElapsed(0)
+    setIsRecording(false)
+    setIsBusy(false)
   }
+}  
 
   const handleCapturePress = () => {
     if (mediaType === "image") {
@@ -139,7 +159,14 @@ export const InAppCamera = ({ mediaType, onCapture, onClose }: Props) => {
         facing={facing}
         mode={mediaType === "video" ? "video" : "picture"}
       />
-
+{isRecording && (
+  <View style={styles.timerBadge}>
+    <View style={styles.recDot} />
+    <Text style={styles.timerText}>
+      {formatTime(elapsed)} / {formatTime(MAX_VIDEO_SECONDS)}
+    </Text>
+  </View>
+)}
       <TouchableOpacity style={styles.closeButton} onPress={onClose} disabled={isRecording}>
         <Text style={styles.closeButtonText}>✕</Text>
       </TouchableOpacity>
@@ -149,7 +176,7 @@ export const InAppCamera = ({ mediaType, onCapture, onClose }: Props) => {
         onPress={() => setFacing((f) => (f === "back" ? "front" : "back"))}
         disabled={isRecording}
       >
-        <Text style={styles.flipButtonText}>⟲</Text>
+  <MaterialCommunityIcons name="camera-flip-outline" size={22} color="#fff" />
       </TouchableOpacity>
 
       <View style={styles.controls}>
@@ -167,7 +194,11 @@ export const InAppCamera = ({ mediaType, onCapture, onClose }: Props) => {
     </View>
   )
 }
-
+const formatTime = (totalSeconds: number) => {
+  const m = Math.floor(totalSeconds / 60)
+  const s = totalSeconds % 60
+  return `${m}:${s.toString().padStart(2, "0")}`
+}
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
   camera: { flex: 1 },
@@ -179,6 +210,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   permText: { fontSize: FontSize.md, textAlign: "center" },
+  infopermText: { fontSize: FontSize.xs, textAlign: "center" },
   permButton: {
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
@@ -231,4 +263,18 @@ const styles = StyleSheet.create({
   shutterRecording: { borderColor: "#ff3b30" },
   stopSquare: { width: 24, height: 24, borderRadius: 4, backgroundColor: "#ff3b30" },
   hint: { color: "#fff", fontSize: FontSize.sm },
+  timerBadge: {
+  position: "absolute",
+  top: 56,
+  alignSelf: "center",
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  paddingHorizontal: 12,
+  paddingVertical: 6,
+  borderRadius: 16,
+  backgroundColor: "rgba(0,0,0,0.55)",
+},
+recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#ff3b30" },
+timerText: { color: "#fff", fontSize: FontSize.sm, fontWeight: FontWeight.bold },
 })

@@ -62,6 +62,7 @@ export const MessageBubble = memo(({
   const [pickerVisible, setPickerVisible] = useState(false)
   const pickerAnim = useRef(new Animated.Value(0)).current
   const [deleteModalVsisble, setdeleteModalVsisble] = useState<boolean>(false)
+      const isUploading = typeof uploadProgress === "number"
 
 
   const bubbleRef = useRef<View>(null)
@@ -129,6 +130,8 @@ export const MessageBubble = memo(({
   // past the threshold fires the reply immediately and snaps the row back —
   // no button tap required, matching WhatsApp/Telegram/iMessage behavior.
   const handleSwipeableOpen = useCallback((direction: "left" | "right") => {
+
+    if (message.message_type!="text" && isUploading ) return
     if (direction === "left") {
       onReply(message)
     }
@@ -358,13 +361,6 @@ export const MessageBubble = memo(({
   )
 
 
-
-
-
-
-
-
-
   //  offer card ─
   if (message.message_type === "offer" && message.offer_data) {
     const offerInner = (
@@ -409,7 +405,6 @@ export const MessageBubble = memo(({
     const isVideo = message.message_type === "video"
     // const previewUri = isVideo ? message.thumbnail_url : message.media_url
     const previewUri = message.media_url
-    const isUploading = typeof uploadProgress === "number"
 
     const mediaInner = (
       <Pressable
@@ -420,11 +415,11 @@ export const MessageBubble = memo(({
       >
         <View style={[[styles.mediaRow, isOwn ? styles.rowRight : styles.rowLeft]]}>
           {quotedBlock}
-          <View style={styles.mediaWrap} ref={bubbleRef}>
+          <View style={[styles.mediaWrap,{borderColor: isOwn ? theme.success : theme.textPlaceholder}]} ref={bubbleRef}>
             {previewUri ? (
               <Image
                 source={{ uri: (previewUri) }}
-                style={[styles.mediaImage, { borderColor: isOwn ? theme.success : theme.textPlaceholder }]}
+                style={[styles.mediaImage, {  }]}
                 contentFit="cover"
               />
             ) : (
@@ -528,7 +523,7 @@ export const MessageBubble = memo(({
   return (
     <Swipeable
       ref={swipeableRef}
-      renderLeftActions={renderLeftActions}
+      renderLeftActions={!isUploading? renderLeftActions:undefined}
       onSwipeableOpen={handleSwipeableOpen}
       simultaneousHandlers={[]}
       friction={2}
@@ -750,10 +745,11 @@ const styles = StyleSheet.create({
 
   mediaRow: { flexDirection: "column", alignItems: "flex-end", marginVertical: 2 },
   mediaWrap: {
-    width: 220,
+    width: 200,
     height: 260,
     borderRadius: Radius.lg,
     overflow: "hidden",
+    borderWidth:1,
     position: "relative",
   },
   mediaImage: { width: "100%", height: "100%", borderWidth: 1, borderRadius: Radius.md },

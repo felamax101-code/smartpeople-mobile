@@ -25,6 +25,7 @@ import { messagingService } from "@/services/messaging.service"
 import { useSPProfile } from "@/hooks/useSPProfile"
 import { useSPListings } from "@/hooks/useSPListings"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
+import { useConversations } from "@/hooks/useConversations"
 type Tab = "posts" | "reviews"
 export default function PublicProfileScreen() {
   const { user } = useAuthStore()
@@ -40,6 +41,7 @@ export default function PublicProfileScreen() {
     comment: string
   } | null>(null)
   const [banner, setBanner] = useState<BannerState | null>(null);
+  const {refetch:refetchConversation}=useConversations()
   const {
     profile,
     isLoading,
@@ -84,7 +86,8 @@ export default function PublicProfileScreen() {
         recipient_id: profile.user_id,
         initial_message: "Hello",
       })
-      qc.invalidateQueries({ queryKey: ["conversations"], });
+      qc.invalidateQueries({ queryKey: ["conversations"]});
+      refetchConversation()
       // Navigate to the conversation screen
       router.push(`/messages/${conversation.id}` as any)
     } catch (error: any) {

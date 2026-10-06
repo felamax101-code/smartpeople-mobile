@@ -12,9 +12,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
+ 
   TextInput,
-  Switch,
+ 
   Image,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
@@ -41,7 +41,7 @@ export default function EditPostScreen() {
   const [step, setStep] = useState<Step>("form")
   const [banner, setBanner] = useState<BannerState | null>(null);
 
-  // ── form state ────────────────────────────────────────────
+  //  form state 
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -51,10 +51,10 @@ export default function EditPostScreen() {
   })
   const [errors, setErrors] = useState<Partial<typeof form>>({})
 
-  // ── location (auto GPS) ───────────────────────────────────
+  //  location (auto GPS) ─
   const { location: gpsLocation } = useLocation()
 
-  // ── fetch existing listing ────────────────────────────────
+  //  fetch existing listing 
   const { data: listing, isError, refetch, isLoading: isLoadingListing } = useQuery({
     queryKey: ["post", comunityslug,"edit",postSlug],
     queryFn: () => communityservice.getPost(postSlug),
@@ -62,21 +62,20 @@ export default function EditPostScreen() {
   })
 
 
-  //   ── fetch categories ──────────────────────────────────────
-  const { data: categoriesData ,isLoading:isLoadingCategories} = useQuery({
+  //    fetch categories 
+  const { data: categoriesData ,isLoading:isLoadingCategories,isError:isCategoryError,refetch:refetchCategories} = useQuery({
     queryKey: ["categories",comunityslug,"edit",postSlug],
     queryFn: ()=> communityservice.getCategories(comunityslug),
   })
   const categories: Category[] = categoriesData?.data ?? []
-  // ── update form field ─────────────────────────────────────
+  //  update form field ─
   const updateField = (field: keyof typeof form, value: any) => {
     setForm((f) => ({ ...f, [field]: value }))
     if (errors[field]) setErrors((e) => ({ ...e, [field]: undefined }))
   }
 
 
-
-  // ── pre-populate form once listing AND categories are loaded ──
+  //  pre-populate form once listing AND categories are loaded 
   useEffect(() => {
     if (!listing || categories.length === 0) return
 
@@ -100,7 +99,7 @@ export default function EditPostScreen() {
 const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
   }, []);
-  // ── validate form ─────────────────────────────────────────
+  //  validate form ─
   const validate = (): boolean => {
     const newErrors: typeof errors = {}
 
@@ -119,7 +118,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-  // ── submit (update) mutation ──────────────────────────────
+  //  submit (update) mutation 
   const submitMutation = useMutation({
     mutationFn: () => {
       setStep("saving")
@@ -140,7 +139,12 @@ const showBanner = useCallback((type: BannerType, message: string) => {
       queryClient.invalidateQueries({ queryKey: ["com-feed"] })
       setStep("success")
       setTimeout(() => {
-        router.replace(`/community/post/${updated.slug}`)
+        router.replace({
+          pathname:`/community/post/${updated.slug}`,
+        params:{
+          communityslug: comunityslug
+        }
+        })
       }, 1500)
     },
     onError: (error: any) => {
@@ -155,7 +159,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     submitMutation.mutate()
   }
 
-  // ── auth check ────────────────────────────────────────────
+  //  auth check 
   if (!user) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
@@ -172,13 +176,13 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     )
   }
 
-  // ── loading existing listing ──────────────────────────────
+  //  loading existing listing 
   if (isLoadingListing) {
     return (
       <View style={[styles.centeredScreen, { backgroundColor: theme.background }]}>
         <ActivityIndicator color={theme.primary} size="large" />
         <Text style={[styles.uploadingTitle, { color: theme.textSecondary }]}>
-          Loading listing...
+          Loading post for edit...
         </Text>
       </View>
     )
@@ -200,7 +204,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
         </TouchableOpacity>
       </View>)
   }
-  // ── saving screen ─────────────────────────────────────────
+  //  saving screen ─
   if (step === "saving") {
     return (
       <View style={[styles.centeredScreen, { backgroundColor: theme.background }]}>
@@ -212,7 +216,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
     )
   }
 
-  // ── success screen ────────────────────────────────────────
+  //  success screen 
   if (step === "success") {
     return (
       <View style={[styles.centeredScreen, { backgroundColor: theme.background }]}>
@@ -223,12 +227,15 @@ const showBanner = useCallback((type: BannerType, message: string) => {
         <Text style={[styles.successSub, { color: theme.textSecondary }]}>
           Your post has been updated successfully.
         </Text>
+        <Text style={[styles.successSub, { color: "red" }]}>
+          [Changes might take upto three minutes to reflect]
+        </Text>
         <ActivityIndicator color={theme.primary} size="small" style={{ marginTop: Spacing.lg }} />
       </View>
     )
   }
 
-  // ── edit form ─────────────────────────────────────────────
+  //  edit form ─
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
        {banner && (
@@ -261,7 +268,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
           contentContainerStyle={styles.formContent}
         >
 
-          {/* ── existing media (read-only preview) ───────────── */}
+          {/*  existing media (read-only preview) ─ */}
           {listing?.images && listing.images.length > 0 && (
             <View style={styles.mediaSection}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -304,7 +311,25 @@ const showBanner = useCallback((type: BannerType, message: string) => {
               >
                 {isLoadingCategories ?(
                   <ActivityIndicator color={theme.primary} size="small" />
-                ):(
+                ):isCategoryError?(
+                   <TouchableOpacity
+                   
+                    style={[
+                      styles.categoryChip,
+                     
+                    ]}
+                    onPress={() => refetchCategories()}
+                  >
+                   <Text style={[
+                      styles.categoryChipText,
+                     
+                    ]}>
+                      Error loading categories ,Tap to retry
+                    </Text>
+                  </TouchableOpacity>
+                )
+                
+                :(
                   categories.map((cat) => (
                   <TouchableOpacity
                     key={cat.id}

@@ -241,7 +241,12 @@ export interface MediaFiles {
   name: string
   type: string
 }
-
+export interface PropertyProfile {
+  id: string
+  uri: string
+  name: string
+  org_name: string
+}
 export interface Post {
   id: string
   slug: string
@@ -282,7 +287,9 @@ export interface Post {
   monthly_installment:string
   deposit:string
   rooms:string
-  client_upload_id:string
+  client_upload_id?:string
+  rejection_reason?:string
+  property_profile:PropertyProfile
 
 }
 

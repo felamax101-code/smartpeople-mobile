@@ -13,13 +13,14 @@ import {
   Modal,
   TextInput,
   ScrollView,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  BackHandler
 } from "react-native"
 import { Image } from "expo-image"
 import * as Clipboard from "expo-clipboard"
 
 import { SafeAreaView } from "react-native-safe-area-context"
-import { router, useLocalSearchParams } from "expo-router"
+import { router, useLocalSearchParams ,useFocusEffect} from "expo-router"
 import { useTheme } from "@/hooks/useTheme"
 import { useCommunityPostDetail } from "@/hooks/useCommunityPostDetails"
 import { ImageCarousel, CARD_HEIGHT } from "@/components/feed/ImageCarousel"
@@ -94,7 +95,6 @@ export default function PostDetailScreen() {
     outputRange: [0, 1],
     extrapolate: "clamp",
   })
-
   // header icon color flips from white (over image) to theme color (over content)
   const headerIconOpacity = scrollY.interpolate({
     inputRange: [HEADER_SOLID_THRESHOLD - 60, HEADER_SOLID_THRESHOLD],
@@ -151,12 +151,20 @@ export default function PostDetailScreen() {
 
 
 
-
+  const handleCopyinapplink = async () => {
+    if (!post) return
+    setShareModalVisible(false)
+    try {
+      await Clipboard.setStringAsync(`https://smartpipla.com/community/post/${slug}`)
+    } catch {
+      showNotifToast("Error copying. Try again", "error")
+    }
+  }
   //  share 
   const handleShare = useCallback(async () => {
     try {
       await Share.share({
-        message: `Check out this post ${post?.name ?? ""}  on SmartPeople\nhttps://smartpipla.com/community/post/${slug}`,
+        message: `Check out this post ${post?.name ?? ""}  on SmartPipla\nhttps://smartpipla.com/community/post/${slug}`,
       })
     } catch (error) {
     }
@@ -183,6 +191,20 @@ export default function PostDetailScreen() {
       showBanner("error", error?.response?.data?.detail ?? "Failed to delete listing.Try again")
     }
   }
+   useFocusEffect(
+      useCallback(() => {
+        const onBackPress = () => {
+          if (shareModalVisible) {
+            setShareModalVisible(false)
+            return true // consume the event, don't navigate back
+          }
+          return false // let default back behavior happen
+        }
+  
+        const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress)
+        return () => subscription.remove()
+      }, [shareModalVisible])
+    )
   const handleDownload = async () => {
     if (post?.post_type === "text" || !activeMedia) return
 
@@ -285,11 +307,89 @@ export default function PostDetailScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["bottom"]}
     >
-      {(menuVisible) && (
+      {shareModalVisible && <View
+        style={[{
+          position: "absolute", backgroundColor: theme.backgroundMuted, borderWidth: 2, borderColor: theme.textPlaceholder,
+          right: 3, bottom: 170, zIndex: 999, width: 150, gap: 10, borderRadius: Radius.md, paddingVertical: 6
+        }]}
+      >
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, justifyContent: "space-between", borderWidth: 0 }]}
+          onPress={() => setShareModalVisible(false)}
+          activeOpacity={0.7}
+        >
+          <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
+            Select share action
+          </Text>
+          <View
+            style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 3 }]}
+          >
+            <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.regular }]}>
+              Close
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleDownload}
+          activeOpacity={0.7}
+          disabled={downloadStatus === "downloading"}
+        >
+          {downloadStatus === "idle" ? (
+            <>
+              <MaterialCommunityIcons name="download" color={theme.primary} />
+              <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+                Download
+              </Text>
+            </>
+          ) : (
+            <>
+              <DownloadProgressRing progress={downloadProgress} status={downloadStatus} size={16} />
+              <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+                {downloadStatus === "downloading" ? `${Math.round(downloadProgress * 100)}%` : downloadStatus === "success" ? "Saved" : "Failed"}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleCopyinapplink}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="link" color={theme.primary} />
+          <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+            Copy inapp link
+          </Text>
+        </TouchableOpacity>
+        {post.description &&
+          <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            onPress={handleCopy}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="content-copy" color={theme.primary} />
+            <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+              Copy text body
+            </Text>
+          </TouchableOpacity>}
+
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleShare}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="message-text" color={theme.primary} />
+          <Text style={[{ color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+            Via another app
+          </Text>
+        </TouchableOpacity>
+      </View>}
+      {(menuVisible || shareModalVisible) && (
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
-          onPress={() => { setMenuVisible(false) }}
+          onPress={() => { setMenuVisible(false); setShareModalVisible(false) }}
         />
       )}
       {banner && (
@@ -484,7 +584,7 @@ export default function PostDetailScreen() {
                   onPress={handleUpvote}
                 >
                   <Text style={styles.interactionIcon}>
-                    {post.is_upvoted ? "❤️" : "🤍"}
+                    {post.is_upvoted ? <MaterialCommunityIcons name="chevron-up-circle-outline" size={30} color={`${theme.primary}`} /> : <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={"white"} />}
                   </Text>
                   <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
                     {post.upvotes_count}
@@ -495,7 +595,9 @@ export default function PostDetailScreen() {
                   style={[styles.interaction, { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 2, height: 30, width: 46, paddingHorizontal: 2, borderColor: "#383434" }]}
                   onPress={() => setCommentsVisible(true)}
                 >
-                  <Text style={styles.interactionIcon}>💬</Text>
+                  <Text style={styles.interactionIcon}>
+                    <MaterialCommunityIcons name="comment" color={`${theme.primary}`} size={30} />
+                  </Text>
                   <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
                     {post.comments_count}
                   </Text>
@@ -637,7 +739,16 @@ export default function PostDetailScreen() {
                       </>
                     )}
                   </TouchableOpacity>
-
+                  <TouchableOpacity
+                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+                    onPress={handleCopyinapplink}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="link" color={theme.primary} />
+                    <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+                      Copy inapp link
+                    </Text>
+                  </TouchableOpacity>
                   {post.description &&
                     <TouchableOpacity
                       style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
@@ -646,7 +757,7 @@ export default function PostDetailScreen() {
                     >
                       <MaterialCommunityIcons name="content-copy" color={theme.primary} />
                       <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
-                        Copy text
+                        Copy text body
                       </Text>
                     </TouchableOpacity>}
 
@@ -675,7 +786,7 @@ export default function PostDetailScreen() {
 
           <View
 
-            style={[styles.commentsPreview, { backgroundColor: expanded ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.1)" }]}
+            style={[styles.commentsPreview, { backgroundColor: expanded ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.1)", maxHeight: expanded ? undefined : 80 }]}
           >
             {post.owner.avatar === null ? (
               <TouchableOpacity
@@ -721,7 +832,7 @@ export default function PostDetailScreen() {
                 style={[styles.commentsPreviewText, { color: theme.textPrimary }]}
               >{expanded ?
                 parseText(post.description)
-                             : truncate(parseText(post.description) as unknown as string, 50)}
+                : parseText(truncate(post.description, 50))}
 
               </Text>
             </ScrollView>
@@ -919,7 +1030,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     right: 3,
-    bottom: 110,
+    bottom: 150,
     justifyContent: "space-between",
     gap: Spacing.lg,
   },

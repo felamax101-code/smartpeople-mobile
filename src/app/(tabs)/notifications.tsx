@@ -23,7 +23,7 @@ import { NotificationDateGroup } from "@/components/notifications/NotificationDa
 import { Notification } from "@/types"
 import { Spacing, Radius, FontSize, FontWeight, Colors } from "@/constants/colors"
 import { useToast } from "@/components/activityIndicator/ToastProvider"
-
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 type ListItem =
   | { type: "date"; label: string; key: string }
   | { type: "notification"; data: Notification; key: string }
@@ -194,13 +194,14 @@ useEffect(()=>{
               <TouchableOpacity
                 onPress={() => markAllRead()}
                 disabled={isMarkingAll}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 ,}}
+                style={[{backgroundColor:theme.backgroundMuted,borderRadius:10,paddingHorizontal:4}]}
               >
                 {isMarkingAll ? (
                   <ActivityIndicator color={theme.primary} size="small" />
                 ) : (
                   <Text style={[styles.markAllText, { color: theme.primary }]}>
-                    ✓✓
+                    Read All
                   </Text>
                 )}
               </TouchableOpacity>
@@ -213,7 +214,7 @@ useEffect(()=>{
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text style={[styles.deleteAllText, { color: theme.textMuted }]}>
-                  🗑️
+                  <MaterialCommunityIcons name="delete"  color={theme.primary} size={20}/>
                 </Text>
               </TouchableOpacity>
             )}

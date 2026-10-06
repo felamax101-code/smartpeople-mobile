@@ -63,10 +63,11 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
 
   //  upvote 
   const handleUpvote = useCallback(() => {
-    onUpvote?.(post.slug, !post.is_upvoted)
+   
     gatedAction(
       { type: "upvote", postSlug: post.slug },
       async () => {
+         onUpvote?.(post.slug, !post.is_upvoted)
         try {
           const result = await communityservice.toggleUpvote(post.slug)
           
@@ -78,13 +79,15 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
 
   //  save 
   const handleSave = useCallback(() => {
-    onSave?.(post.slug, true)
+   
     gatedAction(
       { type: "save", postId: post.id, postSlug: post.slug },
       async () => {
+         onSave?.(post.slug, true)
         try {
           const result = await communityservice.toggleSave(post.id)
-          onSave?.(post.slug, result.saved)
+          showNotifToast("Saved to your profile","success")
+          // onSave?.(post.slug, result.saved)
         } catch (error) {
         }
       }
@@ -319,9 +322,9 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
               </View>
 
               <View>
-                <Text style={[styles.textBody, { color: theme.textMuted }]}>{expanded ?parseText(post.description) : truncate(parseText(post.description) as unknown as string)}</Text>
+                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description,300) )}</Text>
               </View>
-              {post.description.length > 150 && (
+              {post.description.length > 100 && (
                 <TouchableOpacity
                   style={[styles.readMore]}
                   onPress={() => setExpanded((v) => !v)}
@@ -340,9 +343,9 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
                 </View>
 
                 <View>
-                  <Text style={[styles.textBody, { color: theme.textMuted }]}>{expanded ? parseText(post.description) : truncate(parseText(post.description) as unknown as string)}</Text>
+                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description) )}</Text>
                 </View>
-                {post.description.length > 150 && (
+                {post.description.length > 100 && (
                   <TouchableOpacity
                     style={[styles.readMore]}
                     onPress={() => setExpanded((v) => !v)}
@@ -364,6 +367,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
                   setActiveMedia(item)
                   setActiveIndex(index)
                 }}
+                communityslug={communityslug}
               />
             </>
           )}
@@ -532,9 +536,10 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
               <View style={[styles.reasonInput]}>
                 <TextInput
                   placeholder="Reason"
-                  style={[styles.reasonBarInput, { height: Math.min(Math.max(50, inputHeight), 120) }]}
+                  style={[styles.reasonBarInput, { color:theme.textPlaceholder, height: Math.min(Math.max(50, inputHeight), 120) }]}
                   onChangeText={setRejectionReason}
                   multiline
+                  placeholderTextColor={theme.textMuted}
                   textAlignVertical="top"
                   onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
                 />

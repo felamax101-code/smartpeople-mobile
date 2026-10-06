@@ -2,9 +2,9 @@ import { createContext, useContext, useRef, useState, useCallback } from "react"
 import { View, Text, StyleSheet, Animated, Dimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-type ToastType = "default" | "success" | "error"
+export type ToastType = "default" | "success" | "error"
 
-interface ToastState {
+export interface ToastState {
   message: string
   type: ToastType
 }

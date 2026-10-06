@@ -301,7 +301,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="📋"
             label="About Us"
-            onPress={async() => { await WebBrowser.openBrowserAsync("https://smartpeople.vercel.app/about", {
+            onPress={async() => { await WebBrowser.openBrowserAsync("https://smartpipla.com/about", {
                     presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
                     toolbarColor: '#6366F1',
                   }) }}
@@ -309,7 +309,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="📋"
             label="Terms of Service"
-            onPress={async() => { await WebBrowser.openBrowserAsync("https://smartpeople.vercel.app/terms", {
+            onPress={async() => { await WebBrowser.openBrowserAsync("https://smartpipla.com/terms", {
                     presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
                     toolbarColor: '#6366F1',
                   }) }}
@@ -319,7 +319,7 @@ export default function SettingsScreen() {
             label="Privacy Policy"
             onPress={async() => {
 
-               await WebBrowser.openBrowserAsync("https://smartpeople.vercel.app/privacy", {
+               await WebBrowser.openBrowserAsync("https://smartpipla.com/privacy", {
                     presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
                     toolbarColor: '#6366F1',
                   })

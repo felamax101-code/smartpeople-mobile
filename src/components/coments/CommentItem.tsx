@@ -26,25 +26,26 @@ import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/color
 import { RepliesThread } from "./RepliesThread"
 import { useToast } from "../activityIndicator/ToastProvider"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
-import truncate from "@/hooks/useTruncateBody"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
+import truncate from "@/hooks/useTruncateBody"
+import { parseText } from "@/hooks/useTextParser"
 interface Props {
   comment: Comment
   postSlug: string
   depth?: number
-  onReplyPress?: (comment: Comment,effectRootId:string) => void
+  onReplyPress?: (comment: Comment, effectRootId: string) => void
   queryKey: string[]
   optimisticReplies?: Record<string, Comment[]>
   onEditSuccess?: (commentId: string, newBody: string) => void
   onDeleteSuccess?: (commentId: string) => void
   onProcessError: any
   replyToCommentBody?: string
-  rootCommentId?:string
+  rootCommentId?: string
 }
 
 export const CommentItem = React.memo(({
-   comment,
+  comment,
   rootCommentId,
   postSlug,
   depth = 0,
@@ -64,9 +65,9 @@ export const CommentItem = React.memo(({
   const [localDownvoted, setLocalDownvoted] = useState(comment.has_downvoted)
   const [localUpvotes, setLocalUpvotes] = useState(comment.upvotes_count)
   const [localDownvotes, setLocalDownvotes] = useState(comment.downvotes_count)
-const effectRootId=rootCommentId?? comment.id
+  const effectRootId = rootCommentId ?? comment.id
 
-  const {showNotifToast}=useNotificationToast()
+  const { showNotifToast } = useNotificationToast()
   const { user } = useAuthStore()
   const isAuthor = user?.id === comment.author.id
 
@@ -75,6 +76,7 @@ const effectRootId=rootCommentId?? comment.id
   const [showReportModal, setShowReportModal] = useState(false)
   const [reportReason, setReportReason] = useState("")
   const [otherReason, setOtherReason] = useState("")
+  const [expanded, setExpanded] = useState(false)
 
   const REPORT_REASONS = [
     "Spam",
@@ -152,7 +154,7 @@ const effectRootId=rootCommentId?? comment.id
       setShowReportModal(false)
       setReportReason("")
       setOtherReason("")
-      showNotifToast("Reported. Thank you for your report.","success")
+      showNotifToast("Reported. Thank you for your report.", "success")
     },
     onError: () => {
       onProcessError(true)
@@ -211,11 +213,11 @@ const effectRootId=rootCommentId?? comment.id
   const handleReply = useCallback(() => {
     gatedAction(
       { type: "comment", postSlug },
-      () => onReplyPress?.(comment,effectRootId)
+      () => onReplyPress?.(comment, effectRootId)
     )
   }, [gatedAction, postSlug, comment, onReplyPress])
   const handleProfilePress = useCallback(() => {
-    router.push( (user!=null && user.username===comment.author.username)? `/profile`: `/profile/${comment.author.username}`)
+    router.push((user != null && user.username === comment.author.username) ? `/profile` : `/profile/${comment.author.username}`)
 
   }, [comment.author.username])
   // ── deleted comment 
@@ -262,7 +264,7 @@ const effectRootId=rootCommentId?? comment.id
       styles.container,
       // indent replies with a left border line
       depth > 0 && styles.replyIndent,
-      depth > 0 && { borderLeftColor: theme.border },{borderColor:theme.textMuted}
+      depth > 0 && { borderLeftColor: theme.border }, { borderColor: theme.textMuted }
     ]}>
 
       {/* ── author row  */}
@@ -282,7 +284,7 @@ const effectRootId=rootCommentId?? comment.id
               styles.avatar,
               // smaller avatar for replies
               depth > 0 && styles.avatarSmall,
-            ,{borderColor:theme.textPlaceholder,borderWidth:1}]}
+              , { borderColor: theme.textPlaceholder, borderWidth: 1 }]}
             contentFit="cover"
           />)}
         <View style={styles.authorInfo}>
@@ -307,26 +309,26 @@ const effectRootId=rootCommentId?? comment.id
           {/* @mention of who they're replying to */}
           {comment.reply_to && (
             <View
-             
-              style={[{display:"flex",flexDirection:"row",gap:1,alignItems:"center"}]}
+
+              style={[{ display: "flex", flexDirection: "row", gap: 1, alignItems: "center" }]}
             >
-               <Text style={[styles.replyingTo, { color: theme.textMuted }]}>
+              <Text style={[styles.replyingTo, { color: theme.textMuted }]}>
                 Replying to
               </Text>
-              <TouchableOpacity  
-               onPress={() => router.push( (user!=null && user.username===comment.reply_to?.username)? `/profile`: `/profile/${comment.reply_to!.username}`)}
+              <TouchableOpacity
+                onPress={() => router.push((user != null && user.username === comment.reply_to?.username) ? `/profile` : `/profile/${comment.reply_to!.username}`)}
               >
-              <Text style={[styles.replyingTo, { color: theme.primary }]}>
-                 @{comment.reply_to?.username}
-              </Text>
+                <Text style={[styles.replyingTo, { color: theme.primary }]}>
+                  @{comment.reply_to?.username}
+                </Text>
               </TouchableOpacity>
               <MaterialCommunityIcons
-              name="arrow-right"
-              style={[{color:theme.textPrimary,paddingTop:1}]}
-              size={9}
+                name="arrow-right"
+                style={[{ color: theme.textPrimary, paddingTop: 1 }]}
+                size={9}
               />
 
-               <Text style={[styles.replyingTo, { color: theme.textMuted }]}>
+              <Text style={[styles.replyingTo, { color: theme.textMuted }]}>
                 [{truncate(replyToCommentBody ?? "", 9)}]
               </Text>
             </View>
@@ -351,7 +353,7 @@ const effectRootId=rootCommentId?? comment.id
             onChangeText={setEditText}
             multiline
             autoFocus
-            maxLength={500}
+            maxLength={2000}
           />
           <View style={styles.editActions}>
             <TouchableOpacity
@@ -375,12 +377,26 @@ const effectRootId=rootCommentId?? comment.id
           </View>
         </View>
       ) : (
-        <Text style={[styles.body, { color: theme.textPrimary }]}>
-          {comment.body}
-          {comment.is_edited && (
-            <Text style={{ color: theme.textMuted, fontSize: FontSize.xs }}> (edited)</Text>
+        <TouchableOpacity
+          onPress={() => setExpanded((v) => !v)}
+        >
+          <Text style={[styles.body, { color: theme.textPrimary }]}>
+            {expanded ? parseText(comment.body) : parseText(truncate(comment.body))}
+            {comment.is_edited && (
+              <Text style={{ color: theme.textMuted, fontSize: FontSize.xs }}> (edited)</Text>
+            )}
+          </Text>
+          {comment.body.length > 100 && (
+            <TouchableOpacity
+              style={[styles.readMore]}
+              onPress={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+            >
+              <Text
+                style={[{ color: theme.primary, fontSize: FontSize.xs, fontWeight: FontWeight.regular, }]}
+              >{expanded ? "Show less" : "Read more"}</Text>
+            </TouchableOpacity>
           )}
-        </Text>
+        </TouchableOpacity>
       )}
 
 
@@ -562,18 +578,18 @@ const effectRootId=rootCommentId?? comment.id
         <RepliesThread
           commentId={comment.id}
           postSlug={postSlug}
-           replyToCommentBody={comment.body}
+          replyToCommentBody={comment.body}
           optimisticReplies={optimisticReplies[comment.id] ?? []}
-          renderItem={(reply, onEditSuccess, onDeleteSuccess,replyToCommentBody) => (
+          renderItem={(reply, onEditSuccess, onDeleteSuccess, replyToCommentBody) => (
             <CommentItem
               key={reply.id}
               comment={reply}
               postSlug={postSlug}
               depth={1}
               onReplyPress={onReplyPress}
-               replyToCommentBody={reply.replied_to?.body??undefined}
+              replyToCommentBody={reply.replied_to?.body ?? undefined}
               queryKey={queryKey}
-               rootCommentId={effectRootId}
+              rootCommentId={effectRootId}
               optimisticReplies={optimisticReplies}
               onEditSuccess={onEditSuccess}      //  reply-specific handler
               onDeleteSuccess={onDeleteSuccess}//  reply-specific handler
@@ -604,9 +620,9 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: Spacing.sm,
     gap: Spacing.xs,
-    borderWidth:0.5,
-    borderRadius:Radius.md,
-    marginBottom:3
+    borderWidth: 0.5,
+    borderRadius: Radius.md,
+    marginBottom: 3
   },
   // indent replies with left border
   replyIndent: {
@@ -618,7 +634,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: Spacing.xs,
-    paddingHorizontal:1
+    paddingHorizontal: 1
   },
   avatar: {
     width: 30,
@@ -626,7 +642,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: Colors.gray[200],
     flexShrink: 0,
-    overflow:"hidden",
+    overflow: "hidden",
   },
   avatarSmall: {
     width: 25,
@@ -650,6 +666,14 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     alignItems: "center",
     justifyContent: "center",
+  },
+  readMore: {
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+    right: 5,
+    bottom: 5,
+
   },
   verifyDotText: {
     color: "#fff",

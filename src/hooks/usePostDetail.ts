@@ -6,10 +6,12 @@ import { useAuthGate } from "@/hooks/useAuthGate"
 import { Post  } from "@/types"
 import {useState} from "react"
 import { FeedFilters } from "@/types"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 export const usePostDetail = (slug: string) => {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const { gatedAction } = useAuthGate()
+const {showNotifToast}=useNotificationToast() 
   const [filters, setFilters] = useState<FeedFilters>({
       sort: "newest",
       page: 1,
@@ -17,7 +19,7 @@ export const usePostDetail = (slug: string) => {
     const [searchText, setSearchText] = useState("")
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   
-  // ── fetch post ─────────────────────────────────────────
+  //  fetch post ─
   const {
     data: post,
     isLoading,
@@ -30,7 +32,7 @@ export const usePostDetail = (slug: string) => {
     staleTime: 5 * 60 * 1000,
   })
 
-  // ── optimistic upvote ─────────────────────────────────────
+  //  optimistic upvote ─
   const upvoteMutation = useMutation({
     mutationFn: () => feedService.toggleUpvote(slug),
     onMutate: async () => {
@@ -43,7 +45,7 @@ export const usePostDetail = (slug: string) => {
       queryClient.setQueryData(["post", slug], (old: Post) => ({
         ...old,
         is_upvoted: !old.is_upvoted,
-        upvotes_count: old.is_upvoted
+        upvotes_count: old.is_upvoted && old.upvotes_count>=0
           ? old.upvotes_count - 1
           : old.upvotes_count + 1,
       }))
@@ -85,7 +87,7 @@ export const usePostDetail = (slug: string) => {
     },
   })
 
-  // ── optimistic save ───────────────────────────────────────
+  //  optimistic save ─
   const saveMutation = useMutation({
     mutationFn: () => feedService.toggleSave(post!.id),
     onMutate: async () => {
@@ -97,6 +99,7 @@ export const usePostDetail = (slug: string) => {
         is_saved: !old.is_saved,
         
       }));
+      showNotifToast(post?.is_saved?"Removed from your profile":"Save to your","success")
        queryClient.setQueryData(
             ["com-feed", filters, selectedCategory, searchText],
             (old: any) => {
@@ -118,17 +121,17 @@ export const usePostDetail = (slug: string) => {
       return { previous }
     },
     onError: (_, __, context) => {
-      console.log("ttttft")
+      showNotifToast("Error saving","error")
       queryClient.setQueryData(["post", slug], context?.previous)
     },
   })
 
-  // ── buy intent ────────────────────────────────────────────
+  //  buy intent 
   const buyIntentMutation = useMutation({
     mutationFn: () => feedService.registerBuyIntent(slug),
   })
 
-  // ── gated actions ─────────────────────────────────────────
+  //  gated actions ─
   const handleUpvote = () => {
     gatedAction(
       { type: "upvote", postSlug: slug },

@@ -220,6 +220,7 @@ export default function GroupMembersScreen() {
           style={styles.searchInput}
           placeholder={activeTab === 'members' ? 'Search members' : `Search ${pendingLabel.toLowerCase()}`}
           value={searchText}
+          placeholderTextColor={theme.textPlaceholder}
           onChangeText={setSearchText}
           autoCorrect={false}
         />

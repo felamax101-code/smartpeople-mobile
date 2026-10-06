@@ -1,5 +1,5 @@
 
-import { useState, useCallback,useEffect } from "react"
+import { useState, useCallback, useEffect } from "react"
 import {
   View,
   Text,
@@ -13,8 +13,8 @@ import {
   BackHandler
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { router, useLocalSearchParams ,useFocusEffect} from "expo-router"
-import { useMutation, useQuery,useQueryClient } from "@tanstack/react-query"
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import { useUploadQueue } from "@/components/createpost/UploadQueuecontext"
 
@@ -29,15 +29,13 @@ import { Category, Post } from "@/types"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { communityservice } from "@/services/community.sevice"
-import { VideoEditScreen } from "@/components/editor/VideoEditScreen"
 import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 //  screen steps ─
 type Step =
   | "media_type"    // choose images or video
   | "gallery"
-  | "video_edit"
-  | "image_edit"  
+  | "image_edit"
   | "form"          // listing details form
   | "uploading"     // uploading to Cloudinary
   | "success"       // posted successfully     // posted successfully
@@ -45,8 +43,8 @@ type Step =
 function SellScreen() {
   const theme = useTheme()
   const { user } = useAuthStore()
-  const { slug,cname } = useLocalSearchParams<{ slug: string,cname:string }>()
-const queryClient=useQueryClient()
+  const { slug, cname } = useLocalSearchParams<{ slug: string, cname: string }>()
+  const queryClient = useQueryClient()
 
   //  step state 
   const [step, setStep] = useState<Step>("media_type")
@@ -56,12 +54,11 @@ const queryClient=useQueryClient()
   const [opengalleryDisabled, setopengalleryDisabled] = useState(false)
   const [banner, setBanner] = useState<BannerState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false)
-const {showNotifToast}=useNotificationToast()
+  const { showNotifToast } = useNotificationToast()
   //  form state 
   const [form, setForm] = useState({
     name: "",
     description: "",
-
     category: "",
     location: "",
   })
@@ -72,9 +69,9 @@ const {showNotifToast}=useNotificationToast()
   const { startUpload } = useUploadQueue()
 
   //  fetch categories 
-  const { data: categoriesData,isError,refetch } = useQuery({
-    queryKey: ["com-categories",slug,user?.username??""],
-    queryFn:()=> communityservice.getCategories(slug),
+  const { data: categoriesData, isError, refetch } = useQuery({
+    queryKey: ["com-categories", slug, user?.username ?? ""],
+    queryFn: () => communityservice.getCategories(slug),
     staleTime: 10 * 60 * 1000,
   })
 
@@ -93,30 +90,29 @@ const {showNotifToast}=useNotificationToast()
     }
   }, [step])
   useFocusEffect(
-      useCallback(() => {
-        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-          if (step === "media_type") {
-            return false // nothing to trap — let default back/exit happen
-          }
-  
-          if (step === "form") {
-            
-             if (mediaType === "image") setStep("image_edit")
-            else setStep("media_type")
-          } else if (step === "uploading" || step === "success") {
-            // don't let back interrupt an in-flight submit or the success screen
-            return true
-          } else {
-            // gallery, image_edit, video_edit, etc. → back to media type choice
-            setStep("media_type")
-          }
-  
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (step === "media_type") {
+          return false // nothing to trap — let default back/exit happen
+        }
+
+        if (step === "form") {
+
+          if (mediaType === "image") setStep("image_edit")
+          else setStep("media_type")
+        } else if (step === "uploading" || step === "success") {
+          // don't let back interrupt an in-flight submit or the success screen
           return true
-        })
-  
-        return () => sub.remove()
-      }, [step, mediaType])
-    )
+        } else {
+          setStep("media_type")
+        }
+
+        return true
+      })
+
+      return () => sub.remove()
+    }, [step, mediaType])
+  )
   const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
   }, []);
@@ -152,58 +148,59 @@ const {showNotifToast}=useNotificationToast()
     return Object.keys(newErrors).length === 0
   }
   const [thereIsErrors, setthereIsErrors] = useState(false)
- const handleSubmit = () => {
-     if (!validate()) {
-       setthereIsErrors(true)
-       return
-     }
-     if (isSubmitting) return // guard against a double-tap firing two uploads
-     setIsSubmitting(true)
-     setopengalleryDisabled(true)
- 
-     startUpload(
-       {
-         name: form.name.trim(),
-         description: form.description.trim(),
-         categoryId: form.category,
-         locationDisplay: form.location.trim(),
-         postType: mediaType, // "text" | "image" | "video"
-         mediaType: mediaType === "image" ? "photo" : mediaType === "video" ? "video" : undefined,
-         mediaUris: mediaType === "text" ? [] : selectedUris,
-       },
-       {
-         onDone: (postId, postSlug) => {
-           queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
-          setTimeout(()=>{
+  const handleSubmit = () => {
+    if (!validate()) {
+      setthereIsErrors(true)
+      return
+    }
+    if (isSubmitting) return // guard against a double-tap firing two uploads
+    setIsSubmitting(true)
+    setopengalleryDisabled(true)
+
+    startUpload(
+      {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        categoryId: form.category,
+        locationDisplay: form.location.trim(),
+        postType: mediaType, // "text" | "image" | "video"
+        mediaType: mediaType === "image" ? "photo" : mediaType === "video" ? "video" : undefined,
+        mediaUris: mediaType === "text" ? [] : selectedUris,
+      },
+      {
+        onDone: (postId, postSlug) => {
+          showNotifToast(`Post uploaded to ${cname??"community"}`, "success")
+          queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
+          setTimeout(() => {
             router.push(`/community/post/${postSlug}`)
-          },3000)
-           
-         },
-         onFailed: (error) => {
-           showNotifToast("Failed to upload post","error")
-         },
-       },
-       true,slug
-       
-     )
- 
-     // leave immediately — the upload continues in the background via the
-     // floating badge. 
-     router.back()
- 
-     setStep("media_type")
-     setForm({
-       name: "",
-       description: "",
-       category: "",
-       location: "",
-     })
-     setSelectedUris([])
-     setthereIsErrors(false)
-     setMediaErrors(null)
-     setIsSubmitting(false)
-     setopengalleryDisabled(false)
-   }
+          }, 3000)
+
+        },
+        onFailed: (error) => {
+          showNotifToast("Failed to upload post", "error")
+        },
+      },
+      true, slug
+
+    )
+
+    // leave immediately — the upload continues in the background via the
+    // floating badge. 
+    router.back()
+
+    setStep("media_type")
+    setForm({
+      name: "",
+      description: "",
+      category: "",
+      location: "",
+    })
+    setSelectedUris([])
+    setthereIsErrors(false)
+    setMediaErrors(null)
+    setIsSubmitting(false)
+    setopengalleryDisabled(false)
+  }
   //  auth check 
   if (!user) {
     return (
@@ -296,9 +293,9 @@ const {showNotifToast}=useNotificationToast()
           <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
             New post
           </Text>
-           {cname && <Text style={[styles.headerTitle, { color: theme.primary,fontSize:FontSize.lg,fontWeight:FontWeight.bold }]}>
-              [To {cname}]
-            </Text>}
+          {cname && <Text style={[styles.headerTitle, { color: theme.primary, fontSize: FontSize.lg, fontWeight: FontWeight.bold }]}>
+            [To {cname}]
+          </Text>}
           <View style={{ width: 40 }} />
         </View>
 
@@ -347,44 +344,33 @@ const {showNotifToast}=useNotificationToast()
           </View>
         </SafeAreaView>
 
-           <GalleryPicker
-        mediaType={mediaType}
-        onNext={(uris) => {
-          setSelectedUris(uris)
-          if (mediaType === "image") {
+        <GalleryPicker
+          mediaType={mediaType}
+          onNext={(uris) => {
+            setSelectedUris(uris)
+            if (mediaType === "image") {
               setStep("image_edit")
-            }  else {
+            } else {
               setStep("form")
             }
-        }}
-      />
+          }}
+        />
       </View>
     )
   }
-if (step === "image_edit") {
-  return (
-    <ImageEditScreen
-      imageUris={selectedUris}
-      onCancel={() => setStep("gallery")}
-      onDone={(finalUris) => {
-        setSelectedUris(finalUris)
-        setStep("form")
-      }}
-    />
-  )
-}
-  if (step === "video_edit") {
+  if (step === "image_edit") {
     return (
-      <VideoEditScreen
-        videoUri={selectedUris[0]}
+      <ImageEditScreen
+        imageUris={selectedUris}
         onCancel={() => setStep("gallery")}
-        onDone={(finalUri) => {
-          setSelectedUris([finalUri])
+        onDone={(finalUris) => {
+          setSelectedUris(finalUris)
           setStep("form")
         }}
       />
     )
   }
+ 
   //  post form 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]} >
@@ -412,7 +398,7 @@ if (step === "image_edit") {
             <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
               Post Details
             </Text>
-            {cname && <Text style={[styles.headerTitle, { color: theme.primary,fontSize:FontSize.lg,fontWeight:FontWeight.bold }]}>
+            {cname && <Text style={[styles.headerTitle, { color: theme.primary, fontSize: FontSize.lg, fontWeight: FontWeight.bold }]}>
               [To {cname}]
             </Text>}
             <TouchableOpacity
@@ -428,73 +414,81 @@ if (step === "image_edit") {
 
           {mediaType === "text" ?
             (<View>
-              {/* name */}
-              <FormInput
-                label="Post Title"
-                value={form.name}
-                onChangeText={(t) => updateField("name", t)}
-                error={errors.name}
-                placeholder="title"
-                returnKeyType="next"
-              />
+              <View>
+                {/* name */}
+                <FormInput
+                  label="Post Title"
+                  value={form.name}
+                  onChangeText={(t) => updateField("name", t)}
+                  error={errors.name}
+                  placeholder="title"
+                  returnKeyType="next"
+                />
+                <View style={styles.descriptionFooter}>
+
+                  <Text style={[styles.charCount, { color: form.name.length == 50 ? theme.error : theme.textMuted }]}>
+                    {form.description.length} / 50
+                  </Text>
+                </View>
+              </View>
               {/* category */}
-                <View style={styles.fieldGroup}>
-                            <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                              Category
-                            </Text>
-                            {!categories.length || isError ? (<TouchableOpacity
-                              onPress={() => refetch()}
-                            >
-                              <Text
-                                style={[styles.fieldError, { color: theme.ALLwarning, fontSize: FontSize.lg }]}
-                              >
-                                Could not load categories,click to retry
-                              </Text>
-              
-                            </TouchableOpacity>
-              
-                            ) : (<ScrollView
-                              horizontal
-                              showsHorizontalScrollIndicator={false}
-                              contentContainerStyle={styles.categoryChips}
-                            >
-                              {categories.map((cat) => (
-                                <TouchableOpacity
-                                  key={cat.id}
-                                  style={[
-                                    styles.categoryChip,
-                                    {
-                                      backgroundColor:
-                                        form.category === cat.id
-                                          ? theme.primary
-                                          : theme.surfaceSecondary,
-                                      borderColor:
-                                        form.category === cat.id
-                                          ? theme.primary
-                                          : theme.border,
-                                    },
-                                  ]}
-                                  onPress={() => updateField("category", cat.id)}
-                                >
-                                  {cat.icon && (
-                                    <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                                  )}
-                                  <Text style={[
-                                    styles.categoryChipText,
-                                    {
-                                      color:
-                                        form.category === cat.id
-                                          ? "#fff"
-                                          : theme.textSecondary,
-                                    },
-                                  ]}>
-                                    {cat.name}
-                                  </Text>
-              
-                                </TouchableOpacity>
-                              ))}
-                            </ScrollView>
-                            )}
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
+                  Category
+                </Text>
+                {!categories.length || isError ? (<TouchableOpacity
+                  onPress={() => refetch()}
+                >
+                  <Text
+                    style={[styles.fieldError, { color: theme.ALLwarning, fontSize: FontSize.lg }]}
+                  >
+                    Could not load categories,click to retry
+                  </Text>
+
+                </TouchableOpacity>
+
+                ) : (<ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryChips}
+                >
+                  {categories.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryChip,
+                        {
+                          backgroundColor:
+                            form.category === cat.id
+                              ? theme.primary
+                              : theme.surfaceSecondary,
+                          borderColor:
+                            form.category === cat.id
+                              ? theme.primary
+                              : theme.border,
+                        },
+                      ]}
+                      onPress={() => updateField("category", cat.id)}
+                    >
+                      {cat.icon && (
+                        <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                      )}
+                      <Text style={[
+                        styles.categoryChipText,
+                        {
+                          color:
+                            form.category === cat.id
+                              ? "#fff"
+                              : theme.textSecondary,
+                        },
+                      ]}>
+                        {cat.name}
+                      </Text>
+
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                )}
                 {errors.category && (
                   <Text style={[styles.fieldError, { color: theme.error }]}>
                     {errors.category}
@@ -539,7 +533,7 @@ if (step === "image_edit") {
                 <TouchableOpacity
                   style={[styles.submitButton, { backgroundColor: theme.primary }]}
                   onPress={handleSubmit}
-                 disabled={isSubmitting}
+                  disabled={isSubmitting}
                   activeOpacity={0.85}
                 >
                   <Text style={styles.submitButtonText}>
@@ -688,16 +682,16 @@ if (step === "image_edit") {
                       Correct the above errors                  </Text>
                   )}
                   {/* submit button */}
-                 <TouchableOpacity
-                                     style={[styles.submitButton, { backgroundColor: theme.primary }]}
-                                     onPress={handleSubmit}
-                                     disabled={isSubmitting}
-                                     activeOpacity={0.85}
-                                   >
-                                     <Text style={styles.submitButtonText}>
-                                       Post
-                                     </Text>
-                                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.submitButton, { backgroundColor: theme.primary }]}
+                    onPress={handleSubmit}
+                    disabled={isSubmitting}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.submitButtonText}>
+                      Post
+                    </Text>
+                  </TouchableOpacity>
 
                   <Text style={[styles.pendingNotice, { color: theme.textMuted }]}>
                     Posts are reviewed by our team before going live. Usually within a moment.

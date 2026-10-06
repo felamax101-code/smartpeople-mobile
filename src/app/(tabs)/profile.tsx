@@ -63,7 +63,7 @@ export default function OwnProfileScreen() {
           <View style={styles.divider}>
             <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
             <Text style={[styles.dividerText, { color: theme.textMuted }]}>
-              or not yet a smartpeopler?
+              or not yet a SmartPiplian?
             </Text>
             <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
           </View>
@@ -213,7 +213,7 @@ function AuthenticatedProfile({ user, theme }: { user: any; theme: any }) {
       {/*  header bar ─ */}
       <View style={[styles.headerBar, { borderBottomColor: theme.border }]}>
         <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-          My Profile
+          My SmartPiplian Account
         </Text>
 
         {/* Actions Row */}

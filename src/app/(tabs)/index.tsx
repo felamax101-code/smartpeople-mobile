@@ -1,4 +1,4 @@
-import  { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import {
   View,
   StyleSheet,
@@ -21,32 +21,34 @@ import { AuthPrompt } from "@/components/auth/AuthPrompt"
 import { feedService } from "@/services/feed.service"
 import { useAuthStore } from "@/stores/auth.store"
 import { Post, FeedFilters, FeedApiResponse } from "@/types"
-import { Colors, Spacing, Radius, FontSize ,FontWeight} from "@/constants/colors"
+import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { useNotificationStore } from "@/stores/notification.store"
 import { notificationService } from "@/services/notification.service"
 import { useTheme } from "@/hooks/useTheme"
 import { useWebSocket } from "@/hooks/useWebSocket"
-import { loadFeedCache,saveFeedCache } from "@/hooks/useFeedCacheHelper"
+import { loadFeedCache, saveFeedCache } from "@/hooks/useFeedCacheHelper"
 import LoadingIndicator from "@/components/ui/loadingindicator"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useMessageStore } from "@/stores/message.store"
 import { messagingService } from "@/services/messaging.service"
 import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
+import { usePushToken } from "@/hooks/useRegisterForPushnotification"
+
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 // how many posts from the end to trigger prefetch
 const PREFETCH_THRESHOLD = 3
 export default function FeedScreen() {
-  const {setUnreadMessageCount}=useMessageStore()
+  const { setUnreadMessageCount } = useMessageStore()
   const theme = useTheme()
-  const scrollOffsetRef=useRef(0)
+  const scrollOffsetRef = useRef(0)
   const [filters, setFilters] = useState<FeedFilters>({
     sort: "newest",
     page: 1,
   })
   const [searchText, setSearchText] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const[categorydropdownVisisble,setCategorydropdownVisible]=useState<boolean>(false)
+  const [categorydropdownVisisble, setCategorydropdownVisible] = useState<boolean>(false)
   const queryClient = useQueryClient()
   const feedQueryKey = ["feed", filters, selectedCategory, searchText]
   const { user } = useAuthStore()
@@ -163,9 +165,9 @@ export default function FeedScreen() {
           }
         });
         queryClient.setQueryData(["post", event.data.slug], (old: any) => ({
-        ...old,
-        comments_count: event.data.comments_count,
-      }));
+          ...old,
+          comments_count: event.data.comments_count,
+        }));
         break
       }
 
@@ -177,19 +179,21 @@ export default function FeedScreen() {
   const stableHandler = useCallback((event: any) => {
     handleWSEventRef.current?.(event)
   }, [])
-
   const { status } = useWebSocket({
     userId: user?.id ?? "",
     onEvent: stableHandler,
   })
 
-  useEffect(()=>{
-    if(!user) return
-    
+usePushToken()
+
+
+  useEffect(() => {
+    if (!user) return
+
     messagingService.getUnreadCount().then(setUnreadMessageCount)
-    
-    
-  },[user])
+
+
+  }, [user])
   // const viewabilityConfig = { itemVisiblePercentThreshold: 65}
 
   const flatListRef = useRef<FlatList>(null)
@@ -204,13 +208,13 @@ export default function FeedScreen() {
       notificationService.getUnreadCount().then(setUnreadCount)
     }
   }, [user])
- 
 
 
- 
+
+
   //  fetch categories 
-  const { data: categoriesData,refetch:refetchCategory } = useQuery({
-    queryKey: ["categories",user?.username??""],
+  const { data: categoriesData, refetch: refetchCategory } = useQuery({
+    queryKey: ["categories", user?.username ?? ""],
     queryFn: feedService.getCategories,
     staleTime: 10 * 60 * 1000,  // categories rarely change — cache for 10 mins
   })
@@ -228,6 +232,7 @@ export default function FeedScreen() {
     isFetching: isRefreshing,
     refetch,
     isError,
+    isFetchNextPageError
   } = useInfiniteQuery({
     queryKey: ["feed", filters, selectedCategory, searchText],
     queryFn: async ({ pageParam = 1 }) => {
@@ -250,27 +255,27 @@ export default function FeedScreen() {
     staleTime: 2 * 60 * 1000,  // feed stays fresh for 2 mins before background refetch
   })
 
-useEffect(() => {
-  // Only hydrate the default view (no active filters/search),
-  // since that's the state the user lands on when opening the app
-  if (!selectedCategory && !searchText) {
-    loadFeedCache().then((cached) => {
-      if (cached) {
-        queryClient.setQueryData(["feed", filters, selectedCategory, searchText], {
-          pages: [cached.page],
-          pageParams: [1],
-        });
-      }
-    });
-  }
-}, []);
-useEffect(() => {
-  if (data?.pages?.[0] && !selectedCategory && !searchText) {
-    saveFeedCache(data.pages[0]);
-  }
-}, [data?.pages?.[0]]);
+  useEffect(() => {
+    // Only hydrate the default view (no active filters/search),
+    // since that's the state the user lands on when opening the app
+    if (!selectedCategory && !searchText) {
+      loadFeedCache().then((cached) => {
+        if (cached) {
+          queryClient.setQueryData(["feed", filters, selectedCategory, searchText], {
+            pages: [cached.page],
+            pageParams: [1],
+          });
+        }
+      });
+    }
+  }, []);
+  useEffect(() => {
+    if (data?.pages?.[0] && !selectedCategory && !searchText) {
+      saveFeedCache(data.pages[0]);
+    }
+  }, [data?.pages?.[0]]);
   // flatten all pages into a single post array
-  const posts: Post[] = data?.pages.flatMap((page:any) => page.data.posts ?? []) ?? []
+  const posts: Post[] = data?.pages.flatMap((page: any) => page.data.posts ?? []) ?? []
 
   //  prefetch next page 
   // called when user is PREFETCH_THRESHOLD items from the end
@@ -298,10 +303,10 @@ useEffect(() => {
     queryClient.setQueryData(
       ["feed", filters, selectedCategory, searchText],
       (old: typeof data) => {
-        if (!old) {    return old}
+        if (!old) { return old }
         return {
           ...old,
-          pages: old.pages.map((page:any) => ({
+          pages: old.pages.map((page: any) => ({
             ...page,
             data: {
               ...page.data,
@@ -310,7 +315,7 @@ useEffect(() => {
                   ? {
                     ...p,
                     is_upvoted: !p.is_upvoted,
-                    upvotes_count: p.upvotes_count + (p.is_upvoted  ? -1 : 1),
+                    upvotes_count: p.upvotes_count + (p.is_upvoted && p.upvotes_count>=0 ? -1 : 1),
                   }
                   : p
               ),
@@ -319,7 +324,7 @@ useEffect(() => {
         };
       }
     );
-     
+
     // queryClient.setQueryData(["post", slug], (old: Post) => ({
     //       ...old,
     //       is_upvoted: !old.is_upvoted,
@@ -329,10 +334,10 @@ useEffect(() => {
     //     }))
   }, [queryClient, filters, selectedCategory, searchText],
 
-  
-        
 
-)
+
+
+  )
   const handleSave = useCallback((post_slug: string, saved: boolean) => {
     queryClient.setQueryData(
       ["feed", filters, selectedCategory, searchText],
@@ -340,12 +345,12 @@ useEffect(() => {
         if (!old) return old
         return {
           ...old,
-          pages: old.pages.map((page:any) => ({
+          pages: old.pages.map((page: any) => ({
             ...page,
             data: {
               ...page.data,
               posts: page.data.posts.map((p: Post) =>
-                p.slug === post_slug ? { ...p, is_saved: saved ,saves_count:saved? p.saves_count+1:p.saves_count-1} : p
+                p.slug === post_slug ? { ...p, is_saved: !p.is_saved, saves_count:  p.saves_count + (p.is_saved && p.saves_count>=0? -1 : 1), } : p
               ),
             },
           })),
@@ -385,8 +390,32 @@ useEffect(() => {
     if (!isFetchingNextPage) return null
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator color={Colors.primary} size="small" />
+        {isFetchNextPageError?(
+          <View>
+            <Text style={[styles.errorText, { color: theme.textMuted }]}>
+              Failed to load
+            </Text>
+            <Text style={[styles.errorText, { color: theme.textMuted, fontSize: FontSize.sm }]}>
+              This is might be a problem we are working on  </Text>
+
+            <Text style={[styles.errorText, { color: theme.textMuted, fontSize: FontSize.sm }]}>
+              MeanWhile make sure you are well connected to the internet       </Text>
+            <TouchableOpacity
+              style={[styles.retryBtn, { borderColor: theme.primary }]}
+              onPress={() => { refetch(), refetchCategory() }}
+            >
+              <Text style={[styles.retryText, { color: theme.primary }]}>
+                Try again
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ):(
+          <>
+           <ActivityIndicator color={Colors.primary} size="small" />
         <Text style={styles.loadingText}>Loading more...</Text>
+        </>
+        )}
+       
       </View>
     )
   }
@@ -417,64 +446,64 @@ useEffect(() => {
   }
 
   return (
-    <SafeAreaView style={[styles.container,{backgroundColor:theme.background}]} edges={["top"]}>
-   {categorydropdownVisisble && (
-  <TouchableOpacity
-      onPress={()=>setCategorydropdownVisible(false)}
-      style={[{position:"absolute",zIndex:3000, top:0,bottom:0,left:0,right:0,}]}
-      >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
+      {categorydropdownVisisble && (
+        <TouchableOpacity
+          onPress={() => setCategorydropdownVisible(false)}
+          style={[{ position: "absolute", zIndex: 3000, top: 0, bottom: 0, left: 0, right: 0, }]}
+        >
 
-      </TouchableOpacity>
-   ) } 
+        </TouchableOpacity>
+      )}
 
 
       {categorydropdownVisisble && (
- <Modal
- visible={categorydropdownVisisble}
- onRequestClose={()=>setCategorydropdownVisible(false)}
-  style={[styles.catDrop, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPrimarylight }]}
->
-  <TouchableOpacity
-     style={[{justifyContent:"flex-end",alignItems:"flex-end",paddingRight:10,marginBottom:5}]}
-      onPress={()=>setCategorydropdownVisible(false)}
-     
-    >
-      <Text style={[{ color: theme.textPrimary, fontSize: FontSize.lg }]}>X</Text>
-    </TouchableOpacity>
-  <ScrollView>
-  {categoriesData?.data.map((c) => (
-    <TouchableOpacity
-      key={c.id}
-      onPress={()=>handleCategoryChange(c.slug)}
-      style={[{ borderWidth: 1, borderColor: theme.textMuted, borderRadius: Radius.md, paddingHorizontal: 2,marginBottom:8,paddingLeft:2,backgroundColor:c.slug==selectedCategory?theme.backgroundMuted:"transparent" }]}
-    >
-      <Text style={[{ color: theme.textPrimary, fontSize: FontSize.lg }]}>{c.name}</Text>
-    </TouchableOpacity>
-  ))}
-  </ScrollView>
-</Modal>
+        <Modal
+          visible={categorydropdownVisisble}
+          onRequestClose={() => setCategorydropdownVisible(false)}
+          style={[styles.catDrop, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPrimarylight }]}
+        >
+          <TouchableOpacity
+            style={[{ justifyContent: "flex-end", alignItems: "flex-end", paddingRight: 10, marginBottom: 5 }]}
+            onPress={() => setCategorydropdownVisible(false)}
+
+          >
+            <Text style={[{ color: theme.textPrimary, fontSize: FontSize.lg }]}>X</Text>
+          </TouchableOpacity>
+          <ScrollView>
+            {categoriesData?.data.map((c) => (
+              <TouchableOpacity
+                key={c.id}
+                onPress={() => handleCategoryChange(c.slug)}
+                style={[{ borderWidth: 1, borderColor: theme.textMuted, borderRadius: Radius.md, paddingHorizontal: 2, marginBottom: 8, paddingLeft: 2, backgroundColor: c.slug == selectedCategory ? theme.backgroundMuted : "transparent" }]}
+              >
+                <Text style={[{ color: theme.textPrimary, fontSize: FontSize.lg }]}>{c.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Modal>
       )}
 
 
       {/*  sticky header  */}
-      <View style={[styles.header,{backgroundColor:theme.background}]}>
+      <View style={[styles.header, { backgroundColor: theme.background }]}>
         {/* search bar */}
-        <View style= {styles.headerTop} >
-        <View style={[styles.searchContainer,{borderColor:theme.primaryDark}]}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search posts..."
-            placeholderTextColor={Colors.textMuted}
-            value={searchText}
-            onChangeText={handleSearch}
-            returnKeyType="search"
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText("")}>
-              <Text style={styles.clearIcon}>✕</Text>
-            </TouchableOpacity>
-          )}
+        <View style={styles.headerTop} >
+          <View style={[styles.searchContainer, { borderColor: theme.primaryDark }]}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search posts..."
+              placeholderTextColor={Colors.textMuted}
+              value={searchText}
+              onChangeText={handleSearch}
+              returnKeyType="search"
+            />
+            {searchText.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchText("")}>
+                <Text style={styles.clearIcon}>✕</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity
@@ -489,67 +518,68 @@ useEffect(() => {
                   </Text>
                 </View>
               )}
-            </TouchableOpacity> 
-            </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* category chips */}
         <View
-        style={[{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}]}
+          style={[{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
         >
-        <CategoryChips
-          categories={categoriesData?.data ?? []}
-          selected={selectedCategory}
-          onSelect={handleCategoryChange}
-        />
-        <View>
-              <TouchableOpacity
-              style={[{display:"flex",borderRadius:Radius.lg,borderWidth:2,paddingHorizontal:2, alignItems:"center",justifyContent:"center",
-                borderColor:theme.textPlaceholder
+          <CategoryChips
+            categories={categoriesData?.data ?? []}
+            selected={selectedCategory}
+            onSelect={handleCategoryChange}
+          />
+          <View>
+            <TouchableOpacity
+              style={[{
+                display: "flex", borderRadius: Radius.lg, borderWidth: 2, paddingHorizontal: 2, alignItems: "center", justifyContent: "center",
+                borderColor: theme.textPlaceholder
 
               }]}
-              onPress={()=>setCategorydropdownVisible((v)=>!v)}
+              onPress={() => setCategorydropdownVisible((v) => !v)}
+            >
+              <Text
+                style={[{ color: theme.textPrimary, fontSize: FontSize.lg }]}
               >
-                <Text
-                style={[{color:theme.textPrimary,fontSize:FontSize.lg}]}
-                >
-                  More
-                </Text>
-              </TouchableOpacity>
+                More
+              </Text>
+            </TouchableOpacity>
 
-        </View>
+          </View>
         </View>
       </View>
 
       {/*  feed list  */}
       {isLoading ? (
         <View style={styles.loadingState}>
-          <LoadingIndicator fullScreen={true}  />
+          <LoadingIndicator fullScreen={true} />
           <Text style={styles.loadingStateText}>Loading feed...</Text>
         </View>
       ) :
 
-        isError ? (
+        isError && !isFetchNextPageError? (
           <View style={styles.loading}>
             <Text style={[styles.errorIcon]}>
               <MaterialCommunityIcons
-                          name="alert-circle-outline"
-                            size={25}
-                            color={`${theme.textPrimary}`}
-                            />
-                        
+                name="alert-circle-outline"
+                size={25}
+                color={`${theme.textPrimary}`}
+              />
+
             </Text>
             <Text style={[styles.errorText, { color: theme.textMuted }]}>
               Failed to load
             </Text>
-            <Text style={[styles.errorText, { color: theme.textMuted,fontSize:FontSize.sm }]}>
+            <Text style={[styles.errorText, { color: theme.textMuted, fontSize: FontSize.sm }]}>
               This is might be a problem we are working on  </Text>
-            
-            <Text style={[styles.errorText, { color: theme.textMuted,fontSize:FontSize.sm }]}>
+
+            <Text style={[styles.errorText, { color: theme.textMuted, fontSize: FontSize.sm }]}>
               MeanWhile make sure you are well connected to the internet       </Text>
             <TouchableOpacity
               style={[styles.retryBtn, { borderColor: theme.primary }]}
-              onPress={() => {refetch(),refetchCategory()}}
+              onPress={() => { refetch(), refetchCategory() }}
             >
               <Text style={[styles.retryText, { color: theme.primary }]}>
                 Try again
@@ -557,15 +587,15 @@ useEffect(() => {
             </TouchableOpacity>
           </View>) : (
           <FlatList
-          onScroll={(e)=>{scrollOffsetRef.current=e.nativeEvent.contentOffset.y}}
-          scrollEventThrottle={16}
+            onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y }}
+            scrollEventThrottle={16}
             ref={flatListRef}
             data={posts}
             keyExtractor={(item) => item.id}
             renderItem={renderPost}
             ListEmptyComponent={renderEmpty}
             ListFooterComponent={renderFooter}
-            
+
             showsVerticalScrollIndicator={false}
             // snap to each card — gives full-screen feel
             snapToInterval={undefined}  // we don't snap — just smooth scroll
@@ -573,7 +603,7 @@ useEffect(() => {
             refreshControl={
               <RefreshControl
                 refreshing={isRefreshing ?? false}
-                onRefresh={()=>{refetch(),refetchCategory()}}
+                onRefresh={() => { refetch(), refetchCategory() }}
                 tintColor={Colors.primary}
               />
             }
@@ -582,18 +612,18 @@ useEffect(() => {
             maxToRenderPerBatch={3}         // render 3 at a time
             windowSize={5}                  // keep 5 screens worth in memory
             initialNumToRender={2}          // start with just 2
-            // getItemLayout={(_, index) => ({
-            //   length: SCREEN_HEIGHT,        // approximate — actual varies by content
-            //   offset: SCREEN_HEIGHT * index,
-            //   index,
-            // })}
+          // getItemLayout={(_, index) => ({
+          //   length: SCREEN_HEIGHT,        // approximate — actual varies by content
+          //   offset: SCREEN_HEIGHT * index,
+          //   index,
+          // })}
           />
         )}
 
       {/*  auth prompt modal  */}
       {/* mounts at root level — shown globally when guest taps auth-required action */}
       <AuthPrompt />
-<UploadProgressBadge/>
+      <UploadProgressBadge />
     </SafeAreaView>
   )
 }
@@ -606,8 +636,8 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomRightRadius:Radius.sm,
-    borderBottomLeftRadius:Radius.sm,
+    borderBottomRightRadius: Radius.sm,
+    borderBottomLeftRadius: Radius.sm,
     borderBottomColor: Colors.gray[100],
     elevation: 2,
     shadowColor: Colors.black,
@@ -615,27 +645,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
   },
-  catDrop:{
-    position:"absolute",
-    top:100,
-    bottom:50,
-    right:2,
-    width:150,
-    left:170,
-    zIndex:3000,
-    flexDirection:"column",
-    borderRadius:Radius.lg,
-    borderWidth:2,
-    paddingVertical:4
+  catDrop: {
+    position: "absolute",
+    top: 100,
+    bottom: 50,
+    right: 2,
+    width: 150,
+    left: 170,
+    zIndex: 3000,
+    flexDirection: "column",
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    paddingVertical: 4
   },
-  scrollCont:{
-    display:"flex",
-    flexDirection:"column",
-    gap:7
+  scrollCont: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 7
   },
   headerTop: {
     flexDirection: "row",
-    
+
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
   },
@@ -674,14 +704,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   searchContainer: {
-    flex:1,
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.xs,
     backgroundColor: Colors.gray[100],
     borderRadius: Radius.lg,
-    borderWidth:2,
+    borderWidth: 2,
     paddingHorizontal: Spacing.md,
     height: 36,
     gap: Spacing.sm,

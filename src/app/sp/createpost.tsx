@@ -26,13 +26,13 @@ import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { splistingService } from "@/services/splisting.service"
 import { spfeedService } from "@/services/realestate.service"
-import { VideoEditScreen } from "@/components/editor/VideoEditScreen"
 import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
+import { useUploadQueue } from "@/components/createpost/UploadQueuecontext"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 //  screen steps 
 type Step =
   | "media_type"    // choose images or video
   | "gallery"
-  | "video_edit"
   | "image_edit"
   | "form"          // listing details form
   | "uploading"     // uploading to Cloudinary
@@ -68,7 +68,11 @@ function SellScreen() {
   const [opengalleryDisabled, setopengalleryDisabled] = useState(false)
   const [banner, setBanner] = useState<BannerState | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false)
-  const [pinnedCoords, setPinnedCoords] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [pinnedCoords, setPinnedCoords] = useState<{ latitude: number ; longitude: number } |null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { showNotifToast } = useNotificationToast()
+  const { startUpload } = useUploadQueue()
+
   //  form state 
   const [form, setForm] = useState({
     name: "",
@@ -262,7 +266,63 @@ function SellScreen() {
       setthereIsErrors(true)
       return
     }
-    submitMutation.mutate()
+    if (isSubmitting) return // guard against a double-tap firing two uploads
+    setIsSubmitting(true)
+ const isSale = form.listingType === "sale"
+    startUpload(
+      {
+          name: form.name.trim(),
+        description: form.description.trim(),
+        categoryId: form.category,
+        postType: mediaType,
+        mediaUris:selectedUris,
+        mediaType: mediaType === "image" ? "photo" : "video",
+        locationDisplay: form.location.trim(),
+        listing_type: form.listingType,
+        rooms: form.rooms,
+        // For rentals "price" is the monthly rent.
+        // For sales "price" mirrors the deposit/full-price field so listings remain sortable/filterable by a single price.
+        price: (isSale ? form.deposit : form.price).replace(/,/g, ""),
+        deposit: isSale ? form.deposit.replace(/,/g, "") : undefined,
+        monthlyInstallment: isSale ? form.monthlyInstallment.replace(/,/g, "") : undefined,
+        locationLat: pinnedCoords?.latitude as unknown as string ?? gpsLocation?.lat ?? undefined,
+        locationLng: pinnedCoords?.longitude as unknown as string?? gpsLocation?.lng  as unknown as string??undefined,
+    
+      },
+      {
+        onDone: (postId, postSlug) => {
+          queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
+          showNotifToast("Post uploaded to SmartProperty Account", "success")
+          router.push(`/sp/post/${postSlug}`)
+        },
+        onFailed: (error) => {
+          showNotifToast("Failed to upload post", "error")
+        },
+      },false,undefined,true
+    )
+
+    // leave immediately — the upload continues in the background via the
+    // floating badge. 
+    router.back()
+
+    setStep("media_type")
+    setForm({
+      name: "",
+      description: "",
+
+      category: "",
+      location: "",
+      price: "",
+      listingType: "rental",
+      rooms: "",
+      deposit: "",
+      monthlyInstallment: "",
+      roomsError: ""
+    })
+    setSelectedUris([])
+    setthereIsErrors(false)
+    setMediaErrors(null)
+    setIsSubmitting(false)
   }
   //  auth check 
   if (!user) {
@@ -277,7 +337,7 @@ function SellScreen() {
             Start sharing
           </Text>
           <Text style={[styles.guestSub, { color: theme.textSecondary }]}>
-            Log in to share thoughts,images,videos and many more
+            Log in to sell your properties
           </Text>
           <TouchableOpacity
             style={[styles.loginButton, { backgroundColor: theme.primary }]}
@@ -394,10 +454,7 @@ function SellScreen() {
               disabled={opengalleryDisabled}
             >
               <Text style={styles.continueButtonText}>
-
-
-                "Open Gallery"
-
+                Continue
               </Text>
             </TouchableOpacity>
           </View>
@@ -408,7 +465,6 @@ function SellScreen() {
 
   //  gallery picker 
   if (step === "gallery") {
-
     return (
       <View style={styles.container}>
         {/* minimal header */}
@@ -450,18 +506,7 @@ function SellScreen() {
       />
     )
   }
-  if (step === "video_edit") {
-    return (
-      <VideoEditScreen
-        videoUri={selectedUris[0]}
-        onCancel={() => setStep("gallery")}
-        onDone={(finalUri) => {
-          setSelectedUris([finalUri])
-          setStep("form")
-        }}
-      />
-    )
-  }
+  
   //  post form 
   return (
     <SafeAreaView
@@ -495,7 +540,7 @@ function SellScreen() {
             </Text>
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={submitMutation.isPending}
+              disabled={isSubmitting}
             >
               <Text style={[styles.postButton, { color: theme.primary }]}>
                 Post
@@ -566,11 +611,11 @@ function SellScreen() {
               {!categories.length || isError ? (<TouchableOpacity
                 onPress={() => refetch()}
               >
-         Could not load categories,click to retry
-                            <Text
+                Could not load categories,click to retry
+                <Text
                   style={[styles.fieldError, { color: theme.ALLwarning, fontSize: FontSize.lg }]}
                 >
-             </Text>
+                </Text>
 
               </TouchableOpacity>
 
@@ -879,7 +924,7 @@ function SellScreen() {
                   {form.location.length} / 100
                 </Text>
               </View>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={[styles.mapPickButton, { borderColor: theme.border }]}
                 onPress={() =>
                   router.push({
@@ -890,7 +935,7 @@ function SellScreen() {
                 <Text style={[styles.mapPickText, { color: theme.primary }]}>
                   {pinnedCoords ? "Change pinned location" : "Pin exact location on map"}
                 </Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
 
               {pinnedCoords && (
                 <Text style={[styles.gpsStatus, { color: theme.textMuted }]}>
@@ -908,7 +953,7 @@ function SellScreen() {
             <TouchableOpacity
               style={[styles.submitButton, { backgroundColor: theme.primary }]}
               onPress={handleSubmit}
-              disabled={submitMutation.isPending}
+              disabled={isSubmitting}
               activeOpacity={0.85}
             >
               <Text style={styles.submitButtonText}>

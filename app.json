@@ -2,6 +2,7 @@
   "expo": {
     "name": "SmartPipla",
     "slug": "my-app",
+    "scheme": "smartpipla",
     "version": "1.0.0",
     "userInterfaceStyle": "automatic",
     "icon": "./src/assets/images/icon-192.png",
@@ -18,12 +19,13 @@
         }
       },
       "associatedDomains": [
-       "applinks:smartpipla.com",
-       "applinks:www.smartpipla.com"
+        "applinks:smartpipla.com",
+        "applinks:www.smartpipla.com"
       ]
     },
     "android": {
       "package": "com.felix.kilel.smartpipla",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
@@ -31,67 +33,42 @@
         "backgroundColor": "#07112F"
       },
       "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-             {
-              "scheme": "https",
-               "host": "smartpipla.com",
-              "pathPrefix": "/"
-            },
-             {
-              "scheme": "https",
-               "host": "www.smartpipla.com",
-              "pathPrefix": "/"
-            },
-            {
-              "scheme": "https",
-               "host": "smartpipla.com",
-              "pathPrefix": "/post"
-            },
-             {
-              "scheme": "https",
-               "host": "www.smartpipla.com",
-              "pathPrefix": "/post"
-            },
-            {
-              "scheme": "https",
-               "host": "smartpipla.com",
-              "pathPrefix": "/profile"
-            },
-            {
-              "scheme": "https",
-               "host": "www.smartpipla.com",
-              "pathPrefix": "/profile"
-            },
-            {
-              "scheme": "https",
-               "host": "smartpipla.com",
-              "pathPrefix": "/community"
-            },
-            {
-              "scheme": "https",
-               "host": "www.smartpipla.com",
-              "pathPrefix": "/community"
-            },
-            {
-              "scheme": "https",
-               "host": "www.smartpipla.com",
-              "pathPrefix": "/sp"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
-       
-      ]
+  {
+    "action": "VIEW",
+    "autoVerify": true,
+    "data": [
+      { "scheme": "https", "host": "smartpipla.com", "path": "/" },
+      { "scheme": "https", "host": "www.smartpipla.com", "path": "/" },
+
+      { "scheme": "https", "host": "smartpipla.com", "path": "/post" },
+      { "scheme": "https", "host": "smartpipla.com", "pathPrefix": "/post/" },
+      { "scheme": "https", "host": "www.smartpipla.com", "path": "/post" },
+      { "scheme": "https", "host": "www.smartpipla.com", "pathPrefix": "/post/" },
+
+      { "scheme": "https", "host": "smartpipla.com", "path": "/profile" },
+      { "scheme": "https", "host": "smartpipla.com", "pathPrefix": "/profile/" },
+      { "scheme": "https", "host": "www.smartpipla.com", "path": "/profile" },
+      { "scheme": "https", "host": "www.smartpipla.com", "pathPrefix": "/profile/" },
+
+      { "scheme": "https", "host": "smartpipla.com", "path": "/community" },
+      { "scheme": "https", "host": "smartpipla.com", "pathPrefix": "/community/" },
+      { "scheme": "https", "host": "www.smartpipla.com", "path": "/community" },
+      { "scheme": "https", "host": "www.smartpipla.com", "pathPrefix": "/community/" },
+
+      { "scheme": "https", "host": "smartpipla.com", "path": "/sp" },
+      { "scheme": "https", "host": "smartpipla.com", "pathPrefix": "/sp/" },
+      { "scheme": "https", "host": "www.smartpipla.com", "path": "/sp" },
+      { "scheme": "https", "host": "www.smartpipla.com", "pathPrefix": "/sp/" }
+    ],
+    "category": ["BROWSABLE", "DEFAULT"]
+  }
+]
     },
     "plugins": [
+       "expo-notifications",
       [
         "expo-splash-screen",
+       
         {
           "image": "./src/assets/images/logo.png",
           "backgroundColor": "#07112F",
@@ -106,7 +83,7 @@
       }
     },
     "owner": "ssperts-team",
-   "runtimeVersion": {
+    "runtimeVersion": {
       "policy": "fingerprint"
     },
     "updates": {

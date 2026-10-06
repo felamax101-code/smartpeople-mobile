@@ -294,7 +294,7 @@ return(
           <View style={[styles.replyingToBanner, { backgroundColor: theme.surfaceSecondary }]}>
             <Text style={[styles.replyingToText, { color: theme.textSecondary }]}>
               Replying to{" "}
-              <Text style={{ color: theme.primary }}>@{replyingTo.author.username}</Text>
+              <Text style={{ color: theme.primary }}>@{replyingTo.author.username.slice(0,11)}{`→[${replyingTo.body.slice(0,5)}...]`}</Text>
             </Text>
             <TouchableOpacity onPress={() => setReplyingTo(null)}>
               <Text style={[styles.cancelReply, { color: theme.textMuted }]}>✕</Text>
@@ -318,12 +318,12 @@ return(
                 color: theme.textPrimary,borderColor:theme.textMuted
               }
             ]}
-            placeholder={replyingTo ? `Reply to @${replyingTo.author.username}…` : "Add a comment…"}
+            placeholder={replyingTo ? `Reply to @${replyingTo.author.username.slice(0,11)}→[${replyingTo.body.slice(0,5)}...]` : "Add a comment…"}
             placeholderTextColor={theme.textPlaceholder}
             value={commentText}
             onChangeText={setCommentText}
             multiline
-            maxLength={500}
+            maxLength={2000}
             returnKeyType="send"
             onSubmitEditing={() => {
               handlePost()

@@ -67,7 +67,7 @@ export const SearchResultCard = ({
     return (
       <TouchableOpacity
         style={[styles.gridCard, { backgroundColor: theme.surface,borderColor:theme.textMuted }]}
-        // onPress={() => router.push(`/post/${post.slug}`)}
+         onPress={() => router.push(`/post/${post.slug}`)}
         activeOpacity={0.8}
       >
         <View style={[styles.gridImageContainer,{backgroundColor:theme.backgroundMuted}]}>
@@ -157,7 +157,8 @@ export const SearchResultCard = ({
             onPress={handleUpvote}
           >
             <Text style={styles.interactionIcon}>
-              {post.is_upvoted ? "❤️" : "🤍"}
+              {post.is_upvoted ? <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={`${theme.primary}`} /> : <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={"white"} />}
+
             </Text>
             <Text style={[styles.interactionCount, { color: theme.textMuted }]}>
               {post.upvotes_count}
@@ -165,7 +166,10 @@ export const SearchResultCard = ({
           </TouchableOpacity>
 
           <View style={styles.interaction}>
-            <Text style={styles.interactionIcon}>💬</Text>
+            <Text style={styles.interactionIcon}>
+                                            <MaterialCommunityIcons name="comment-outline" color={`${theme.primary}`} size={20} />
+
+            </Text>
             <Text style={[styles.interactionCount, { color: theme.textMuted }]}>
               {post.comments_count}
             </Text>
@@ -181,7 +185,7 @@ export const SearchResultCard = ({
   return (
     <TouchableOpacity
       style={[styles.listCard, { backgroundColor: theme.surface, borderColor: theme.textMuted,borderBottomWidth:3 }]}
-      // onPress={() => router.push(`/post/${post.slug}`)}
+      onPress={() => router.push(`/post/${post.slug}`)}
       activeOpacity={0.8}
     >
       {/* image */}

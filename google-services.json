@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "10030041912",
+    "project_id": "project-smart-dark",
+    "storage_bucket": "project-smart-dark.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:10030041912:android:a3327242993ae96beecfcd",
+        "android_client_info": {
+          "package_name": "com.felix.kilel.smartpipla"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfneNk8Ffr-wEqqAQlCj1_poMGGdl53VI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:10030041912:android:6451e9a110d6715eeecfcd",
+        "android_client_info": {
+          "package_name": "com.kilel.smartpyhub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfneNk8Ffr-wEqqAQlCj1_poMGGdl53VI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -64,29 +64,29 @@ export const PANEL_ITEMS: PanelItem[] = [
     route: ({communityslug})=> `/community/GroupMembers/${communityslug}`,
     moderatorRoles: ['manage_posts'],
   },
-  {
-    key: 'yourrecentactions',
-    label: 'Your Recent Actions',
+  // {
+  //   key: 'yourrecentactions',
+  //   label: 'Your Recent Actions',
     
-    route: ({slug})=> `/community/ApproveRejectPost/${slug}`,
-    moderatorRoles: ['manage_events'],
-  },
+  //   route: ({slug})=> `/community/ApproveRejectPost/${slug}`,
+  //   moderatorRoles: ['manage_events'],
+  // },
 
 
  
-  {
-    key: 'otheradminsRecentActions',
-    label: "Other Admin's Recent Actions",
-    route: ({slug})=> '/group//posts',
-    moderatorRoles: ['manage_reports'],
-  },
-  {
-    key: 'moderatoractions',
-    label: ' Moderator Actions',
-    info:"Actions perfomed by other moderators",
-    route: ({slug})=> '/group//posts',
-    moderatorRoles: ['manage_settings'],
-  },
+  // {
+  //   key: 'otheradminsRecentActions',
+  //   label: "Other Admin's Recent Actions",
+  //   route: ({slug})=> '/group//posts',
+  //   moderatorRoles: ['manage_reports'],
+  // },
+  // {
+  //   key: 'moderatoractions',
+  //   label: ' Moderator Actions',
+  //   info:"Actions perfomed by other moderators",
+  //   route: ({slug})=> '/group//posts',
+  //   moderatorRoles: ['manage_settings'],
+  // },
   {
     key: 'add-admin',
     label: 'Add Admin',

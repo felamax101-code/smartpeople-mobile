@@ -456,7 +456,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
         <View style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", }]}  >
           <View>
             <Text style={[styles.headerTitle, styles.headerTitleOffset, { color: theme.textPrimary }]}>
-              My Groups
+              Smart Communities
             </Text>
           </View>
           <View>

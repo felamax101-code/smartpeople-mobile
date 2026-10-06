@@ -15,6 +15,7 @@ import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/color
 import { useGroupManagement } from "@/hooks/useGroupManagement"
 import { useConversations } from "@/hooks/useConversations"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
+import { useMessageStore } from "@/stores/message.store"
 import { ItemTypingIndicator } from "./InItemIndicator"
 interface Props {
   conversation: Conversation
@@ -43,10 +44,11 @@ export const GroupConversationItem = ({ conversation , typing, typingUsers = 0}:
   const { user } = useAuthStore()
   const { removeConversation } = useConversations()
   const { leaveGroup } = useGroupManagement()
+      const {unreadMesageCount,setUnreadMessageCount}=useMessageStore()
+
   const swipeableRef = useRef<Swipeable>(null)
 
   const timeAgo = formatTimeAgo(conversation.last_message_at)
-console.log(conversation.group_avatar)
   // ── member names subtitle 
   // Show up to 2 other participants by name, then "+N more" if there are more.
   // The current user is excluded — they know they're in the group.
@@ -87,7 +89,7 @@ console.log(conversation.group_avatar)
     >
       <TouchableOpacity
         style={[styles.container, { borderBottomColor: theme.border }]}
-        onPress={() => router.push(`/messages/${conversation.id}`)}
+        onPress={() => {router.push(`/messages/${conversation.id}`);setUnreadMessageCount(unreadMesageCount-(conversation.unread_count??0))}}
         activeOpacity={0.7}
       >
         {/* ── avatar  */}

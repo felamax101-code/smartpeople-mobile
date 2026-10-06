@@ -28,8 +28,8 @@ interface Props {
   totalCount: number
   isError: boolean
   refetch: any
-  isOwn?:boolean 
-  isSP?:boolean
+  isOwn?: boolean
+  isSP?: boolean
 }
 
 export const ListingsGrid = ({
@@ -41,8 +41,8 @@ export const ListingsGrid = ({
   totalCount,
   isError,
   refetch,
-  isSP=false,
-  isOwn=false,
+  isSP = false,
+  isOwn = false,
 }: Props) => {
   const theme = useTheme()
 
@@ -56,9 +56,15 @@ export const ListingsGrid = ({
   if (isError) {
     return (
       <View style={styles.loading}>
-        <Text style={[styles.errorIcon]}>⚠️</Text>
+        <Text style={[styles.errorIcon]}>
+          <MaterialCommunityIcons name="alert-outline" size={30} color={theme.ALLwarning} />
+        </Text>
         <Text style={[styles.errorText, { color: theme.textMuted }]}>
-          Error loading your posts.You might want to can click Try again or come back later
+          Error loading your posts.This might be due to a problem we are working on
+
+        </Text>
+        <Text style={[styles.errorText, { color: theme.textMuted, fontWeight: FontWeight.regular, }]}>
+         Click Try again or come back later
 
         </Text>
         <TouchableOpacity
@@ -85,14 +91,14 @@ export const ListingsGrid = ({
   }
   return (
     <View style={styles.container}>
-     
+
       {/* grid */}
       <View style={styles.grid}>
         {posts.map((post) => (
           <TouchableOpacity
             key={post?.id}
             style={[styles.card, { backgroundColor: theme.surfaceSecondary, borderColor: theme.borderFocus }]}
-            onPress={() => router.push( isSP?`/sp/post/${post.slug}`: `/post/${post.slug}`)}
+            onPress={() => router.push(isSP ? `/sp/post/${post.slug}` : `/post/${post.slug}`)}
             activeOpacity={0.8}
           >
             {post.post_type === "text" ? (
@@ -111,24 +117,29 @@ export const ListingsGrid = ({
                 {/* interactions */}
                 <View style={[styles.cardMeta, { paddingBottom: 10 }]}>
                   <Text style={[styles.cardMetaText, { color: theme.textMuted }]}>
-                    <MaterialCommunityIcons name="chevron-up-circle-outline" size={13} color={`${theme.primary}`}/> {post?.upvotes_count}
+                    <MaterialCommunityIcons name="chevron-up-circle-outline" size={13} color={`${theme.primary}`} /> {post?.upvotes_count}
                   </Text>
-                {!isSP && <Text style={[styles.cardMetaText, { color: theme.textMuted }]}>
-                  <MaterialCommunityIcons name="comment-outline" color={`${theme.primary}`}size={13}/> {post?.comments_count}
-                </Text>}
-                   {/* <Text style={[styles.cardMetaText, { color: theme.textMuted }]}>
+                  {!isSP && <Text style={[styles.cardMetaText, { color: theme.textMuted }]}>
+                    <MaterialCommunityIcons name="comment-outline" color={`${theme.primary}`} size={13} /> {post?.comments_count}
+                  </Text>}
+                  {/* <Text style={[styles.cardMetaText, { color: theme.textMuted }]}>
                     <MaterialCommunityIcons name="eye-outline" color={`${theme.primary}`}size={13}/> {post?.views_count}
                   </Text> */}
-                  {isOwn && (
-                       <Text
-                    style={[styles.postStatus, { color: post.status === "approved" ? theme.textPrimary : theme.ALLwarning }]}
-                    numberOfLines={2}
-                  >
-                    {post?.status}
-                  </Text>
-                  )}
-                 
+
+
                 </View>
+                {isOwn && post.status === "rejected" && (
+                  <View
+                    style={[{ position: "absolute", top: 70, right: 3, left: 3 }]}
+                  >
+                    <Text
+                      style={[styles.postStatus, { color: theme.ALLwarning }]}
+                      numberOfLines={2}
+                    >
+                      {post.rejection_reason ?? "Rejected"}
+                    </Text>
+                  </View>
+                )}
               </View>
             ) : (
               <>
@@ -146,7 +157,18 @@ export const ListingsGrid = ({
                       contentFit="cover"
                     />
                   )}
-
+                  {isOwn && post.status === "rejected" && (
+                    <View
+                      style={[{ position: "absolute", top: 70, right: 3, left: 3 }]}
+                    >
+                      <Text
+                        style={[styles.postStatus, { color: theme.ALLwarning }]}
+                        numberOfLines={2}
+                      >
+                        {post.rejection_reason ?? "Rejected"}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* info */}
@@ -161,23 +183,17 @@ export const ListingsGrid = ({
                   {/* interactions */}
                   <View style={styles.cardMeta}>
                     <Text style={[styles.cardMetaText, { color: theme.textMuted }]}>
-                      <MaterialCommunityIcons name="chevron-up-circle-outline" size={13} color={`${theme.primary}`}/> {post?.upvotes_count}
+                      <MaterialCommunityIcons name="chevron-up-circle-outline" size={13} color={`${theme.primary}`} /> {post?.upvotes_count}
                     </Text>
                     <Text style={[styles.cardMetaText, { color: theme.textMuted }]}>
-                      <MaterialCommunityIcons name="comment-outline" size={13} color={`${theme.primary}`}/> {post?.comments_count}
+                      <MaterialCommunityIcons name="comment-outline" size={13} color={`${theme.primary}`} /> {post?.comments_count}
                     </Text>
                     <Text style={[styles.cardMetaText, { color: theme.textPrimary }]}>
-                      <MaterialCommunityIcons name="eye-outline" size={13} color={`${theme.primary}`}/> {post?.views_count}
+                      <MaterialCommunityIcons name="eye-outline" size={13} color={`${theme.primary}`} /> {post?.views_count}
                     </Text>
-                    {isOwn && (
-                      <Text
-                      style={[styles.postStatus, { color: post.status === "approved" ? theme.textPrimary : theme.ALLwarning }]}
-                      numberOfLines={2}
-                    >
-                      {post?.status}
-                    </Text>
-                    )}
+
                   </View>
+
                 </View>
               </>
             )}
@@ -214,7 +230,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xxl,
     alignItems: "center",
   },
- 
+
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -312,7 +328,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   errorText: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
   },
   loading: {

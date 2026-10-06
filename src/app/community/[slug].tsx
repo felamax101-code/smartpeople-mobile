@@ -312,7 +312,6 @@ export default function FeedScreen() {
   }, [])
   // update the local cache immediately  don't wait for API response
   const handleUpvote = useCallback((slug: string, upvoted: boolean) => {
-    console.log("poi")
     queryClient.setQueryData(
       ["com-feed", filters, selectedCategory, searchText, cslug],
       (old: typeof data) => {
@@ -374,7 +373,6 @@ export default function FeedScreen() {
   }
 
   const handleSave = useCallback((post_slug: string, saved: boolean) => {
-    console.log("ggg")
     queryClient.setQueryData(
       ["com-feed", filters, selectedCategory, searchText, cslug],
       (old: typeof data) => {

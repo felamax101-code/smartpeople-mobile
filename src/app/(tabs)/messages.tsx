@@ -216,7 +216,7 @@ const handleDeleteConversation = async (id:string) => {
       {/* ── header  */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-          Messages
+          Smart Chats
         </Text>
 
         

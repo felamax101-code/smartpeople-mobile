@@ -18,6 +18,8 @@ import { Colors, FontSize, FontWeight, Radius } from "@/constants/colors"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useTheme } from "@/hooks/useTheme"
 import { useEvent } from "expo"
+import { useEventListener } from "expo"
+
 import { ToastProvider } from "../activityIndicator/ToastProvider"
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
@@ -43,6 +45,7 @@ interface Props {
     item: { type: "image" | "video"; url: string } | null,
     index: number
   ) => void
+  communityslug?:string
 }
 
 export const ImageCarousel = ({
@@ -58,6 +61,7 @@ export const ImageCarousel = ({
   listing_type,
   deposit,
   installments,
+  communityslug,
   onActiveMediaChange
 }: Props) => {
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -98,6 +102,9 @@ const mediaItems = [
   const handlePress = useCallback(() => {
     router.push({
       pathname: isGroup ? `/community/post/${slug}` : isSP ? `/sp/post/${slug}` : `/post/${slug}` as any,
+      params:{
+        communityslug: communityslug,
+      }
 
     })
   }, [slug])
@@ -135,6 +142,7 @@ const mediaItems = [
                 slug={slug}
                 isGroup={isGroup}
                 isSP={isSP}
+                communityslug={communityslug}
               />
             ) : (
               <Image
@@ -241,18 +249,24 @@ const mediaItems = [
 
 // ─── VideoMedia 
 
-const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP }: { url: string; isActive: boolean, isDetail: boolean, slug: string, isGroup: boolean, isSP: boolean }) => {
+const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP,communityslug }: { url: string; isActive: boolean, isDetail: boolean, slug: string, isGroup: boolean, isSP: boolean,communityslug:string | undefined}) => {
   const [isMuted, setIsMuted] = useState(true)
-  const [isPaused, setIsPaused] = useState(false)
+  const [isDetailMuted, setIsDetailMuted] = useState(false)
   const [speedIndex, setSpeedIndex] = useState(1)           // default 1x
   const [duration, setDuration] = useState(0)
   const [position, setPosition] = useState(0)
   const [seeking, setSeeking] = useState(false)
   const seekBarWidth = useRef(SCREEN_WIDTH - 32)
+  const [isPlaying, setIsPlaying] = useState(false)
+const [status, setStatus] = useState<string>("idle")
+
   const router = useRouter()
   const handlePress = useCallback(() => {
     router.push({
       pathname: isGroup ? `/community/post/${slug}` as any : isSP ? `/sp/post/${slug}` : `/post/${slug}` as any,
+      params:{
+        communityslug: communityslug,
+      }
 
     })
   }, [slug])
@@ -264,10 +278,19 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP }: { url: str
 
   })
 
-  const { isPlaying } = useEvent(player, "playingChange", { isPlaying: player.playing })
-  const { status, error } = useEvent(player, "statusChange", { status: player.status })
-  const timeUpdate = useEvent(player, "timeUpdate")
-  // play/pause effect —  only handles the isActive/visibility side
+  useEventListener(player, "playingChange", ({ isPlaying }) => {
+  setIsPlaying(isPlaying) // same value = React bails out, no loop
+})
+
+useEventListener(player, "statusChange", ({ status }) => {
+  setStatus(status)
+  if (status === "readyToPlay") setDuration(player.duration ?? 0)
+})
+
+useEventListener(player, "timeUpdate", ({ currentTime }) => {
+  if (seeking) return
+  setPosition((prev) => (Math.abs(prev - currentTime) > 0.25 ? currentTime : prev))
+})
   useEffect(() => {
     if (isActive) {
       player.play()
@@ -278,8 +301,8 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP }: { url: str
 
   // sync mute
   useEffect(() => {
-    player.muted = !isDetail ? isMuted : false
-  }, [isMuted, isDetail, player])
+    player.muted = isDetail ? isDetailMuted : isMuted
+  }, [isMuted, isDetail, player,isDetailMuted])
 
   // sync speed
   useEffect(() => {
@@ -288,18 +311,18 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP }: { url: str
 
   // poll position every 500ms
   // position now comes from the timeUpdate event, not a poll
-  useEffect(() => {
-    if (!seeking && timeUpdate?.currentTime != null) {
-      setPosition(timeUpdate.currentTime)
-    }
-  }, [timeUpdate, seeking])
+  // useEffect(() => {
+  //   if (!seeking && timeUpdate?.currentTime != null) {
+  //     setPosition(timeUpdate.currentTime)
+  //   }
+  // }, [timeUpdate, seeking])
 
   // duration becomes known once the player is ready
-  useEffect(() => {
-    if (status === "readyToPlay") {
-      setDuration(player.duration ?? 0)
-    }
-  }, [status])
+  // useEffect(() => {
+  //   if (status === "readyToPlay") {
+  //     setDuration(player.duration ?? 0)
+  //   }
+  // }, [status])
 
   const cycleSpeed = () => setSpeedIndex((i) => (i + 1) % SPEEDS.length)
 
@@ -378,6 +401,11 @@ if (status === "error") {
                 <MaterialCommunityIcons size={15} name="fast-forward-10" />
               </Text>
             </TouchableOpacity>
+             {isDetail && <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() => setIsDetailMuted((m) => !m)}>
+              <Text style={vc.iconText}>{isDetailMuted? <MaterialCommunityIcons size={15} name="volume-mute" /> : <MaterialCommunityIcons size={15} name="volume-high" />}</Text>
+            </TouchableOpacity>
+            }
+           
             {!isDetail && <TouchableOpacity
               activeOpacity={0.6}
               style={vc.fullscreen}
@@ -397,7 +425,7 @@ if (status === "error") {
             >
               <View
                 style={vc.seekBarTrack}
-                {...panResponder.panHandlers}
+                // {...panResponder.panHandlers}
                 onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width }}
               >
                 <View style={[vc.seekBarFill, { width: `${progress * 100}%` }]} />
@@ -409,9 +437,9 @@ if (status === "error") {
             <Text style={vc.timeText}>{fmt(position)} / {fmt(duration)}</Text>
 
             {/* mute */}
-            <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() => setIsMuted((m) => !m)}>
-              <Text style={vc.iconText}>{isMuted ? <MaterialCommunityIcons size={15} name="volume-mute" /> : <MaterialCommunityIcons size={15} name="volume-high" />}</Text>
-            </TouchableOpacity>
+           {!isDetail && <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() =>setIsMuted((m) => !m)}>
+              <Text style={vc.iconText}>{isMuted? <MaterialCommunityIcons size={15} name="volume-mute" /> : <MaterialCommunityIcons size={15} name="volume-high" />}</Text>
+            </TouchableOpacity>}
 
             {/* speed */}
             <TouchableOpacity style={vc.speedBtn} onPress={cycleSpeed}>

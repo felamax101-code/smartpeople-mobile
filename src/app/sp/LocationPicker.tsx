@@ -16,7 +16,7 @@ export default function PickLocationScreen() {
 
   const confirm = () => {
     router.replace({
-      pathname: "/sp/createpost", // adjust to your actual route name for SellScreen
+      pathname: "/sp/createpost", 
       params: { pickedLat: coords.latitude, pickedLng: coords.longitude },
     })
   }

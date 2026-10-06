@@ -29,7 +29,6 @@ import { useMessageStore } from "@/stores/message.store"
 import { messagingService } from "@/services/messaging.service"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
-import { VideoEditScreen } from "@/components/editor/VideoEditScreen"
 import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 import { useUploadQueue } from "@/components/createpost/UploadQueuecontext"
 import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
@@ -37,7 +36,6 @@ import { useNotificationToast } from "@/components/activityIndicator/ToastNotifi
 type Step =
   | "media_type"    // choose images or video
   | "gallery"
-  | "video_edit"
   | "image_edit"
 
   | "form"          // listing details form
@@ -49,7 +47,7 @@ function SellScreen() {
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
   const navigation = useNavigation()
-  const {setUnreadMessageCount}=useMessageStore()
+  const { setUnreadMessageCount } = useMessageStore()
   //  step state 
   const [step, setStep] = useState<Step>("media_type")
   const [mediaType, setMediaType] = useState<"image" | "video" | "text">("image")
@@ -72,8 +70,8 @@ function SellScreen() {
   // const { location: gpsLocation } = useLocation()
 
   //  fetch categories 
-  const { data: categoriesData ,isError,refetch} = useQuery({
-    queryKey: ["categories",user?.username],
+  const { data: categoriesData, isError, refetch } = useQuery({
+    queryKey: ["categories", user?.username],
     queryFn: feedService.getCategories,
     staleTime: 10 * 60 * 1000,
   })
@@ -97,15 +95,15 @@ function SellScreen() {
       setSelectedUris([])
     }
   }, [step])
-    useEffect(()=>{
-      if(!user) return
-      
-      messagingService.getUnreadCount()
+  useEffect(() => {
+    if (!user) return
+
+    messagingService.getUnreadCount()
       .then(setUnreadMessageCount)
-      .catch((e)=>{})
-      
-      
-    },[])
+      .catch((e) => { })
+
+
+  }, [])
   const categories: Category[] = categoriesData?.data ?? []
   const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
@@ -137,7 +135,7 @@ function SellScreen() {
           // don't let back interrupt an in-flight submit or the success screen
           return true
         } else {
-          // gallery, image_edit, video_edit, etc. → back to media type choice
+          // gallery, image_edit, etc. → back to media type choice
           setStep("media_type")
         }
 
@@ -167,8 +165,8 @@ function SellScreen() {
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-  
-  const {showNotifToast}=useNotificationToast()
+
+  const { showNotifToast } = useNotificationToast()
   const [thereIsErrors, setthereIsErrors] = useState(false)
   const handleSubmit = () => {
     if (!validate()) {
@@ -191,11 +189,11 @@ function SellScreen() {
       {
         onDone: (postId, postSlug) => {
           queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
-        
+        showNotifToast("Post uploaded", "success")
           router.push(`/post/${postSlug}`)
         },
         onFailed: (error) => {
-          showNotifToast("Failed to upload post","error")
+          showNotifToast("Failed to upload post", "error")
         },
       }
     )
@@ -402,19 +400,7 @@ function SellScreen() {
       />
     )
   }
-  //  video editor 
-  if (step === "video_edit") {
-    return (
-      <VideoEditScreen
-        videoUri={selectedUris[0]}
-        onCancel={() => setStep("gallery")}
-        onDone={(finalUri) => {
-          setSelectedUris([finalUri])
-          setStep("form")
-        }}
-      />
-    )
-  }
+ 
   //  post form 
   return (
     <SafeAreaView
@@ -440,7 +426,7 @@ function SellScreen() {
         >
           {/* header */}
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
-            <TouchableOpacity onPress={() => setStep(mediaType === "video" ? "video_edit" : mediaType === "image" ? "image_edit" : "media_type")}>
+            <TouchableOpacity onPress={() => setStep( mediaType === "image" ? "image_edit" : "media_type")}>
               <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
@@ -459,15 +445,24 @@ function SellScreen() {
 
           {mediaType === "text" ?
             (<View>
-              {/* name */}
-              <FormInput
-                label="Post Title"
-                value={form.name}
-                onChangeText={(t) => updateField("name", t)}
-                error={errors.name}
-                placeholder="title"
-                returnKeyType="next"
-              />
+              <View>
+                {/* name */}
+                <FormInput
+                  label="Post Title"
+                  value={form.name}
+                  onChangeText={(t) => updateField("name", t)}
+                  error={errors.name}
+                  placeholder="title"
+                  returnKeyType="next"
+                  maxLength={30}
+                />
+                <View style={styles.descriptionFooter}>
+
+                  <Text style={[styles.charCount, { color: form.name.length == 50 ? theme.error : theme.textMuted }]}>
+                    {form.description.length} / 30
+                  </Text>
+                </View>
+              </View>
               {/* category */}
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
@@ -535,7 +530,7 @@ function SellScreen() {
               {/* description */}
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                  Write about your progress,success,mistakes,fun momments etc
+                  Write about your post
                 </Text>
 
                 <TextInput

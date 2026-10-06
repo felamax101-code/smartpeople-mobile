@@ -6,10 +6,12 @@ import { useAuthGate } from "@/hooks/useAuthGate"
 import { Post  } from "@/types"
 import {useState} from "react"
 import { FeedFilters } from "@/types"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 export const useCommunityPostDetail = (slug: string,cslug:string) => {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const { gatedAction } = useAuthGate()
+  const {showNotifToast}=useNotificationToast()
   const [filters, setFilters] = useState<FeedFilters>({
       sort: "newest",
       page: 1,
@@ -43,7 +45,7 @@ export const useCommunityPostDetail = (slug: string,cslug:string) => {
       queryClient.setQueryData(["com-post", slug], (old: Post) => ({
         ...old,
         is_upvoted: !old.is_upvoted,
-        upvotes_count: old.is_upvoted
+        upvotes_count: old.is_upvoted && old.upvotes_count>=0
           ? old.upvotes_count - 1
           : old.upvotes_count + 1,
       }))
@@ -94,8 +96,9 @@ export const useCommunityPostDetail = (slug: string,cslug:string) => {
       queryClient.setQueryData(["com-post", slug], (old: Post) => ({
         ...old,
         is_saved: !old.is_saved,
-        saves_count:old.is_saved?old.saves_count-1:old.saves_count+1
+        saves_count:old.is_saved && old.saves_count>=0?old.saves_count-1:old.saves_count+1
       }));
+      showNotifToast(post?.is_saved?"Saved to your profile":"Saved to your profile","success")
        queryClient.setQueryData(
             ["com-feed", filters, selectedCategory, searchText,cslug],
             (old: any) => {
@@ -117,6 +120,7 @@ export const useCommunityPostDetail = (slug: string,cslug:string) => {
       return { previous }
     },
     onError: (_, __, context) => {
+      showNotifToast("Erroe saving post","error")
       queryClient.setQueryData(["com-post", slug], context?.previous)
     },
   })

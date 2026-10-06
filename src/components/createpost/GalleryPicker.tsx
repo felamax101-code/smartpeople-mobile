@@ -13,7 +13,9 @@ import { useTheme } from "@/hooks/useTheme"
 import { useMediaPicker, MediaType, SelectedMedia } from "@/hooks/useMediaPicker"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { InAppCamera,CapturedAsset } from "../imageedit/InAppCamera"
+import { useNotificationToast } from "../activityIndicator/ToastNotification"
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
+import { Ionicons } from "@expo/vector-icons"
 const THUMB_SIZE = (SCREEN_WIDTH - Spacing.md * 2 - Spacing.sm * 4) / 4
 
 interface Props {
@@ -23,6 +25,7 @@ interface Props {
 
 export const GalleryPicker = ({ mediaType, onNext }: Props) => {
   const theme = useTheme()
+const {showNotifToast}=useNotificationToast()
 
   const {
     selectedMedia,
@@ -31,10 +34,9 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
     addCapturedMedia,
     removeMedia,
     maxReached,
-  } = useMediaPicker(mediaType)
+  } = useMediaPicker(mediaType,showNotifToast)
 
   const [showCamera, setShowCamera] = React.useState(false)
-
   const handleCapture = (asset: CapturedAsset) => {
     addCapturedMedia(asset)
     setShowCamera(false)
@@ -68,14 +70,14 @@ export const GalleryPicker = ({ mediaType, onNext }: Props) => {
         <View style={styles.loading}>
           <ActivityIndicator color={theme.primary} size="large" />
           <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-            Opening gallery...
+            loading...
           </Text>
         </View>
       ) : selectedMedia.length === 0 ? (
         // show button to re-open picker if user dismissed without selecting
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>
-            {mediaType === "image" ? "🖼️" : "🎬"}
+            {mediaType === "image" ? <Ionicons name="image" size={24} color="gray"/> : <Ionicons name="videocam" size={24} color="gray"/>}
           </Text>
           <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
             No {mediaType === "image" ? "photos" : "video"} selected

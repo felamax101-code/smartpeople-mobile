@@ -131,7 +131,7 @@ export default function EditPostScreen() {
     },
     onSuccess: (updated) => {
       // Invalidate so product page and feed refresh
-      queryClient.invalidateQueries({ queryKey: ["listing", slug] })
+      queryClient.invalidateQueries({ queryKey: ["post", slug] })
       queryClient.invalidateQueries({ queryKey: ["feed"] })
       setStep("success")
       setTimeout(() => {
@@ -173,7 +173,7 @@ export default function EditPostScreen() {
       <View style={[styles.centeredScreen, { backgroundColor: theme.background }]}>
         <ActivityIndicator color={theme.primary} size="large" />
         <Text style={[styles.uploadingTitle, { color: theme.textSecondary }]}>
-          Loading listing...
+          Loading post for edit ...
         </Text>
       </View>
     )
@@ -217,6 +217,9 @@ export default function EditPostScreen() {
         </Text>
         <Text style={[styles.successSub, { color: theme.textSecondary }]}>
           Your listing has been updated successfully.
+        </Text>
+        <Text style={[styles.successSub, { color: "red" }]}>
+          [Changes might take upto three minutes to reflect]
         </Text>
         <ActivityIndicator color={theme.primary} size="small" style={{ marginTop: Spacing.lg }} />
       </View>

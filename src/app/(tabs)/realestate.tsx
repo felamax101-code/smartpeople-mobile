@@ -63,7 +63,7 @@ export default function FeedScreen() {
     
     
   },[])
-    const { data: statusData, isLoading: isCheckingStatus } = useQuery({
+    const { data: statusData,isError:isCheckingStatusError, isLoading: isCheckingStatus ,refetch:refetchStatusData} = useQuery({
   queryKey: ["property-application-status",user?.username??""],
   queryFn: propertyApplicationService.getMyStatus,
 })
@@ -122,7 +122,7 @@ export default function FeedScreen() {
         refetch,
         isError,
     } = useInfiniteQuery({
-        queryKey: ["sp-feed", filters, selectedCategory, searchText,user?.username??""],
+        queryKey: ["sp-feed", filters, selectedCategory, searchText],
         queryFn: async ({ pageParam = 1 }) => {
             const response = await spfeedService.getFeed({
                 ...filters,
@@ -183,7 +183,7 @@ export default function FeedScreen() {
                                     ? {
                                         ...p,
                                         is_upvoted: !p.is_upvoted,
-                                        upvotes_count: p.upvotes_count + (p.is_upvoted ? -1 : 1),
+                                        upvotes_count: p.upvotes_count + (p.is_upvoted && p.upvotes_count>=0? -1 : 1),
                                     }
                                     : p
                             ),
@@ -218,18 +218,18 @@ export default function FeedScreen() {
                         data: {
                             ...page.data,
                             posts: page.data.posts.map((p: Post) =>
-                                p.slug === post_slug ? { ...p, is_saved: saved, saves_count: saved ? p.saves_count + 1 : p.saves_count - 1 } : p
+                p.slug === post_slug ? { ...p, is_saved: !p.is_saved, saves_count:  p.saves_count + (p.is_saved && p.saves_count>=0? -1 : 1), } : p
                             ),
                         },
                     })),
                 }
             }
         );
-        queryClient.setQueryData(["post", post_slug], (old: Post) => ({
-            ...old,
-            is_saved: !old.is_saved,
-            saves_count: old.is_saved ? old.saves_count - 1 : old.saves_count + 1
-        }))
+        // queryClient.setQueryData(["post", post_slug], (old: Post) => ({
+        //     ...old,
+        //     is_saved: !old.is_saved,
+        //     saves_count: old.is_saved ? old.saves_count - 1 : old.saves_count + 1
+        // }))
     }, [queryClient, filters, selectedCategory, searchText, data])
 
     //  render post card 
@@ -325,24 +325,44 @@ export default function FeedScreen() {
                             x
                           </Text>
                     </TouchableOpacity>
+                  {isCheckingStatusError ?(
                     <TouchableOpacity
+                    style={[styles.menuText,{backgroundColor:theme.backgroundMuted}]}
+                    onPress={()=>{refetchStatusData()}}
+                    >
+                        <Text
+                        style={[{color:theme.ALLwarning,fontWeight :FontWeight.regular}]}
+                        > Error,press here to retry </Text>
+                    </TouchableOpacity>
+                  ):
+                  isCheckingStatus?(
+                    <ActivityIndicator size={"small"} />
+                  ):
+                  (
+                    
+                   <>
+                   <TouchableOpacity
                     style={[styles.menuText,{backgroundColor:theme.backgroundMuted}]}
                     onPress={()=>{closeMenu();router.push(    statusData?.has_applied &&  statusData?.application?.status==="approved"?"/sp/profile":"/sp/application")}}
                     >
                         <Text
                         style={[{color:theme.primary,fontWeight :FontWeight.regular}]}
-                        > { statusData?.has_applied &&  statusData?.application?.status==="approved"?"My SmartProperty Account":"Create a SmartProperty Account"}  </Text>
+                        > { statusData?.has_applied &&  statusData?.application?.status==="approved"?"My SmartProperty Account":"Create a SmartProperty Account"} 
+                         </Text>
                     </TouchableOpacity>
-                    { statusData?.has_applied && statusData.application?.status==="approved" &&   <TouchableOpacity
-                    style={[styles.menuText,{backgroundColor:theme.backgroundMuted,flexDirection:"row"}]}
+                    { statusData?.has_applied && statusData.application?.status==="approved" &&  
+                     <TouchableOpacity
+                    style={[styles.menuText,{backgroundColor:theme.backgroundMuted,flexDirection:"row",alignItems:"center"}]}
                     onPress={()=>{closeMenu();router.push("/sp/createpost")}}
                     >
                         <MaterialCommunityIcons name="plus-circle-outline" color={theme.primary} />
                         <Text
                         style={[{color:theme.primary,fontWeight:FontWeight.regular}]}
-                        >  Add post  </Text>
+                        >  Add post
+                          </Text>
                     </TouchableOpacity>}
-                    
+                    </> 
+                    )}
                   </Animated.View>
                 </>
 
@@ -598,7 +618,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 60,
     right: 0,
-    width: 150,
+    width: 210,
     backgroundColor: "#ffffff",
     paddingTop: 1,
     paddingHorizontal: Spacing.xs,

@@ -1,21 +1,22 @@
-import { useState,useRef,useEffect } from "react"
-import { View, StyleSheet,Platform , useWindowDimensions,BackHandler ,Text } from "react-native"
+import { useState, useRef, useEffect, useMemo } from "react"
+import { View, StyleSheet, Platform, useWindowDimensions, BackHandler, Text } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import {
-    Canvas,
-    Group,
-    Image as SkiaImage,
-    Path,
-    Text as SkiaText,
-    ColorMatrix,
-    useCanvasRef,
-    useImage,
-    matchFont,
-    
+  Canvas,
+  Group,
+  Image as SkiaImage,
+  Path,
+  Text as SkiaText,
+  ColorMatrix,
+  useCanvasRef,
+  useImage,
+  matchFont,
+  Paragraph, Skia
+
 } from "@shopify/react-native-skia"
 
 import { buildColorMatrix } from "./ColorMatrices"
-import { initialEditState ,EditHistory,initialHistory} from "@/types/ImageEditor"
+import { initialEditState, EditHistory, initialHistory } from "@/types/ImageEditor"
 import type { EditState, EditTool, CropRect } from "@/types/ImageEditor"
 import { exportImage } from "@/utils/exportImage"
 import { CropOverlay } from "./Cropoverlay"
@@ -100,7 +101,28 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
     setEdits(history.stack[pointer])
     setHistory((h) => ({ ...h, pointer }))
   }
+  const textFamilies = Platform.select({
+    ios: ["Helvetica", "Apple Color Emoji"],
+    default: ["sans-serif", "Roboto", "Noto Color Emoji"],
+  })!
 
+  const paragraphs = useMemo(
+    () =>
+      edits.textLayers.map((t) => {
+        const p = Skia.ParagraphBuilder.Make({ textAlign: 0 /* TextAlign.Left */ })
+          .pushStyle({
+            color: Skia.Color(t.color),
+            fontSize: t.fontSize,
+            fontFamilies: textFamilies,
+            fontStyle: { weight: 700 },
+          })
+          .addText(t.text)
+          .pop()
+          .build()
+        return { id: t.id, x: t.x, y: t.y, fontSize: t.fontSize, paragraph: p }
+      }),
+    [edits.textLayers]
+  )
   const handleRedo = () => {
     if (!canRedo) return
     const pointer = history.pointer + 1
@@ -275,17 +297,15 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
               />
             )}
 
-            {font &&
-              edits.textLayers.map((t) => (
-                <SkiaText
-                  key={t.id}
-                  x={t.x}
-                  y={t.y}
-                  text={t.text}
-                  font={font}
-                  color={t.color}
-                />
-              ))}
+            {paragraphs.map((p) => (
+              <Paragraph
+                key={p.id}
+                paragraph={p.paragraph}
+                x={p.x}
+                y={p.y - p.fontSize}   // Paragraph y = top; SkiaText y = baseline
+                width={canvasWidth}
+              />
+            ))}
           </Group>
         </Canvas>
 

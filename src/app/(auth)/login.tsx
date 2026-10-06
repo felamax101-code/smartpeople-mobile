@@ -156,10 +156,10 @@ export default function LoginScreen() {
           />
           
           <Text style={[styles.brandName, { color: theme.textPrimary }]}>
-            SmartPeopler
+            SmartPipla
           </Text>
           <Text style={[styles.brandTagline, { color: theme.textSecondary }]}>
-          You are a smartpeopler.
+          You are a SmartPiplian.
           </Text>
         </View>
 
@@ -252,7 +252,7 @@ export default function LoginScreen() {
         {/*  footer  */}
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: theme.textSecondary }]}>
-            New to SmartPeopler?
+            New to SmartPipla?
           </Text>
           <TouchableOpacity onPress={() => router.push("/register")}>
             <Text style={[styles.footerLink, { color: theme.primary }]}>

@@ -32,7 +32,7 @@ export const UploadProgressBadge = () => {
                 </>
               )}
               {upload.status === "done" && <Text style={styles.checkmark}>✓</Text>}
-              {upload.status === "failed" && <Text style={styles.errorMark}>✕</Text>}
+              {upload.status === "failed" && <Text style={styles.errorMark}>Failed</Text>}
             </View>
           </View>
 

@@ -40,6 +40,8 @@ import { CommunityRepliesThread } from "./CommunityReplyThreads"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
 import { useToast } from "../activityIndicator/ToastProvider"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
+import truncate from "@/hooks/useTruncateBody"
+import { parseText } from "@/hooks/useTextParser"
 interface Props {
   comment: Comment
   postSlug: string
@@ -77,6 +79,7 @@ export const CommunityCommentItem = React.memo(({
   const [localUpvotes, setLocalUpvotes] = useState(comment.upvotes_count)
   const [localDownvotes, setLocalDownvotes] = useState(comment.downvotes_count)
   const effectRootId = rootCommentId ?? comment.id
+  const [expanded, setExpanded] = useState(false)
 
   const { showNotifToast } = useNotificationToast()
 
@@ -223,7 +226,7 @@ export const CommunityCommentItem = React.memo(({
   const handleReply = useCallback(() => {
     gatedAction(
       { type: "comment", postSlug },
-      () => onReplyPress?.(comment,effectRootId)
+      () => onReplyPress?.(comment, effectRootId)
     )
   }, [gatedAction, postSlug, comment, onReplyPress])
   const handleProfilePress = useCallback(() => {
@@ -275,7 +278,7 @@ export const CommunityCommentItem = React.memo(({
       styles.container,
       // indent replies with a left border line
       depth > 0 && styles.replyIndent,
-      depth > 0 && { borderLeftColor: theme.border },{borderColor:theme.textMuted}
+      depth > 0 && { borderLeftColor: theme.border }, { borderColor: theme.textMuted }
     ]}>
 
       {/*  author row  */}
@@ -370,12 +373,26 @@ export const CommunityCommentItem = React.memo(({
           </View>
         </View>
       ) : (
-        <Text style={[styles.body, { color: theme.textPrimary }]}>
-          {comment.body}
-          {comment.is_edited && (
-            <Text style={{ color: theme.textMuted, fontSize: FontSize.xs }}> (edited)</Text>
+        <TouchableOpacity
+          onPress={() => setExpanded((v) => !v)}
+        >
+          <Text style={[styles.body, { color: theme.textPrimary }]}>
+            {expanded ? parseText(comment.body) : parseText(truncate(comment.body))}
+            {comment.is_edited && (
+              <Text style={{ color: theme.textMuted, fontSize: FontSize.xs }}> (edited)</Text>
+            )}
+          </Text>
+          {comment.body.length > 100 && (
+            <TouchableOpacity
+              style={[styles.readMore]}
+              onPress={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+            >
+              <Text
+                style={[{ color: theme.primary, fontSize: FontSize.xs, fontWeight: FontWeight.regular, }]}
+              >{expanded ? "Show less" : "Read more"}</Text>
+            </TouchableOpacity>
           )}
-        </Text>
+        </TouchableOpacity>
       )}
 
 
@@ -783,7 +800,14 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
   },
+  readMore: {
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+    right: 5,
+    bottom: 5,
 
+  },
 
 })
 

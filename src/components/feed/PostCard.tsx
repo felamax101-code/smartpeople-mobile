@@ -57,10 +57,11 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
   const queryClient = useQueryClient()
   //  upvote 
   const handleUpvote = useCallback(() => {
-    onUpvote?.(post.slug, !post.is_upvoted)
+    
     gatedAction(
       { type: "upvote", postSlug: post.slug },
       async () => {
+        onUpvote?.(post.slug, !post.is_upvoted)
         try {
           //  onUpvote?.(post.slug, result.upvoted)
           isSP ? await spfeedService.toggleUpvote(post.slug) : feedService.toggleUpvote(post.slug)
@@ -78,8 +79,10 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
       { type: "save", postId: post.id, postSlug: post.slug },
       async () => {
         try {
+          onSave?.(post.slug, true)
           const result = isSP ? await spfeedService.toggleSave(post.slug) : await feedService.toggleSave(post.slug)
-          onSave?.(post.slug, result.saved)
+          
+          showNotifToast("Saved to your profile", "success")
         } catch (error) {
         }
       }
@@ -131,6 +134,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
     setShareModalVisible(false)
     await Clipboard.setStringAsync(post.description)
   }
+
   const DOWNLOAD_TIMEOUT_MS = 60000 // 60s
   const { showNotifToast } = useNotificationToast()
   const handleDownload = async () => {
@@ -238,17 +242,31 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
   const handleShare = useCallback(async () => {
     try {
       await Share.share({
-        message: `Check out this ${isSP ? "property:" : "post"} ${post?.name??""}   on SmartPeople\n${isSP?`https://smartpipla.com/sp/post/${post.slug}`:`https://smartpipla.com/post/${post.slug}`}`,
+        message: `Check out this ${isSP ? "property:" : "post"} ${post?.name ?? ""}   on SmartPipla\n${isSP ? `https://smartpipla.com/sp/post/${post.slug}` : `https://smartpipla.com/post/${post.slug}`}`,
       })
     } catch (error) {
     }
   }, [post, post.slug])
-
+  const handleCopyinapplink = async () => {
+    if (!post) return
+    setShareModalVisible(false)
+    try {
+      await Clipboard.setStringAsync(isSP ? `https://smartpipla.com/sp/post/${post.slug}` : `https://smartpipla.com/post/${post.slug}`)
+    } catch {
+      showNotifToast("Error copying. Try again", "error")
+    }
+  }
   return (
     <View style={[styles.container, { backgroundColor: theme.background, borderColor: theme.textMuted }]}>
 
       {/*  media carousel  */}
       <View ref={carouselRef}>
+         <View
+         style={[styles.userRow,{justifyContent:"space-between"}]}
+        >
+        <View
+         style={styles.userRow}
+        >
         <TouchableOpacity
           style={styles.userRow}
           onPress={() => router.push({
@@ -261,7 +279,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
         >
           {post.owner.avatar === null ? (
             <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
-              <Text>  {post.owner.username.charAt(0)}</Text>
+              <Text style={[{color:"#fff",fontSize:FontSize.lg}]} >  {post.owner.username.charAt(0)}</Text>
             </View>
           ) : (
             <Image
@@ -271,15 +289,29 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
             />
           )}
 
-          <View style={styles.userInfo}>
+         
+           <View
+           style={[{flexDirection:"row"}]}
+           >
             <Text style={[styles.userName, { color: theme.primary }]}>{isSP ? "sp/" : "@/"}</Text>
             <Text style={[styles.userName, { color: theme.textPrimary }]}>{post.owner?.username}</Text>
+            </View>
             {/* <VerifiedBadge badge={post.owner?.verification_badge} size="sm" /> */}
-          </View>
+          
+          </TouchableOpacity>
+          {isSP && <TouchableOpacity
+          style={[{backgroundColor:theme.backgroundMuted,borderRadius:Radius.md,paddingHorizontal:4,borderWidth:1,borderColor:theme.textPlaceholder}]}
+           onPress={()=>router.push(user && post.owner.username === user?.username?`/sp/profile`:`/sp/profile/${post.owner.username}`)}
+           activeOpacity={0.7}
+           >
+             <Text   style={[styles.userName, { color: theme.primary }]}>{`${post.property_profile?.name??post.property_profile?.org_name??"Smartproperty"}`}</Text>
+             </TouchableOpacity>}
+              </View>
           <Text style={[styles.timeAgo, { color: theme.textPrimarylight }]}>
             {formatTimeAgo(post.created_at)}
           </Text>
-        </TouchableOpacity>
+        
+      </View>
         <View >
           {post.post_type === "text" ? (
             <View style={[styles.textConatiner]}>
@@ -289,14 +321,14 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
 
               <View>
                 <TouchableOpacity onPress={() =>
-                  post.description.length > 150 ?
+                  post.description.length > 100 ?
                     setExpanded((v) => !v) :
                     null
                 } activeOpacity={0.8}>
-                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : truncate(parseText(post.description) as unknown as string)}</Text>
+                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description, 300))}</Text>
                 </TouchableOpacity>
               </View>
-              {post.description.length > 150 && (
+              {post.description.length > 100 && (
                 <TouchableOpacity
                   style={[styles.readMore]}
                   onPress={() => setExpanded((v) => !v)}
@@ -315,16 +347,16 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
                   <Text style={[styles.textTitle, { color: theme.textPrimary }]}>{post.name}</Text>
                 </View>
                 <TouchableOpacity onPress={() =>
-                  post.description.length > 150 ?
+                  post.description.length > 100 ?
                     setExpanded((v) => !v) :
                     null
                 } activeOpacity={0.8}>
                   <View>
-                    <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : truncate(parseText(post.description) as unknown as string)}</Text>
+                    <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description))}</Text>
 
                   </View>
                 </TouchableOpacity>
-                {post.description.length > 150 && (
+                {post.description.length > 100 && (
                   <TouchableOpacity
                     style={[styles.readMore]}
                     onPress={() => setExpanded((v) => !v)}
@@ -409,7 +441,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
           <View style={{ flexDirection: "row", gap: 10 }}>
             {/* save */}
             <TouchableOpacity
-              style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+              style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor:post.is_saved?theme.primary: theme.textPlaceholder }]}
               onPress={handleSave}
               activeOpacity={0.7}
             >
@@ -432,20 +464,20 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
                 }]}
               >
                 <TouchableOpacity
-                  style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, gap: 1, borderWidth: 0 }]}
+                  style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, borderWidth: 0, justifyContent: "space-between" }]}
                   onPress={() => setShareModalVisible(false)}
                   activeOpacity={0.7}
                 >
-                 <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
-                      Select share action
-                       </Text>
-                      <View
-                      style={[{backgroundColor:theme.primary,borderRadius:Radius.md,paddingHorizontal:3}]}
-                      >
+                  <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
+                    Select share action
+                  </Text>
+                  <View
+                    style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 3 }]}
+                  >
                     <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
-                      Cancel
+                      Close
                     </Text>
-                    </View>
+                  </View>
                 </TouchableOpacity>
                 {!isSP && <TouchableOpacity
                   style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
@@ -482,6 +514,16 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
                     )}
                   </TouchableOpacity>
                 }
+                <TouchableOpacity
+                  style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+                  onPress={handleCopyinapplink}
+                  activeOpacity={0.7}
+                >
+                  <MaterialCommunityIcons name="link" color={theme.primary} />
+                  <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+                    Copy inapp link
+                  </Text>
+                </TouchableOpacity>
                 {post.description &&
                   <TouchableOpacity
                     style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
@@ -490,7 +532,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
                   >
                     <MaterialCommunityIcons name="content-copy" color={theme.primary} />
                     <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
-                      Copy text
+                      Copy text body
                     </Text>
                   </TouchableOpacity>}
 
@@ -579,6 +621,7 @@ const styles = StyleSheet.create({
   userInfo: {
     flex: 1,
     flexDirection: "row",
+    gap:10
   },
   userName: {
     fontSize: FontSize.sm,

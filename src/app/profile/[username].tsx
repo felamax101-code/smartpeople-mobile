@@ -25,6 +25,8 @@ import { useAuthStore } from "@/stores/auth.store"
 import { ReviewForm } from "@/components/reviews/ReviewForm"
 import { Radius, Spacing, FontSize, FontWeight } from "@/constants/colors"
 import { messagingService } from "@/services/messaging.service"
+import { useConversations } from "@/hooks/useConversations"
+
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { QueryClient } from "@tanstack/react-query"
 type Tab = "posts" | "reviews" | "about"
@@ -42,6 +44,8 @@ export default function PublicProfileScreen() {
     comment: string
   } | null>(null)
   const [banner, setBanner] = useState<BannerState | null>(null);
+    const {refetch:refetchConversation}=useConversations()
+  
   const {
     profile,
     isLoading,
@@ -88,6 +92,7 @@ export default function PublicProfileScreen() {
         initial_message: "Hello",
       })
       qc.invalidateQueries({ queryKey: ["conversations"], });
+      refetchConversation()
       // Navigate to the conversation screen
       router.push(`/messages/${conversation.id}` as any)
     } catch (error: any) {

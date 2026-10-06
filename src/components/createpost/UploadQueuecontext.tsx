@@ -1,13 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 import * as Crypto from "expo-crypto"
-import api from "@/services/api" 
+import api from "@/services/api"
 import { PostVideo } from "@/types"
+import { AxiosError } from "axios"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
 
 const CREATE_POST_PATH = "/posts/"
 const VIDEO_STATUS_PATH = (videoId: string) => `/post-videos/${videoId}/status/`
 
-const GROUP_VIDEO_STATUS_PATH = (videoId: string) => `/post-videos/${videoId}/status/`
+const GROUP_VIDEO_STATUS_PATH = (videoId: string) => `/groups/post-videos/${videoId}/status/`
+const SP_VIDEO_STATUS_PATH = (videoId: string) => `/sp/post-videos/${videoId}/status/`
 
 export type UploadStatus = "uploading" | "processing" | "done" | "failed"
 
@@ -21,6 +23,13 @@ export interface CreatePostInput {
   postType: "text" | "image" | "video"
   mediaType?: "photo" | "video" // matches PostSerializer's media_type field
   mediaUris?: string[] // local file uris, in the order they should be saved
+  location?: string
+  price?: string
+  monthlyInstallment?: string
+  listingType?: string
+  rooms?: string
+  deposit?: string
+  listing_type?: string
 }
 
 export interface UploadEntry {
@@ -34,6 +43,8 @@ export interface UploadEntry {
   postSlug?: string
   videoIds?: string[]
   error?: string
+  size?:string
+
 }
 
 interface StartUploadOptions {
@@ -43,7 +54,7 @@ interface StartUploadOptions {
 
 interface UploadQueueContextValue {
   uploads: UploadEntry[]
-  startUpload: (input: CreatePostInput, options?: StartUploadOptions,isGroup?:boolean,slug?:string) => string
+  startUpload: (input: CreatePostInput, options?: StartUploadOptions, isGroup?: boolean, slug?: string,isSP?:boolean) => string
   dismissUpload: (id: string) => void
 }
 
@@ -56,7 +67,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
   const [uploads, setUploads] = useState<UploadEntry[]>([])
   const pollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({})
   const callbacks = useRef<Record<string, StartUploadOptions>>({})
-    const {showNotifToast}=useNotificationToast()
+  const { showNotifToast } = useNotificationToast()
   const updateUpload = useCallback((id: string, patch: Partial<UploadEntry>) => {
     setUploads((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)))
   }, [])
@@ -80,26 +91,25 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
 
   // polls every still-processing video for one upload until all resolve
   const pollVideoStatuses = useCallback(
-    (uploadId: string, postId: string, postSlug: string, videoIds: string[],isGroup?:boolean) => {
+    (uploadId: string, postId: string, postSlug: string, videoIds: string[], isGroup?: boolean,isSP?:boolean) => {
       const pending = new Set(videoIds)
       const failed = new Set<string>()
 
       pollTimers.current[uploadId] = setInterval(async () => {
         try {
-           
+
           await Promise.all(
             Array.from(pending).map(async (videoId) => {
               // goes through `api` too — status checks stay authenticated and
               // benefit from the same 401-refresh handling as everything else
-              const res = await api.get(isGroup?GROUP_VIDEO_STATUS_PATH(videoId): VIDEO_STATUS_PATH(videoId))
-            
+              const res = await api.get(isGroup ? GROUP_VIDEO_STATUS_PATH(videoId) :isSP? SP_VIDEO_STATUS_PATH(videoId): VIDEO_STATUS_PATH(videoId))
+
               const data = res.data
-            
               if (data.status === "done") {
-                showNotifToast("Post uploaded","success")
+                showNotifToast("Post uploaded", "success")
                 pending.delete(videoId)
               } else if (data.status === "failed") {
-                showNotifToast("Upload failed","error")
+                showNotifToast("Upload failed", "error")
                 pending.delete(videoId)
                 failed.add(videoId)
               }
@@ -127,7 +137,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
   )
 
   const startUpload = useCallback(
-    (input: CreatePostInput, options?: StartUploadOptions,isGroup?:boolean,slug?:string) => {
+    (input: CreatePostInput, options?: StartUploadOptions, isGroup?: boolean, slug?: string,isSP?:boolean) => {
       const clientUploadId = Crypto.randomUUID()
       const id = clientUploadId
       callbacks.current[id] = options ?? {}
@@ -154,27 +164,35 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
       if (input.locationLng) formData.append("location_lng", input.locationLng)
       if (input.locationDisplay) formData.append("location_display", input.locationDisplay)
       if (input.mediaType) formData.append("media_type", input.mediaType)
+      if (input.price) formData.append("price", input.price)
+      if (input.rooms) formData.append("rooms", input.rooms)
+      if (input.deposit) formData.append("deposit", input.deposit)
+      if (input.monthlyInstallment) formData.append("monthly_installment", input.monthlyInstallment)
+      if (input.listing_type) formData.append("listing_type", input.listing_type)
+      if (input.rooms) formData.append("house_type", input.rooms)
 
-      // DRF's ListField(child=FileField()) expects repeated "media" entries —
-      // append each file under the same field name (1 for video, up to 10 for photos)
-      ;(input.mediaUris ?? []).forEach((uri, index) => {
-        const ext = uri.split(".").pop() || (input.mediaType === "video" ? "mp4" : "jpg")
-        const mimeType = input.mediaType === "video" ? "video/mp4" : "image/jpeg"
-        formData.append("media", {
-          uri,
-          name: `media_${index}.${ext}`,
-          type: mimeType,
-        } as any)
-      })
+
+
+        // DRF's ListField(child=FileField()) expects repeated "media" entries —
+        // append each file under the same field name (1 for video, up to 10 for photos)
+        ; (input.mediaUris ?? []).forEach((uri, index) => {
+          const ext = uri.split(".").pop() || (input.mediaType === "video" ? "mp4" : "jpg")
+          const mimeType = input.mediaType === "video" ? "video/mp4" : "image/jpeg"
+          formData.append("media", {
+            uri,
+            name: `media_${index}.${ext}`,
+            type: mimeType,
+          } as any)
+        })
 
       api
-        .post(isGroup?`/groups/${slug}/posts/`: CREATE_POST_PATH, formData, {
+        .post(isGroup ? `/groups/${slug}/posts/` :isSP?"/sp/posts/": CREATE_POST_PATH, formData, {
           headers: { "Content-Type": "multipart/form-data" }, // overrides the instance's default JSON header for this request
-          timeout: 120000, // 2 min — the instance-wide 15s default is fine for JSON but too short for a video upload on a slow connection
+          timeout: 300000, // 2 min — the instance-wide 15s default is fine for JSON but too short for a video upload on a slow connection
           onUploadProgress: (progressEvent) => {
             const total = progressEvent.total
             if (total) {
-                showNotifToast("Uploading post","success")
+              showNotifToast("Uploading post. [Do not close the app!]", "success")
               const pct = Math.round((progressEvent.loaded / total) * 100)
               updateUpload(id, { progress: pct })
             }
@@ -197,7 +215,6 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
           const pendingVideoIds = videos
             .filter((v) => v.processing_status === "processing")
             .map((v) => v.id)
-          console.log("pendingVideoIds",pendingVideoIds.length)
           updateUpload(id, {
             progress: 100,
             postId,
@@ -207,7 +224,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
           })
 
           if (pendingVideoIds.length > 0) {
-            pollVideoStatuses(id, postId, postSlug ?? "", pendingVideoIds,isGroup)
+            pollVideoStatuses(id, postId, postSlug ?? "", pendingVideoIds, isGroup,isSP)
           } else {
             // text/image posts, or a post with no video needing processing
             callbacks.current[id]?.onDone?.(postId, postSlug ?? "")
@@ -227,7 +244,6 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
           const message = err?.response?.data?.detail || err?.message || "Upload failed"
           updateUpload(id, { status: "failed", error: message })
           callbacks.current[id]?.onFailed?.(message)
-          console.log("message",message)
         })
 
       return id

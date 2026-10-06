@@ -12,13 +12,14 @@ import {
   Share,
   ScrollView,
   Modal,
+  BackHandler,
   TextInput,
   TouchableWithoutFeedback
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Image } from "expo-image"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { router, useLocalSearchParams } from "expo-router"
+import { router, useLocalSearchParams,useFocusEffect } from "expo-router"
 import { useTheme } from "@/hooks/useTheme"
 import { usePostDetail } from "@/hooks/usePostDetail"
 import { ImageCarousel, CARD_HEIGHT } from "@/components/feed/ImageCarousel"
@@ -38,6 +39,8 @@ import { useNotificationToast } from "@/components/activityIndicator/ToastNotifi
 import { saveMediaToDevice } from "@/hooks/useSaveMediaToDevice"
 import { DownloadProgressRing } from "@/components/ui/DownloadProgress"
 import * as Clipboard from "expo-clipboard"
+import { usePostRepost } from "@/hooks/usePostRepost"
+
 import { parseText } from "@/hooks/useTextParser"
 // scroll offset at which header becomes solid
 const HEADER_SOLID_THRESHOLD = CARD_HEIGHT - 80
@@ -70,17 +73,17 @@ export default function PostDetailScreen() {
   const [showReportModal, setShowReportModal] = useState(false)
   const [otherReason, setOtherReason] = useState("")
   const [menuVisible, setMenuVisible] = useState(false)
-    const [shareModalVisible, setShareModalVisible] = useState<boolean>(false)
-    const [downloadProgress, setDownloadProgress] = useState(0)
-    const [downloadStatus, setDownloadStatus] = useState<"idle" | "downloading" | "success" | "error">("idle")
-
+  const [shareModalVisible, setShareModalVisible] = useState<boolean>(false)
+  const [downloadProgress, setDownloadProgress] = useState(0)
+  const [downloadStatus, setDownloadStatus] = useState<"idle" | "downloading" | "success" | "error">("idle")
+  const { handleRepost } = usePostRepost(post?.slug ?? "")
   const [banner, setBanner] = useState<BannerState | null>(null);
   const { showToast } = useToast()
   const [expanded, setExpanded] = useState<boolean>(false)
-    const [activeIndex, setActiveIndex] = useState(0)
-    const DOWNLOAD_TIMEOUT_MS = 60000 // 60s
+  const [activeIndex, setActiveIndex] = useState(0)
+  const DOWNLOAD_TIMEOUT_MS = 60000 // 60s
 
-const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: string } | null>(
+  const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: string } | null>(
     post?.videos?.[0]
       ? { type: "video", url: post?.videos[0].video ?? null }
       : post?.images?.[0]
@@ -98,6 +101,15 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
     if (!post?.description) return
     setShareModalVisible(false)
     await Clipboard.setStringAsync(post.description)
+  }
+    const handleCopyinapplink = async () => {
+    if (!post) return
+    setShareModalVisible(false)
+    try{
+    await Clipboard.setStringAsync(`https://smartpipla.com/post/${slug}`)
+    }catch{
+      showNotifToast("Error copying. Try again","error")
+    }
   }
   // header icon color flips from white (over image) to theme color (over content)
   const headerIconOpacity = scrollY.interpolate({
@@ -188,11 +200,38 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
     }
   }
 
+   useFocusEffect(
+      useCallback(() => {
+        const onBackPress = () => {
+          if (shareModalVisible) {
+            setShareModalVisible(false)
+            return true // consume the event, don't navigate back
+          }
+          return false // let default back behavior happen
+        }
+  
+        const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress)
+        return () => subscription.remove()
+      }, [shareModalVisible])
+    )
+  const handleRepostPost = useCallback(() => {
+    setShareModalVisible(false)
+    if (!post) return
+    if (!user) {
+      showToast({
+        title: "Post Repost",
+        message: "Create an account or login to your existing account to repost.",
+        onConfirm: () => { router.push(`/(auth)/login`) },
+      })
+
+    }
+    handleRepost()
+  }, [post?.id, post?.slug, handleRepost])
   //  share 
   const handleShare = useCallback(async () => {
     try {
       await Share.share({
-        message: `Check out this : ${post?.name ?? ""} on SmartPeople\nhttps://smartpipla.com/post/${slug}`, url: `https://smartpipla.com/post/${slug}`,
+        message: `Check out this : ${post?.name ?? ""} on SmartPipla\nhttps://smartpipla.com/post/${slug}`, url: `https://smartpipla.com/post/${slug}`,
       })
     } catch (error) {
     }
@@ -282,11 +321,101 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["bottom"]}
     >
-      {menuVisible && (
+      {shareModalVisible && <View
+        style={[{
+          position: "absolute", backgroundColor: theme.backgroundMuted, borderWidth: 2, borderColor: theme.textPlaceholder,
+          right: 3, bottom: 170, zIndex: 999, width: 150, gap: 10, borderRadius: Radius.md, paddingVertical: 6
+        }]}
+      >
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, justifyContent: "space-between", borderWidth: 0 }]}
+          onPress={() => setShareModalVisible(false)}
+          activeOpacity={0.7}
+        >
+          <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
+            Select share action
+          </Text>
+          <View
+            style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 3 }]}
+          >
+            <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.regular }]}>
+              Close
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleRepostPost}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="repeat-variant" color={theme.primary} />
+
+          <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+            Repost
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleDownload}
+          activeOpacity={0.7}
+          disabled={downloadStatus === "downloading"}
+        >
+          {downloadStatus === "idle" ? (
+            <>
+              <MaterialCommunityIcons name="download" color={theme.primary} />
+              <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+                Download
+              </Text>
+            </>
+          ) : (
+            <>
+              <DownloadProgressRing progress={downloadProgress} status={downloadStatus} size={16} />
+              <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+                {downloadStatus === "downloading" ? `${Math.round(downloadProgress * 100)}%` : downloadStatus === "success" ? "Saved" : "Failed"}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleCopyinapplink}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="link" color={theme.primary} />
+          <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+            Copy inapp link
+          </Text>
+        </TouchableOpacity>
+        {post.description &&
+          <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            onPress={handleCopy}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="content-copy" color={theme.primary} />
+            <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+              Copy text body
+            </Text>
+          </TouchableOpacity>}
+
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleShare}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="message-text" color={theme.primary} />
+          <Text style={[{ color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+            Via another app
+          </Text>
+        </TouchableOpacity>
+      </View>}
+
+      {menuVisible || shareModalVisible && (
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
-          onPress={() => setMenuVisible(false)}
+          onPress={() => { setMenuVisible(false); setShareModalVisible(false) }}
         />
       )}
       {banner && (
@@ -375,7 +504,9 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
                   <>
                     <TouchableOpacity style={styles.dropdownItem} onPress={() => {
                       setMenuVisible(false)
-                      router.push(`/edit-post/${post.slug}`)
+                      router.push({
+                        pathname: `/edit-post/${post.slug}`
+                      })
                     }}>
                       <Text style={[styles.dropdownItemText, { color: theme.textPrimary }]}>
                         Edit
@@ -437,8 +568,8 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
                   <Text style={[{ color: "white" }]}   >{post.owner.username.charAt(0)}</Text>
                 </View>
                 <Text
-                  style={[{ color:theme.primary }]}
-                 
+                  style={[{ color: theme.primary }]}
+
                 >@/</Text>
                 <Text
                   style={[{ color: "#fff" }]}
@@ -456,8 +587,8 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
                   transition={200}
                 />
                 <Text
-                  style={[{ color:theme.primary }]}
-                 
+                  style={[{ color: theme.primary }]}
+
                 >@/</Text>
                 <Text style={[{ color: theme.textPrimary }]}>{post.owner.username}</Text>
               </TouchableOpacity>
@@ -569,7 +700,7 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
                 <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: 20 }]}>
                   {post.is_saved ? "Saved" : "Save"}
                 </Text>
-                <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
+                <Text style={[styles.interactionCount, { color: theme.textPrimary, fontWeight: FontWeight.extrabold }]}>
                   {post.saves_count}
                 </Text>
               </TouchableOpacity>
@@ -579,76 +710,7 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
                 style={[styles.interaction, { borderColor: "#383434" }]}
                 onPress={() => setShareModalVisible((v) => !v)}
               >
-                {shareModalVisible && <View
-                  style={[{
-                    position: "absolute", backgroundColor: theme.backgroundMuted, borderWidth: 2, borderColor: theme.textPlaceholder,
-                    right: 3, bottom: 30, zIndex: 999, width: 150, gap: 10, borderRadius: Radius.md, paddingVertical: 6
-                  }]}
-                >
-                  <TouchableOpacity
-                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, justifyContent: "space-between", borderWidth: 0 }]}
-                    onPress={() => setShareModalVisible(false)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
-                      Select share action
-                    </Text>
-                    <View
-                      style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 3 }]}
-                    >
-                      <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
-                        Cancel
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
 
-
-                  <TouchableOpacity
-                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                    onPress={handleDownload}
-                    activeOpacity={0.7}
-                    disabled={downloadStatus === "downloading"}
-                  >
-                    {downloadStatus === "idle" ? (
-                      <>
-                        <MaterialCommunityIcons name="download" color={theme.primary} />
-                        <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
-                          Download
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <DownloadProgressRing progress={downloadProgress} status={downloadStatus} size={16} />
-                        <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
-                          {downloadStatus === "downloading" ? `${Math.round(downloadProgress * 100)}%` : downloadStatus === "success" ? "Saved" : "Failed"}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-
-                  {post.description &&
-                    <TouchableOpacity
-                      style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                      onPress={handleCopy}
-                      activeOpacity={0.7}
-                    >
-                      <MaterialCommunityIcons name="content-copy" color={theme.primary} />
-                      <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
-                        Copy text
-                      </Text>
-                    </TouchableOpacity>}
-
-                  <TouchableOpacity
-                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                    onPress={handleShare}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons name="message-text" color={theme.primary} />
-                    <Text style={[{ color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
-                      Via another app
-                    </Text>
-                  </TouchableOpacity>
-                </View>}
                 <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: 12 }]}>Share</Text>
                 <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
 
@@ -659,20 +721,20 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
 
           <View
 
-            style={[styles.commentsPreview, { backgroundColor: expanded ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.1)" }]}
+            style={[styles.commentsPreview, { backgroundColor: expanded ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.1)", maxHeight: expanded ? undefined : 80 }]}
           >
 
             {post.owner.avatar === null ? (
               <TouchableOpacity
                 onPress={() => router.push(user?.username != post.owner.username ? `/profile/${post.owner.username}` : `/profile`)}
-                style={[{ flexDirection: "row", alignItems: "center", gap: 2,marginRight:100 }]}
+                style={[{ flexDirection: "row", alignItems: "center", gap: 2, marginRight: 100 }]}
               >
                 <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
                   <Text style={[{ color: "#fff" }]} >{post.owner.username.charAt(0)}</Text>
                 </View>
                 <Text
-                  style={[{ color:theme.primary }]}
-                 
+                  style={[{ color: theme.primary }]}
+
                 >@/</Text>
                 <Text
                   style={[{ color: "white" }]}
@@ -689,8 +751,8 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
                   transition={200}
                 />
                 <Text
-                  style={[{ color:theme.primary }]}
-                 
+                  style={[{ color: theme.primary }]}
+
                 >@/</Text>
                 <Text
                   style={[{ color: "#fff" }]}
@@ -713,7 +775,7 @@ const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: s
                   style={[styles.commentsPreviewText, { color: "white" }]}
                 >{expanded ?
                   parseText(post.description)
-                               : truncate(parseText(post.description) as unknown as string, 50)}
+                  : parseText(truncate(post.description, 50))}
 
                 </Text>
 
@@ -912,7 +974,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     right: 3,
-    bottom: 110,
+    bottom: 150,
     justifyContent: "space-between",
     gap: Spacing.lg,
   },
@@ -951,7 +1013,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
   },
-    interactionItem: {
+  interactionItem: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: Radius.md,
@@ -975,8 +1037,8 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.regular,
   },
   postTitle: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.medium,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
   },
   commentsChevron: {
     fontSize: FontSize.xl,

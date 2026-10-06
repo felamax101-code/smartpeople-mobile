@@ -19,6 +19,7 @@ import { useAuthStore } from "@/stores/auth.store"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { ItemTypingIndicator } from "./InItemIndicator"
+import { useMessageStore } from "@/stores/message.store"
 interface Props {
   conversation: Conversation
   onDelete: (id: string) => void
@@ -34,7 +35,8 @@ export const ConversationItem = ({ conversation, onDelete, typing, }: Props) => 
   const timeAgo = formatTimeAgo(conversation.last_message_at)
   const swipeableRef = useRef<Swipeable>(null)
   const handleDelete = () => { onDelete(conversation.id) }
-  console.log("dm",other.avatar)
+    const {unreadMesageCount,setUnreadMessageCount}=useMessageStore()
+  
   const renderRightActions = () => (
     <TouchableOpacity
       style={styles.deleteAction}
@@ -56,7 +58,7 @@ export const ConversationItem = ({ conversation, onDelete, typing, }: Props) => 
       overshootRight={false}>
       <TouchableOpacity
         style={[styles.container, { borderBottomColor: theme.border }]}
-        onPress={() => router.push(`/messages/${conversation.id}` as any)}
+        onPress={() => {router.push(`/messages/${conversation.id}` as any); setUnreadMessageCount(unreadMesageCount-(conversation.unread_count??0))}}
         activeOpacity={0.7}
       >
         {/* avatar */}
