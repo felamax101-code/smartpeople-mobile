@@ -174,8 +174,11 @@ const trimVideo = useCallback(
       showEditor(asset.uri, {
         maxDuration: MAX_VIDEO_MS,
         enablePreciseTrimming: true,   // otherwise output can overshoot 60s
-        headerText: "Trim video (max 60s)",
+        headerText: "Edit video (max 60s)",
         closeWhenFinish: true,
+        trimmerColor: `${theme.primary}`,
+        trimmingText: 'Processing video...',
+
       })
     })
   },
@@ -422,6 +425,7 @@ const handleEditDone = useCallback((editedUris: string[]) => {
         imageUris={pendingAssets.filter((a) => a.type === "image").map((a) => a.uri)}
         onCancel={() => setPendingAssets(null)}
         onDone={handleEditDone}
+        isMessageScreen={true}
       />
     )}
   </SafeAreaProvider>

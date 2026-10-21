@@ -3,7 +3,7 @@ import { API } from "@/constants/api"
 import { attachAuthInterceptors } from "./tokenRefreshService"
 const api = axios.create({
   baseURL: API.DJANGO_BASE_URL,
-  timeout: 15000,
+  timeout: 60000,
   headers: {
     "Content-Type": "application/json",
     "Accept": "application/json",

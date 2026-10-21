@@ -7,9 +7,47 @@ import {
   Category,
   Comment,
   FeedFilters,
-   FeedApiResponse,CommentApiResponse,UsersSearchResponse,ListingFilterValues
+   FeedApiResponse,CommentApiResponse,UsersSearchResponse,
+   ListingFilterValues,PickedImage,Sticker
 } from "@/types"
 
+
+const stickerFields = (sticker?: Sticker | null): Record<string, string> =>
+  sticker
+    ? {
+        sticker_id: sticker.id,
+        sticker_source: sticker.source,
+        sticker_url: sticker.url,
+        sticker_preview_url: sticker.preview_url,
+        sticker_width: String(sticker.width),
+        sticker_height: String(sticker.height),
+      }
+    : {}
+const buildCommentForm = (
+  body: string,
+  image?: PickedImage | null,
+  extra: Record<string, string | undefined> = {}
+): FormData => {
+  const form = new FormData()
+
+  if (body) form.append("body", body)
+
+  Object.entries(extra).forEach(([key, value]) => {
+    if (value) form.append(key, value)
+  })
+
+  if (image) {
+    form.append("image", {
+      uri: image.uri,
+      name: `comment-${Date.now()}.jpg`,
+      type: image.mimeType,
+    } as any) // React Native's FormData file shape
+    form.append("image_width", String(image.width))
+    form.append("image_height", String(image.height))
+  }
+
+  return form
+}
 export const feedService = {
 
   //  feed 
@@ -119,10 +157,20 @@ reportPost: async (Id: any, reason: string, description: string): Promise<void> 
     const { data } = await api.delete(`block/${id}/`)
     return data
   },
-  postComment: async (slug: string, body: string): Promise<Comment> => {
-    const { data } = await api.post(ENDPOINTS.COMMENTS(slug), { body })
-    return data
-  },
+  postComment: async (
+  slug: string,
+  body: string,
+  image?: PickedImage | null,
+    sticker?: Sticker | null
+
+): Promise<Comment> => {
+  const { data } = await api.post(
+    ENDPOINTS.COMMENTS(slug),
+    buildCommentForm(body, image, stickerFields(sticker)),
+    { headers: { "Content-Type": "multipart/form-data" } }
+  )
+  return data
+},
 
   //  comment votes 
   voteComment: async (
@@ -146,19 +194,28 @@ reportPost: async (Id: any, reason: string, description: string): Promise<void> 
     return data
   },
 
-  postReply: async (
-    slug: string,
-    commentId: string,
-    body: string,
-    replyToId?: string,  // optional — who specifically being replied to
-    replied_to_comment_id?:string
-  ): Promise<Comment> => {
-    const { data } = await api.post(
-      `/post/${slug}/comments/${commentId}/reply/`,
-      { body, reply_to_id: replyToId ,replied_to_comment_id:replied_to_comment_id}
-    )
-    return data
-  },
+ postReply: async (
+  slug: string,
+  commentId: string,
+  body: string,
+  replyToId?: string, // optional: who specifically is being replied to
+  replied_to_comment_id?: string,
+  image?: PickedImage | null,
+    sticker?: Sticker | null
+
+): Promise<Comment> => {
+  console.log("postrep",body)
+  const { data } = await api.post(
+    `/post/${slug}/comments/${commentId}/reply/`,
+    buildCommentForm(body, image, {
+      reply_to_id: replyToId,
+      replied_to_comment_id,
+      ...stickerFields(sticker),
+    },),
+    { headers: { "Content-Type": "multipart/form-data" } }
+  )
+  return data
+},
       searchUsers: async (
     page: number,
     searchQuery?: string

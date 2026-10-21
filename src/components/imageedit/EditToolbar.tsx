@@ -18,6 +18,7 @@ type Props = {
   canRedo: boolean
   onUndo: () => void
   onRedo: () => void
+  isMessageScreen?:boolean
 }
 
 const TOOLS: { id: Exclude<EditTool, null>; label: string }[] = [
@@ -48,6 +49,7 @@ export function EditorToolbar({
   canRedo,
   onUndo,
   onRedo,
+  isMessageScreen
 }: Props) {
   return (
     <View style={styles.container}>

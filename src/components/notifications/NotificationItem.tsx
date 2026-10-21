@@ -120,7 +120,7 @@ export const NotificationItem = ({
               style={[styles.body, { color: theme.textSecondary }]}
               numberOfLines={5}
             >
-              {notification.body}
+              {notification.body.slice(0,50)}{notification.body.length>50?"...":null}
             </Text>
           )}
 

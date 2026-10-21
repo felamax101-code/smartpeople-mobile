@@ -7,7 +7,7 @@ export async function saveMediaToDevice(
   onProgress?: (progress: number) => void,
   onPermissionDenied?: () => void
 ) {
-  const { status } = await MediaLibrary.requestPermissionsAsync()
+  const { status } = await MediaLibrary.requestPermissionsAsync(true)
   if (status !== "granted") {
     onPermissionDenied?.()
     throw new Error("Media library permission denied")

@@ -36,6 +36,7 @@ import { messagingService } from "@/services/messaging.service"
 import { spfeedService } from "@/services/realestate.service"
 import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
+import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
 
 // how many posts from the end to trigger prefetch
 const PREFETCH_THRESHOLD = 3
@@ -48,27 +49,27 @@ export default function FeedScreen() {
     })
     const [searchText, setSearchText] = useState("")
     const [filterVisible, setFilterVisible] = useState(false)
-      const [menuVisible, setMenuVisible] = useState<boolean>(false)
-    const {setUnreadMessageCount}=useMessageStore()
+    const [menuVisible, setMenuVisible] = useState<boolean>(false)
+    const { setUnreadMessageCount } = useMessageStore()
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
     const [categorydropdownVisisble, setCategorydropdownVisible] = useState<boolean>(false)
     const queryClient = useQueryClient()
     const feedQueryKey = ["feed", filters, selectedCategory, searchText]
     const { user } = useAuthStore()
-   
-    useEffect(()=>{
-    if(!user) return
-    
-    messagingService.getUnreadCount().then(setUnreadMessageCount)
-    
-    
-  },[])
-    const { data: statusData,isError:isCheckingStatusError, isLoading: isCheckingStatus ,refetch:refetchStatusData} = useQuery({
-  queryKey: ["property-application-status",user?.username??""],
-  queryFn: propertyApplicationService.getMyStatus,
-})
+
+    useEffect(() => {
+        if (!user) return
+
+        messagingService.getUnreadCount().then(setUnreadMessageCount)
+
+
+    }, [])
+    const { data: statusData, isError: isCheckingStatusError, isLoading: isCheckingStatus, refetch: refetchStatusData } = useQuery({
+        queryKey: ["property-application-status", user?.username ?? ""],
+        queryFn: propertyApplicationService.getMyStatus,
+    })
     // const viewabilityConfig = { itemVisiblePercentThreshold: 65}
-    
+
     const flatListRef = useRef<FlatList>(null)
     const { unreadCount, setUnreadCount } = useNotificationStore()
     //  filter state 
@@ -87,27 +88,27 @@ export default function FeedScreen() {
 
     //  fetch categories 
     const { data: categoriesData, refetch: refetchCategory } = useQuery({
-        queryKey: ["sp-categories",user?.username??""],
+        queryKey: ["sp-categories", user?.username ?? ""],
         queryFn: spfeedService.getCategories,
         staleTime: 10 * 60 * 1000,  // categories rarely change — cache for 10 mins
     })
-  const slideAnim = useRef(new Animated.Value(300)).current // 300 = drawer width
-     const openMenu = () => {
-    setMenuVisible(true)
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 250,
-      useNativeDriver: true,
-    }).start()
-  }
+    const slideAnim = useRef(new Animated.Value(300)).current // 300 = drawer width
+    const openMenu = () => {
+        setMenuVisible(true)
+        Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: true,
+        }).start()
+    }
 
-  const closeMenu = () => {
-    Animated.timing(slideAnim, {
-      toValue: 300,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => setMenuVisible(false))
-  }
+    const closeMenu = () => {
+        Animated.timing(slideAnim, {
+            toValue: 300,
+            duration: 200,
+            useNativeDriver: true,
+        }).start(() => setMenuVisible(false))
+    }
     //  fetch feed with pagination 
     // useInfiniteQuery manages paginated data automatically
     // each "page" is appended to the previous pages' results
@@ -142,7 +143,7 @@ export default function FeedScreen() {
         initialPageParam: 1,
         staleTime: 2 * 60 * 1000,  // feed stays fresh for 2 mins before background refetch
     })
-    
+
     const posts: Post[] = data?.pages.flatMap((page: any) => page.data.posts ?? []) ?? []
 
     //  prefetch next page 
@@ -183,7 +184,7 @@ export default function FeedScreen() {
                                     ? {
                                         ...p,
                                         is_upvoted: !p.is_upvoted,
-                                        upvotes_count: p.upvotes_count + (p.is_upvoted && p.upvotes_count>=0? -1 : 1),
+                                        upvotes_count: p.upvotes_count + (p.is_upvoted && p.upvotes_count >= 0 ? -1 : 1),
                                     }
                                     : p
                             ),
@@ -218,7 +219,7 @@ export default function FeedScreen() {
                         data: {
                             ...page.data,
                             posts: page.data.posts.map((p: Post) =>
-                p.slug === post_slug ? { ...p, is_saved: !p.is_saved, saves_count:  p.saves_count + (p.is_saved && p.saves_count>=0? -1 : 1), } : p
+                                p.slug === post_slug ? { ...p, is_saved: !p.is_saved, saves_count: p.saves_count + (p.is_saved && p.saves_count >= 0 ? -1 : 1), } : p
                             ),
                         },
                     })),
@@ -271,7 +272,7 @@ export default function FeedScreen() {
         return (
             <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>🔍</Text>
-                <Text style={[styles.emptyTitle,{color:theme.textPrimarylight}]}>
+                <Text style={[styles.emptyTitle, { color: theme.textPrimarylight }]}>
                     {searchText
                         ? `No results for "${searchText}"`
                         : selectedCategory
@@ -300,73 +301,73 @@ export default function FeedScreen() {
 
                 </TouchableOpacity>
             )}
-{menuVisible &&  user &&(
-        <>
-                  {/* dimmed backdrop, tap to close */}
-                  <TouchableOpacity
-                    style={styles.backdrop}
-                    activeOpacity={1}
-                    onPress={closeMenu}
-                  />
-                 <Animated.View
-                             style={[
-                               styles.menubar,
-                               { transform: [{ translateX: slideAnim }] },
-                             ]}
-                           >
+            {menuVisible && user && (
+                <>
+                    {/* dimmed backdrop, tap to close */}
+                    <TouchableOpacity
+                        style={styles.backdrop}
+                        activeOpacity={1}
+                        onPress={closeMenu}
+                    />
+                    <Animated.View
+                        style={[
+                            styles.menubar,
+                            { transform: [{ translateX: slideAnim }] },
+                        ]}
+                    >
 
-                    <TouchableOpacity
-                    style={[styles.closeButton,{justifyContent:"center",flex:1,alignItems:"flex-end"}]}
-                    onPress={()=>{closeMenu()}}
-                    >
-                        <Text
-                        style={[{fontSize:FontSize.xxl,color:"gray",fontWeight:FontWeight.extrabold}]}
+                        <TouchableOpacity
+                            style={[styles.closeButton, { justifyContent: "center", flex: 1, alignItems: "flex-end" }]}
+                            onPress={() => { closeMenu() }}
                         >
-                            x
-                          </Text>
-                    </TouchableOpacity>
-                  {isCheckingStatusError ?(
-                    <TouchableOpacity
-                    style={[styles.menuText,{backgroundColor:theme.backgroundMuted}]}
-                    onPress={()=>{refetchStatusData()}}
-                    >
-                        <Text
-                        style={[{color:theme.ALLwarning,fontWeight :FontWeight.regular}]}
-                        > Error,press here to retry </Text>
-                    </TouchableOpacity>
-                  ):
-                  isCheckingStatus?(
-                    <ActivityIndicator size={"small"} />
-                  ):
-                  (
-                    
-                   <>
-                   <TouchableOpacity
-                    style={[styles.menuText,{backgroundColor:theme.backgroundMuted}]}
-                    onPress={()=>{closeMenu();router.push(    statusData?.has_applied &&  statusData?.application?.status==="approved"?"/sp/profile":"/sp/application")}}
-                    >
-                        <Text
-                        style={[{color:theme.primary,fontWeight :FontWeight.regular}]}
-                        > { statusData?.has_applied &&  statusData?.application?.status==="approved"?"My SmartProperty Account":"Create a SmartProperty Account"} 
-                         </Text>
-                    </TouchableOpacity>
-                    { statusData?.has_applied && statusData.application?.status==="approved" &&  
-                     <TouchableOpacity
-                    style={[styles.menuText,{backgroundColor:theme.backgroundMuted,flexDirection:"row",alignItems:"center"}]}
-                    onPress={()=>{closeMenu();router.push("/sp/createpost")}}
-                    >
-                        <MaterialCommunityIcons name="plus-circle-outline" color={theme.primary} />
-                        <Text
-                        style={[{color:theme.primary,fontWeight:FontWeight.regular}]}
-                        >  Add post
-                          </Text>
-                    </TouchableOpacity>}
-                    </> 
-                    )}
-                  </Animated.View>
+                            <Text
+                                style={[{ fontSize: FontSize.xxl, color: "gray", fontWeight: FontWeight.extrabold }]}
+                            >
+                                x
+                            </Text>
+                        </TouchableOpacity>
+                        {isCheckingStatusError ? (
+                            <TouchableOpacity
+                                style={[styles.menuText, { backgroundColor: theme.backgroundMuted }]}
+                                onPress={() => { refetchStatusData() }}
+                            >
+                                <Text
+                                    style={[{ color: theme.ALLwarning, fontWeight: FontWeight.regular }]}
+                                > Error,press here to retry </Text>
+                            </TouchableOpacity>
+                        ) :
+                            isCheckingStatus ? (
+                                <ActivityIndicator size={"small"} />
+                            ) :
+                                (
+
+                                    <>
+                                        <TouchableOpacity
+                                            style={[styles.menuText, { backgroundColor: theme.backgroundMuted }]}
+                                            onPress={() => { closeMenu(); router.push(statusData?.has_applied && statusData?.application?.status === "approved" ? "/sp/profile" : "/sp/application") }}
+                                        >
+                                            <Text
+                                                style={[{ color: theme.primary, fontWeight: FontWeight.regular }]}
+                                            > {statusData?.has_applied && statusData?.application?.status === "approved" ? "My SmartProperty Account" : "Create a SmartProperty Account"}
+                                            </Text>
+                                        </TouchableOpacity>
+                                        {statusData?.has_applied && statusData.application?.status === "approved" &&
+                                            <TouchableOpacity
+                                                style={[styles.menuText, { backgroundColor: theme.backgroundMuted, flexDirection: "row", alignItems: "center" }]}
+                                                onPress={() => { closeMenu(); router.push("/sp/createpost") }}
+                                            >
+                                                <MaterialCommunityIcons name="plus-circle-outline" color={theme.primary} />
+                                                <Text
+                                                    style={[{ color: theme.primary, fontWeight: FontWeight.regular }]}
+                                                >  Add post
+                                                </Text>
+                                            </TouchableOpacity>}
+                                    </>
+                                )}
+                    </Animated.View>
                 </>
 
-           ) }
+            )}
 
 
             {categorydropdownVisisble && (
@@ -398,7 +399,7 @@ export default function FeedScreen() {
 
 
             {/*  sticky header  */}
-            <Text style={[{color:theme.primary,fontSize:FontSize.lg,fontWeight:FontWeight.bold}]}>SmartProperties</Text>
+            <Text style={[{ color: theme.primary, fontSize: FontSize.lg, fontWeight: FontWeight.bold }]}>SmartProperties</Text>
             <View style={[styles.header, { backgroundColor: theme.borderMuted }]}>
                 {/* search bar */}
                 <View style={styles.headerTop} >
@@ -406,9 +407,11 @@ export default function FeedScreen() {
                         <MaterialCommunityIcons name="filter" color={"white"} />
                         <Text style={[{ color: "white", fontSize: FontSize.lg }]}  >Filter</Text>
                     </TouchableOpacity>
-
-                    <View style={[styles.searchContainer, { borderColor: theme.primaryDark }]}>
-                        <Text style={styles.searchIcon}>🔍</Text>
+                <View
+                style={[styles.searchContainer]}
+                >
+                    <View style={[styles.searchBox, { borderColor: theme.primaryDark }]}>
+                      
                         <TextInput
                             style={styles.searchInput}
                             placeholder="Search posts..."
@@ -422,6 +425,7 @@ export default function FeedScreen() {
                                 <Text style={styles.clearIcon}>✕</Text>
                             </TouchableOpacity>
                         )}
+                    </View>
                     </View>
                     <View style={styles.headerActions}>
                         <TouchableOpacity
@@ -441,7 +445,7 @@ export default function FeedScreen() {
                             // style={styles.headerButton}
                             onPress={openMenu}
                         >
-                            <MaterialCommunityIcons name="menu" color={theme.success} size={35} style={[{fontWeight:FontWeight.extrabold}]} />
+                            <MaterialCommunityIcons name="menu" color={theme.success} size={35} style={[{ fontWeight: FontWeight.extrabold }]} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -478,8 +482,7 @@ export default function FeedScreen() {
             {/*  feed list  */}
             {isLoading ? (
                 <View style={styles.loadingState}>
-                    <LoadingIndicator fullScreen={true} />
-                    <Text style={styles.loadingStateText}>Loading feed...</Text>
+                    <BouncingBarsIndicator />
                 </View>
             ) :
 
@@ -489,11 +492,11 @@ export default function FeedScreen() {
                         <Text style={[styles.errorText, { color: theme.textMuted }]}>
                             Failed to load
                         </Text>
-                        <Text style={[styles.errorText, { color: theme.textMuted,fontSize:FontSize.sm }]}>
-                           This might be a problem we are working on
+                        <Text style={[styles.errorText, { color: theme.textMuted, fontSize: FontSize.sm }]}>
+                            This might be a problem we are working on
                         </Text>
-                        <Text style={[styles.errorText, { color: theme.textMuted,fontSize:FontSize.sm }]}>
-                          Meanwhile make sure you are well connected to the internet
+                        <Text style={[styles.errorText, { color: theme.textMuted, fontSize: FontSize.sm }]}>
+                            Meanwhile make sure you are well connected to the internet
                         </Text>
                         <TouchableOpacity
                             style={[styles.retryBtn, { borderColor: theme.primary }]}
@@ -541,12 +544,12 @@ export default function FeedScreen() {
             {/*  auth prompt modal  */}
             {/* mounts at root level — shown globally when guest taps auth-required action */}
             <AuthPrompt />
-            <UploadProgressBadge/>
+            <UploadProgressBadge />
             <FilterModal
                 visible={filterVisible}
                 initialValues={filters}
                 onClose={() => setFilterVisible(false)}
-                onReset={()=>setFilters({sort: "newest"})}
+                onReset={() => setFilters({ sort: "newest" })}
                 onApply={(values) => setFilters((f) => ({ ...f, ...values }))}
             />
         </SafeAreaView>
@@ -583,71 +586,71 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         paddingVertical: 4
     },
-     backdrop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(220, 189, 189, 0.4)",
-    zIndex: 9,
-  },
+    backdrop: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(220, 189, 189, 0.4)",
+        zIndex: 9,
+    },
     menuText: {
-    paddingVertical: 7,
-    paddingHorizontal: 8,
-    alignItems: "flex-start",
-    justifyContent: "center",
-    width: "100%",
-    marginTop: 2,
-    borderRadius: Radius.lg,
-    borderWidth:1,
-    borderColor: Colors.textMuted
+        paddingVertical: 7,
+        paddingHorizontal: 8,
+        alignItems: "flex-start",
+        justifyContent: "center",
+        width: "100%",
+        marginTop: 2,
+        borderRadius: Radius.lg,
+        borderWidth: 1,
+        borderColor: Colors.textMuted
 
-  },
-  closeButton: {
-    
-   paddingRight:8,
-    width: "100%",
-   
-    borderRadius: Radius.lg,
-   
-   
+    },
+    closeButton: {
 
-  },
+        paddingRight: 8,
+        width: "100%",
+
+        borderRadius: Radius.lg,
+
+
+
+    },
     menubar: {
-    position: "absolute",
-    top: 60,
-    right: 0,
-    width: 210,
-    backgroundColor: "#ffffff",
-    paddingTop: 1,
-    paddingHorizontal: Spacing.xs,
-    zIndex: 15,
-    elevation: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    borderRadius: 10
-  },
-   menuTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: "700",
+        position: "absolute",
+        top: 60,
+        right: 0,
+        width: 210,
+        backgroundColor: "#ffffff",
+        paddingTop: 1,
+        paddingHorizontal: Spacing.xs,
+        zIndex: 15,
+        elevation: 10,
+        shadowColor: "#000",
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        borderRadius: 10
+    },
+    menuTitle: {
+        fontSize: FontSize.lg,
+        fontWeight: "700",
 
-  },
-  innerText: {
-    fontSize: FontSize.sm,
-    color: Colors.textPrimary,
-    borderRadius: 7
-  },
-  menuInnerText: {
+    },
+    innerText: {
+        fontSize: FontSize.sm,
+        color: Colors.textPrimary,
+        borderRadius: 7
+    },
+    menuInnerText: {
 
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.regular,
-
-
+        fontSize: FontSize.sm,
+        fontWeight: FontWeight.regular,
 
 
-  },
+
+
+    },
     scrollCont: {
         display: "flex",
         flexDirection: "column",
@@ -693,24 +696,31 @@ const styles = StyleSheet.create({
         fontSize: FontSize.sm,
         fontWeight: "700",
     },
-     menuHeader: {
+    menuHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginTop: 1,
+        marginBottom: 6
+    },
+    searchContainer: { 
+        flex: 1,
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 1,
-    marginBottom: 6
-  },
-    searchContainer: {
+   
+    marginHorizontal: Spacing.xs,
+   
+    backgroundColor: Colors.gray[100],
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+     },
+
+    searchBox: {
         flex: 1,
         flexDirection: "row",
-        alignItems: "center",
-        marginHorizontal: Spacing.md,
-        marginBottom: Spacing.xs,
-        backgroundColor: Colors.gray[100],
-        borderRadius: Radius.lg,
-        borderWidth: 2,
-        paddingHorizontal: Spacing.md,
-        height: 35,
-        gap: Spacing.sm,
+       
+
+        borderRadius: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+
     },
     searchIcon: {
         fontSize: 16,

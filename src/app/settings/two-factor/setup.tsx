@@ -6,18 +6,22 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Alert,
   Image,
 } from "react-native"
 import * as Clipboard from "expo-clipboard"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router } from "expo-router"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
+import { FormInput } from "@/components/ui/FormInput"
 import { OTPInput } from "@/components/ui/OTPInput"
 import api from "@/services/api"
 import { Spacing, Radius, FontSize, FontWeight, Colors } from "@/constants/colors"
-
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 type Method = "email" | "sms" | "totp"
 type Step = "choose_method" | "confirm_code" | "backup_codes"
 
@@ -27,29 +31,29 @@ const METHOD_OPTIONS: {
   label: string
   sub: string
 }[] = [
-  {
-    value: "email",
-    icon: "📧",
-    label: "Email OTP",
-    sub: "Receive a code to your email address",
-  },
-  {
-    value: "sms",
-    icon: "📱",
-    label: "SMS OTP",
-    sub: "Receive a code to your phone number",
-  },
-  {
-    value: "totp",
-    icon: "🔐",
-    label: "Authenticator App",
-    sub: "Use Google Authenticator or Authy",
-  },
-]
+    {
+      value: "email",
+      icon: "📧",
+      label: "Email OTP",
+      sub: "Receive a code to your email address",
+    },
+    {
+      value: "sms",
+      icon: "📱",
+      label: "SMS OTP",
+      sub: "Receive a code to your phone number",
+    },
+    {
+      value: "totp",
+      icon: "🔐",
+      label: "Authenticator App",
+      sub: "Use Google Authenticator or Authy",
+    },
+  ]
 
 export default function TwoFactorSetupScreen() {
   const theme = useTheme()
-
+  const queryClient = useQueryClient()
   const [step, setStep] = useState<Step>("choose_method")
   const [method, setMethod] = useState<Method>("email")
   const [code, setCode] = useState("")
@@ -96,10 +100,20 @@ export default function TwoFactorSetupScreen() {
       setCode("")
     },
   })
-const copyKey = async () => {
+  const { showNotifToast } = useNotificationToast()
+  const copyKey = async () => {
     if (!manualKey) return
-  await Clipboard.setStringAsync(manualKey);
-};
+    await Clipboard.setStringAsync(manualKey);
+  };
+
+  const handleCopyAllBackupCodes = async () => {
+    try {
+      await Clipboard.setStringAsync(backupCodes.join("\n"))
+      showNotifToast("Backup codes copied", "success")
+    } catch {
+      showNotifToast("Error copying. Try again", "error")
+    }
+  }
   // auto-submit when 6 digits entered
   useEffect(() => {
     if (code.length === 6 && step === "confirm_code") {
@@ -114,8 +128,13 @@ const copyKey = async () => {
   const handleFinish = () => {
     Alert.alert(
       "2FA Enabled",
-      "Two-factor authentication is now active on your account.",
-      [{ text: "Done", onPress: () => router.back() }]
+      "Two-factor authentication is now active on your account.Any login from untrusted device will be required to undergo 2FA authentication.",
+      [{
+        text: "Done", onPress: () => {
+          queryClient.invalidateQueries({ queryKey: ["2fa-status"] });
+          router.back()
+        }
+      }]
     )
   }
 
@@ -129,7 +148,8 @@ const copyKey = async () => {
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={[styles.backIcon, { color: theme.textPrimary }]}>
-              ←
+              <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+
             </Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
@@ -219,110 +239,120 @@ const copyKey = async () => {
           </Text>
           <View style={{ width: 32 }} />
         </View>
-
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {/* TOTP — show QR code */}
-          {method === "totp" && qrCode && (
-            <View style={styles.qrSection}>
-              <Text style={[styles.title, { color: theme.textPrimary }]}>
-                Scan QR Code
-              </Text>
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                Open your authenticator app and scan this code
-              </Text>
-              <View style={[styles.qrContainer, { backgroundColor: "#fff" }]}>
-                <Image
-                  source={{ uri: `data:image/png;base64,${qrCode}` }}
-                  style={styles.qrImage}
-                  resizeMode="contain"
-                />
-              </View>
-              {manualKey && (
-                <View style={[
-                  styles.manualKeyCard,
-                  { backgroundColor: theme.surfaceSecondary }
-                ]}>
-                  <Text style={[styles.manualKeyLabel, { color: theme.textMuted }]}>
-                    Can't scan? Enter this key manually:
-                  </Text>
-                  <View
-  style={{
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  }}
->
-  <Text style={[styles.manualKey, { color: theme.primary }]}>
-    {manualKey}
-  </Text>
-
-  <TouchableOpacity
-    onPress={copyKey}
-    style={{
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 8,
-      backgroundColor: theme.primary,
-    }}
-  >
-    <Text style={{ color: '#fff', fontWeight: '600' }}>
-      Copy
-    </Text>
-  </TouchableOpacity>
-</View>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* TOTP — show QR code */}
+            {method === "totp" && qrCode && (
+              <View style={styles.qrSection}>
+                <Text style={[styles.title, { color: theme.textPrimary }]}>
+                  Scan QR Code
+                </Text>
+                <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                  Open your authenticator app and scan this code
+                </Text>
+                <View style={[styles.qrContainer, { backgroundColor: "#fff" }]}>
+                  <Image
+                    source={{ uri: `data:image/png;base64,${qrCode}` }}
+                    style={styles.qrImage}
+                    resizeMode="contain"
+                  />
                 </View>
-              )}
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                Then enter the 6-digit code from your app below
-              </Text>
+                {manualKey && (
+                  <View style={[
+                    styles.manualKeyCard,
+                    { backgroundColor: theme.surfaceSecondary }
+                  ]}>
+                    <Text style={[styles.manualKeyLabel, { color: theme.textPrimarylight }]}>
+                      Can't scan? Enter this key manually:
+                    </Text>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: 8,
+                      }}
+                    >
+                      <Text style={[styles.manualKey, { color: theme.primary }]}>
+                        {manualKey}
+                      </Text>
+
+                      <TouchableOpacity
+                        onPress={copyKey}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 8,
+                          backgroundColor: theme.primary,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: '600' }}>
+                          Copy
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                  Then enter the 6-digit code from your app below
+                </Text>
+              </View>
+            )}
+
+            {/* Email/SMS — instructions */}
+            {method !== "totp" && (
+              <View style={styles.otpSection}>
+                <Text style={styles.stepIcon}>
+                  {method === "email" ? "📧" : "📱"}
+                </Text>
+                <Text style={[styles.title, { color: theme.textPrimary }]}>
+                  Enter the code
+                </Text>
+                <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                  We sent a 6-digit code to your{" "}
+                  {method === "email" ? "email address" : "phone number"}.
+                  Enter it below to confirm setup.
+                </Text>
+              </View>
+            )}
+
+            {/* OTP input */}
+            <View style={styles.otpWrapper}>
+
+              <FormInput
+                label=""
+                value={code}
+                onChangeText={(val) => setCode(val)}
+                keyboardType="default"
+                placeholder="6-digit code"
+                returnKeyType="done"
+                autoCapitalize="characters"
+              />
             </View>
-          )}
 
-          {/* Email/SMS — instructions */}
-          {method !== "totp" && (
-            <View style={styles.otpSection}>
-              <Text style={styles.stepIcon}>
-                {method === "email" ? "📧" : "📱"}
-              </Text>
-              <Text style={[styles.title, { color: theme.textPrimary }]}>
-                Enter the code
-              </Text>
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                We sent a 6-digit code to your{" "}
-                {method === "email" ? "email address" : "phone number"}.
-                Enter it below to confirm setup.
-              </Text>
-            </View>
-          )}
+            {confirmMutation.isPending && (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color={theme.primary} size="small" />
+                <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+                  Verifying...
+                </Text>
+              </View>
+            )}
 
-          {/* OTP input */}
-          <View style={styles.otpWrapper}>
-            <OTPInput
-              value={code}
-              onChange={(val) => setCode(val)}
-              hasError={confirmMutation.isError}
-            />
-          </View>
-
-          {confirmMutation.isPending && (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color={theme.primary} size="small" />
-              <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-                Verifying...
+            {confirmMutation.isError && (
+              <Text style={[styles.errorText, { color: theme.error }]}>
+                Invalid code. Please try again.
               </Text>
-            </View>
-          )}
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
 
-          {confirmMutation.isError && (
-            <Text style={[styles.errorText, { color: theme.error }]}>
-              Invalid code. Please try again.
-            </Text>
-          )}
-        </ScrollView>
       </SafeAreaView>
     )
   }
@@ -353,8 +383,8 @@ const copyKey = async () => {
           If you lose access to your {method === "totp"
             ? "authenticator app"
             : method === "email"
-            ? "email"
-            : "phone"},
+              ? "email"
+              : "phone"},
           use one of these codes to log in.
           Each code can only be used once.
         </Text>
@@ -397,7 +427,15 @@ const copyKey = async () => {
             </View>
           ))}
         </View>
-
+        <TouchableOpacity
+          style={[styles.primaryButton, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, borderWidth: 2, borderRadius: Radius.md, paddingHorizontal: 2, paddingVertical: 3 }]}
+          onPress={handleCopyAllBackupCodes}
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.primaryButtonText, { color: theme.textPrimary }]}>
+            Copy all to clipboard
+          </Text>
+        </TouchableOpacity>
         {/* done button */}
         <TouchableOpacity
           style={[styles.primaryButton, { backgroundColor: theme.primary }]}
@@ -405,17 +443,17 @@ const copyKey = async () => {
           activeOpacity={0.85}
         >
           <Text style={styles.primaryButtonText}>
-            I've saved my codes — Done
+            I have saved my codes — Done
           </Text>
         </TouchableOpacity>
 
-        <Text style={[styles.privacyNote, { color: theme.textMuted }]}>
+        <Text style={[styles.privacyNote, { color: theme.primary, fontSize: FontSize.md }]}>
           2FA is now active on your account. You'll need your{" "}
           {method === "totp"
             ? "authenticator app"
             : method === "email"
-            ? "email"
-            : "phone"}{" "}
+              ? "email"
+              : "phone"}{" "}
           every time you log in.
         </Text>
       </ScrollView>
@@ -449,12 +487,12 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
   },
   stepIcon: {
-    fontSize: 64,
+    fontSize: 40,
     marginBottom: Spacing.sm,
   },
   title: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.extrabold,
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
     textAlign: "center",
     letterSpacing: -0.5,
   },
@@ -525,7 +563,7 @@ const styles = StyleSheet.create({
   },
   manualKeyCard: {
     width: "100%",
-    padding: Spacing.md,
+    padding: Spacing.xs,
     borderRadius: Radius.md,
     gap: Spacing.xs,
     alignItems: "center",
@@ -535,8 +573,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   manualKey: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.regular,
     letterSpacing: 2,
   },
   otpSection: {

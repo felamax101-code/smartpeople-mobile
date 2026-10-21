@@ -16,7 +16,6 @@ import { router, useFocusEffect } from "expo-router"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
-import { useLocation } from "@/hooks/useLocation"
 import { useNavigation } from "expo-router"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { GalleryPicker } from "@/components/createpost/GalleryPicker"
@@ -32,6 +31,7 @@ import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIn
 import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 import { useUploadQueue } from "@/components/createpost/UploadQueuecontext"
 import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
+import { SelectedSound } from "@/components/createpost/SoundModal"
 //  screen steps 
 type Step =
   | "media_type"    // choose images or video
@@ -52,6 +52,7 @@ function SellScreen() {
   const [step, setStep] = useState<Step>("media_type")
   const [mediaType, setMediaType] = useState<"image" | "video" | "text">("image")
   const [selectedUris, setSelectedUris] = useState<string[]>([])
+  const [sound, setsound] = useState<SelectedSound|null|undefined>(null)
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
   const [opengalleryDisabled, setopengalleryDisabled] = useState(false)
   const [banner, setBanner] = useState<BannerState | null>(null);
@@ -185,11 +186,12 @@ function SellScreen() {
         postType: mediaType, // "text" | "image" | "video"
         mediaType: mediaType === "image" ? "photo" : mediaType === "video" ? "video" : undefined,
         mediaUris: mediaType === "text" ? [] : selectedUris,
+        soundId:sound?.id
       },
       {
         onDone: (postId, postSlug) => {
           queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
-        showNotifToast("Post uploaded", "success")
+          showNotifToast("Post uploaded", "success")
           router.push(`/post/${postSlug}`)
         },
         onFailed: (error) => {
@@ -321,7 +323,7 @@ function SellScreen() {
         {/* header */}
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={[styles.headerBack, { color: theme.textPrimary }]}>✕</Text>
+            <Text style={[styles.headerBack, { color: theme.primary }]}>✕</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
             New post
@@ -343,11 +345,7 @@ function SellScreen() {
               disabled={opengalleryDisabled}
             >
               <Text style={styles.continueButtonText}>
-
-                {mediaType === "text" ?
-                  "Continue"
-                  : "Open Gallery"
-                }
+                Continue
               </Text>
             </TouchableOpacity>
           </View>
@@ -365,7 +363,10 @@ function SellScreen() {
         <SafeAreaView edges={["top"]} style={{ backgroundColor: "#000" }}>
           <View style={styles.galleryHeader}>
             <TouchableOpacity onPress={() => setStep("media_type")}>
-              <Text style={styles.galleryBack}>←</Text>
+              <Text style={styles.galleryBack}>
+                <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+
+              </Text>
             </TouchableOpacity>
             <Text style={styles.galleryTitle}>
               {mediaType === "image" ? "Select Photos" : "Select Video"}
@@ -393,14 +394,15 @@ function SellScreen() {
       <ImageEditScreen
         imageUris={selectedUris}
         onCancel={() => setStep("gallery")}
-        onDone={(finalUris) => {
-          setSelectedUris(finalUris)
+        onDone={(finalUris,sound_id) => {
+          setSelectedUris(finalUris);
+          setsound(sound_id)
           setStep("form")
         }}
       />
     )
   }
- 
+
   //  post form 
   return (
     <SafeAreaView
@@ -426,7 +428,7 @@ function SellScreen() {
         >
           {/* header */}
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
-            <TouchableOpacity onPress={() => setStep( mediaType === "image" ? "image_edit" : "media_type")}>
+            <TouchableOpacity onPress={() => setStep(mediaType === "image" ? "image_edit" : "media_type")}>
               <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>

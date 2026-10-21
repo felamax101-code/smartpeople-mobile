@@ -42,6 +42,10 @@ import { useToast } from "../activityIndicator/ToastProvider"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
 import truncate from "@/hooks/useTruncateBody"
 import { parseText } from "@/hooks/useTextParser"
+import { CommentImageViewer } from "./ImageViewer"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { useStickerActions } from "@/hooks/useStickerActions"
+
 interface Props {
   comment: Comment
   postSlug: string
@@ -55,6 +59,7 @@ interface Props {
   onDeleteSuccess?: (CommentId: string) => void
   onProcessError: any
   rootCommentId?: string
+  replyToCommentBody?: string
 
 }
 
@@ -68,18 +73,22 @@ export const CommunityCommentItem = React.memo(({
   onDeleteSuccess,
   onEditSuccess,
   onProcessError,
-  rootCommentId
+  rootCommentId,
+  replyToCommentBody
 }: Props) => {
   const theme = useTheme()
   const { gatedAction } = useAuthGate()
   const { showToast } = useToast()
   const [showReplies, setShowReplies] = useState(false)
+  const [mediaviewerVisisble, setmediaviewerVisisble] = useState<boolean>(false)
+
   const [localUpvoted, setLocalUpvoted] = useState(comment.has_upvoted)
   const [localDownvoted, setLocalDownvoted] = useState(comment.has_downvoted)
   const [localUpvotes, setLocalUpvotes] = useState(comment.upvotes_count)
   const [localDownvotes, setLocalDownvotes] = useState(comment.downvotes_count)
   const effectRootId = rootCommentId ?? comment.id
   const [expanded, setExpanded] = useState(false)
+  const { save } = useStickerActions()
 
   const { showNotifToast } = useNotificationToast()
 
@@ -321,13 +330,30 @@ export const CommunityCommentItem = React.memo(({
 
           {/* @mention of who they're replying to */}
           {comment.reply_to && (
-            <TouchableOpacity
-              onPress={() => router.push(`/profile/${comment.reply_to!.username}`)}
+            <View
+
+              style={[{ display: "flex", flexDirection: "row", gap: 1, alignItems: "center" }]}
             >
-              <Text style={[styles.replyingTo, { color: theme.primary }]}>
-                Replying to @{comment.reply_to?.username}
+              <Text style={[styles.replyingTo, { color: theme.textMuted }]}>
+                Replying to
               </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push((user != null && user.username === comment.reply_to?.username) ? `/profile` : `/profile/${comment.reply_to!.username}`)}
+              >
+                <Text style={[styles.replyingTo, { color: theme.primary }]}>
+                  @{comment.reply_to?.username}
+                </Text>
+              </TouchableOpacity>
+              <MaterialCommunityIcons
+                name="arrow-right"
+                style={[{ color: theme.textPrimary, paddingTop: 1 }]}
+                size={9}
+              />
+
+              <Text style={[styles.replyingTo, { color: theme.textMuted }]}>
+                [{truncate(replyToCommentBody ?? "", 9)}]
+              </Text>
+            </View>
           )}
         </View>
       </TouchableOpacity>
@@ -337,65 +363,104 @@ export const CommunityCommentItem = React.memo(({
 
 
       {/* body */}
-      {isEditing ? (
-        <View style={styles.editContainer}>
-          <TextInput
-            style={[styles.editInput, {
-              color: theme.textPrimary,
-              backgroundColor: theme.inputBackground,
-              borderColor: theme.border,
-            }]}
-            value={editText}
-            onChangeText={setEditText}
-            multiline
-            autoFocus
-            maxLength={500}
-          />
-          <View style={styles.editActions}>
+      {comment.body &&
+
+        <View>
+          {isEditing ? (
+            <View style={styles.editContainer}>
+              <TextInput
+                style={[styles.editInput, {
+                  color: theme.textPrimary,
+                  backgroundColor: theme.inputBackground,
+                  borderColor: theme.border,
+                }]}
+                value={editText}
+                onChangeText={setEditText}
+                multiline
+                autoFocus
+                maxLength={500}
+              />
+              <View style={styles.editActions}>
+                <TouchableOpacity
+                  onPress={() => setIsEditing(false)}
+                  style={styles.editButton}
+                >
+                  <Text style={{ color: theme.textMuted, fontSize: FontSize.sm }}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleEditSubmit}
+                  disabled={editMutation.isPending}
+                  style={[styles.editButton, { backgroundColor: theme.primary, borderRadius: Radius.sm }]}
+                >
+                  {editMutation.isPending
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Text style={{ color: "#fff", fontSize: FontSize.sm }}>Save</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
             <TouchableOpacity
-              onPress={() => setIsEditing(false)}
-              style={styles.editButton}
+              onPress={() => setExpanded((v) => !v)}
             >
-              <Text style={{ color: theme.textMuted, fontSize: FontSize.sm }}>
-                Cancel
+              <Text style={[styles.body, { color: theme.textPrimary }]}>
+                {expanded ? parseText(comment.body) : parseText(truncate(comment.body))}
+                {comment.is_edited && (
+                  <Text style={{ color: theme.textMuted, fontSize: FontSize.xs }}> (edited)</Text>
+                )}
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleEditSubmit}
-              disabled={editMutation.isPending}
-              style={[styles.editButton, { backgroundColor: theme.primary, borderRadius: Radius.sm }]}
-            >
-              {editMutation.isPending
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={{ color: "#fff", fontSize: FontSize.sm }}>Save</Text>
-              }
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <TouchableOpacity
-          onPress={() => setExpanded((v) => !v)}
-        >
-          <Text style={[styles.body, { color: theme.textPrimary }]}>
-            {expanded ? parseText(comment.body) : parseText(truncate(comment.body))}
-            {comment.is_edited && (
-              <Text style={{ color: theme.textMuted, fontSize: FontSize.xs }}> (edited)</Text>
-            )}
-          </Text>
-          {comment.body.length > 100 && (
-            <TouchableOpacity
-              style={[styles.readMore]}
-              onPress={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
-            >
-              <Text
-                style={[{ color: theme.primary, fontSize: FontSize.xs, fontWeight: FontWeight.regular, }]}
-              >{expanded ? "Show less" : "Read more"}</Text>
+              {comment.body.length > 100 && (
+                <TouchableOpacity
+                  style={[styles.readMore]}
+                  onPress={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+                >
+                  <Text
+                    style={[{ color: theme.primary, fontSize: FontSize.xs, fontWeight: FontWeight.regular, }]}
+                  >{expanded ? "Show less" : "Read more"}</Text>
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
           )}
+        </View>}
+      {comment.image && (
+        <TouchableOpacity
+          style={[{ height: 100, backgroundColor: theme.backgroundMuted, borderRadius: Radius.md, borderWidth: 0.5, borderColor: theme.textPlaceholder, width: 70, marginLeft: 50, overflow: "hidden" }]}
+          onPress={() => setmediaviewerVisisble(true)}>
+          <Image
+            source={{ uri: comment.image }}
+            style={{ width: "100%", maxWidth: 240, height: "100%" }}
+            contentFit="cover"
+          />
         </TouchableOpacity>
       )}
+      {comment.sticker && (
+        <TouchableOpacity
+          delayLongPress={350}
+          onLongPress={() => {
+            const sticker = comment.sticker!
+            showToast({
+              title: "Save sticker",
+              message: "So that you easily find them",
+              onConfirm: () => {
+                save.mutate(sticker, {
+                })
+              }
+            })
 
-
+          }}
+        >
+          <Image
+            source={{ uri: comment.sticker.url }}
+            style={{
+              width: 120,
+              height: 120 * ((comment.sticker.height || 1) / (comment.sticker.width || 1)),
+            }}
+            contentFit="contain"
+          />
+        </TouchableOpacity>
+      )}
 
       {/*  actions  */}
       <View style={styles.actions}>
@@ -590,10 +655,18 @@ export const CommunityCommentItem = React.memo(({
               onEditSuccess={onEditSuccess}      // ← reply-specific handler
               onDeleteSuccess={onDeleteSuccess}// ← reply-specific handler
               onProcessError={onProcessError}
+              replyToCommentBody={reply.replied_to?.body.trim() ? reply.replied_to.body : (!reply.replied_to?.body.trim() && reply.replied_to?.image && !reply.replied_to.sticker) ? "Photo" : (!reply.replied_to?.body.trim() && !reply.replied_to?.image && reply.replied_to?.sticker) ? "Sticker" : "TL"}
+
             />
           )}
         />
       )}
+      <CommentImageViewer
+        visible={mediaviewerVisisble}
+        image_url={comment.image}
+        onClose={() => setmediaviewerVisisble(false)}
+
+      />
     </View>
   )
 })

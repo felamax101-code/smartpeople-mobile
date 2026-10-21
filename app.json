@@ -3,9 +3,9 @@
     "name": "SmartPipla",
     "slug": "my-app",
     "scheme": "smartpipla",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "userInterfaceStyle": "automatic",
-    "icon": "./src/assets/images/icon-192.png",
+    "icon": "./src/assets/images/maskable_icon_x192.png",
     "ios": {
       "bundleIdentifier": "com.SmartPipla.social",
       "infoPlist": {
@@ -29,53 +29,148 @@
       "versionCode": 1,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/images/icon.png",
+        "foregroundImage": "./src/assets/images/maskable_icon_x192.png",
         "backgroundColor": "#07112F"
       },
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_MEDIA_LOCATION"
+      ],
       "intentFilters": [
-  {
-    "action": "VIEW",
-    "autoVerify": true,
-    "data": [
-      { "scheme": "https", "host": "smartpipla.com", "path": "/" },
-      { "scheme": "https", "host": "www.smartpipla.com", "path": "/" },
-
-      { "scheme": "https", "host": "smartpipla.com", "path": "/post" },
-      { "scheme": "https", "host": "smartpipla.com", "pathPrefix": "/post/" },
-      { "scheme": "https", "host": "www.smartpipla.com", "path": "/post" },
-      { "scheme": "https", "host": "www.smartpipla.com", "pathPrefix": "/post/" },
-
-      { "scheme": "https", "host": "smartpipla.com", "path": "/profile" },
-      { "scheme": "https", "host": "smartpipla.com", "pathPrefix": "/profile/" },
-      { "scheme": "https", "host": "www.smartpipla.com", "path": "/profile" },
-      { "scheme": "https", "host": "www.smartpipla.com", "pathPrefix": "/profile/" },
-
-      { "scheme": "https", "host": "smartpipla.com", "path": "/community" },
-      { "scheme": "https", "host": "smartpipla.com", "pathPrefix": "/community/" },
-      { "scheme": "https", "host": "www.smartpipla.com", "path": "/community" },
-      { "scheme": "https", "host": "www.smartpipla.com", "pathPrefix": "/community/" },
-
-      { "scheme": "https", "host": "smartpipla.com", "path": "/sp" },
-      { "scheme": "https", "host": "smartpipla.com", "pathPrefix": "/sp/" },
-      { "scheme": "https", "host": "www.smartpipla.com", "path": "/sp" },
-      { "scheme": "https", "host": "www.smartpipla.com", "pathPrefix": "/sp/" }
-    ],
-    "category": ["BROWSABLE", "DEFAULT"]
-  }
-]
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "smartpipla.com",
+              "path": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.smartpipla.com",
+              "path": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpipla.com",
+              "path": "/post"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpipla.com",
+              "pathPrefix": "/post/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.smartpipla.com",
+              "path": "/post"
+            },
+            {
+              "scheme": "https",
+              "host": "www.smartpipla.com",
+              "pathPrefix": "/post/"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpipla.com",
+              "path": "/profile"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpipla.com",
+              "pathPrefix": "/profile/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.smartpipla.com",
+              "path": "/profile"
+            },
+            {
+              "scheme": "https",
+              "host": "www.smartpipla.com",
+              "pathPrefix": "/profile/"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpipla.com",
+              "path": "/community"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpipla.com",
+              "pathPrefix": "/community/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.smartpipla.com",
+              "path": "/community"
+            },
+            {
+              "scheme": "https",
+              "host": "www.smartpipla.com",
+              "pathPrefix": "/community/"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpipla.com",
+              "path": "/sp"
+            },
+            {
+              "scheme": "https",
+              "host": "smartpipla.com",
+              "pathPrefix": "/sp/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.smartpipla.com",
+              "path": "/sp"
+            },
+            {
+              "scheme": "https",
+              "host": "www.smartpipla.com",
+              "pathPrefix": "/sp/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "plugins": [
-       "expo-notifications",
+      "expo-notifications",
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos and videos to your gallery.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": []
+        }
+      ],
       [
         "expo-splash-screen",
-       
         {
-          "image": "./src/assets/images/logo.png",
-          "backgroundColor": "#07112F",
+          "image": "./src/assets/images/icon1.png",
+          "backgroundColor": "#020A30",
           "resizeMode": "contain",
           "imageWidth": 200
         }
-      ]
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ],
+      "expo-audio"
     ],
     "extra": {
       "eas": {

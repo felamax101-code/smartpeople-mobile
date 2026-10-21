@@ -14,7 +14,6 @@ import {
 } from "react-native"
 import { router } from "expo-router"
 import * as WebBrowser from 'expo-web-browser';
-
 import { useMutation } from "@tanstack/react-query"
 import { FormInput } from "@/components/ui/FormInput"
 import { PasswordStrengthBar } from "@/components/ui/PasswordStrengthBar"
@@ -61,6 +60,8 @@ export default function RegisterScreen() {
     onSuccess: (data) => {
       // move to email verification screen
       // pass email so verify screen knows where to send OTP
+   
+      
       router.push({
         pathname: "/(auth)/verify-email",
         params: { email: form.email.trim().toLowerCase() },
@@ -186,7 +187,7 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        
+
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -297,21 +298,32 @@ export default function RegisterScreen() {
 
           />
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          By pressing <Text  style={[{color:theme.primary}]} >[Continue]</Text> you agree you to our <Text
-            style={[{color:theme.primary}]} 
-           onPress={async() => { await WebBrowser.openBrowserAsync("https://smartpipla.com/terms", {
-                              presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-                              toolbarColor: '#6366F1',
-                            }) }}
-          >Terms of Service</Text> and <Text   style={[{color:theme.primary}]}
-           onPress={async() => {
-          
-                         await WebBrowser.openBrowserAsync("https://smartpipla.com/privacy", {
-                              presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-                              toolbarColor: '#6366F1',
-                            })
-                       }}
-           >Privacy Policy</Text>
+            By pressing <Text style={[{ color: theme.primary }]} >[Continue]</Text> you confirm to be  <Text style={[{ color: theme.primary }]}>13+ years old</Text> and thatyou agree you to our <Text
+              style={[{ color: theme.primary }]}
+              onPress={async () => {
+                await WebBrowser.openBrowserAsync("https://smartpipla.com/terms", {
+                  presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+                  toolbarColor: '#6366F1',
+                })
+              }}
+            >Terms of Service</Text> , <Text style={[{ color: theme.primary }]}
+              onPress={async () => {
+
+                await WebBrowser.openBrowserAsync("https://smartpipla.com/privacy", {
+                  presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+                  toolbarColor: '#6366F1',
+                })
+              }}
+            >Privacy Policy</Text>
+            and <Text style={[{ color: theme.primary }]}
+              onPress={async () => {
+
+                await WebBrowser.openBrowserAsync("https://smartpipla.com/child-safety", {
+                  presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+                  toolbarColor: '#6366F1',
+                })
+              }}
+            >Child Safety</Text>
           </Text>
           {/* continue button */}
           <TouchableOpacity
@@ -362,9 +374,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop:40
-   
-   
+    marginTop: 40
+
+
   },
   backIcon: {
     fontSize: 24,

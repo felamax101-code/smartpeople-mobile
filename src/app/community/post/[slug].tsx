@@ -20,7 +20,7 @@ import { Image } from "expo-image"
 import * as Clipboard from "expo-clipboard"
 
 import { SafeAreaView } from "react-native-safe-area-context"
-import { router, useLocalSearchParams ,useFocusEffect} from "expo-router"
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router"
 import { useTheme } from "@/hooks/useTheme"
 import { useCommunityPostDetail } from "@/hooks/useCommunityPostDetails"
 import { ImageCarousel, CARD_HEIGHT } from "@/components/feed/ImageCarousel"
@@ -41,6 +41,7 @@ import { useNotificationToast } from "@/components/activityIndicator/ToastNotifi
 import { saveMediaToDevice } from "@/hooks/useSaveMediaToDevice"
 import { DownloadProgressRing } from "@/components/ui/DownloadProgress"
 import { parseText } from "@/hooks/useTextParser"
+import ReportPostModal from "@/components/reportpost/ReportPostModal"
 // scroll offset at which header becomes solid
 const HEADER_SOLID_THRESHOLD = CARD_HEIGHT - 80
 interface BannerState {
@@ -68,10 +69,7 @@ export default function PostDetailScreen() {
   //  state ─
   const [commentsVisible, setCommentsVisible] = useState(false)
   const scrollY = useRef(new Animated.Value(0)).current
-  const [reportReason, setReportReason] = useState("")
-  const [isReporting, setIsReporting] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
-  const [otherReason, setOtherReason] = useState("")
   const [menuVisible, setMenuVisible] = useState(false)
   const [banner, setBanner] = useState<BannerState | null>(null);
   const [expanded, setExpanded] = useState<boolean>(false)
@@ -101,9 +99,7 @@ export default function PostDetailScreen() {
     outputRange: [0, 1],
     extrapolate: "clamp",
   })
-  const REPORT_REASONS = [
-    "Spam or scam", "Fake Account", "Harassment",
-    "Inappropriate Content", "Inappropriate Behavior", "Impersonation", "Other",]
+
   const postQueryKey = ["post"]
   const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
@@ -191,20 +187,22 @@ export default function PostDetailScreen() {
       showBanner("error", error?.response?.data?.detail ?? "Failed to delete listing.Try again")
     }
   }
-   useFocusEffect(
-      useCallback(() => {
-        const onBackPress = () => {
-          if (shareModalVisible) {
-            setShareModalVisible(false)
-            return true // consume the event, don't navigate back
-          }
-          return false // let default back behavior happen
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (shareModalVisible || menuVisible) {
+          setShareModalVisible(false);
+          setMenuVisible(false);
+
+          return true // consume the event, don't navigate back
         }
-  
-        const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress)
-        return () => subscription.remove()
-      }, [shareModalVisible])
-    )
+        return false // let default back behavior happen
+      }
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress)
+      return () => subscription.remove()
+    }, [shareModalVisible])
+  )
   const handleDownload = async () => {
     if (post?.post_type === "text" || !activeMedia) return
 
@@ -241,23 +239,7 @@ export default function PostDetailScreen() {
 
 
 
-  const handleReportSubmit = async () => {
-    if (!reportReason.trim()) return
-    try {
-      setIsReporting(true)
-      await communityservice.reportPost(post?.id, reportReason, otherReason)
-      setShowReportModal(false)
-      setReportReason("")
-      setOtherReason("")
-      showBanner("success", "Thank you, we'll review this report.")
-    } catch (e: any) {
-      const msg = e.response?.data?.error ?? "Failed to submit report."
-      showBanner("error", msg)
-    } finally {
-      setMenuVisible(false)
-      setIsReporting(false)
-    }
-  }
+
 
   const handleCopy = async () => {
     if (!post?.description) return
@@ -609,7 +591,8 @@ export default function PostDetailScreen() {
                   onPress={handleSave}
                 >
                   <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: 12 }]}>
-                    {post.is_saved ? "Saved" : "Save"}
+                    <MaterialCommunityIcons name="bookmark" size={post.is_saved ? 30 : 20} color={post.is_saved ? theme.primary : theme.textMuted} />
+
                   </Text>
                   <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
                     {post.saves_count}
@@ -646,6 +629,7 @@ export default function PostDetailScreen() {
                 setActiveMedia(item)
                 setActiveIndex(index)
               }}
+              sound_url={post.sound?.preview_url}
             />
           </View>
           {/*  interactions row  */}
@@ -682,7 +666,8 @@ export default function PostDetailScreen() {
                 onPress={handleSave}
               >
                 <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: 12 }]}>
-                  {post.is_saved ? "Saved" : "Save"}
+                  <MaterialCommunityIcons name="bookmark" size={post.is_saved ? 30 : 20} color={post.is_saved ? theme.primary : theme.textMuted} />
+
                 </Text>
                 <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
                   {post.saves_count}
@@ -821,11 +806,29 @@ export default function PostDetailScreen() {
                 >{post.owner.username}</Text>
               </TouchableOpacity>
             )}
-            <Text
-              style={[styles.postTitle, { color: theme.textPrimary }]}
+            <View
+              style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
             >
-              {post.name}
-            </Text>
+              <Text
+                style={[styles.postTitle, { color: "white" }]}
+              >
+                {post.name.slice(0, 30)}{post.name.length > 30 ? "..." : null}
+
+              </Text>
+              {post.sound && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation;
+                  }}
+                  hitSlop={{ top: 3, left: 3, bottom: 3, right: 3 }}
+                  style={[{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: Radius.md, borderColor: theme.textPlaceholder, paddingHorizontal: 3 }]}
+                >
+                  <MaterialCommunityIcons name="music-note" size={14} color={theme.primary} />
+
+                  <Text style={[, { color: theme.textPrimary, fontSize: FontSize.sm }]}>{post.sound?.title.slice(0, 11) ?? "sound"}{post.sound?.title?.length > 11 ? "..." : null}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <ScrollView
               style={[{ maxHeight: 500 }]}>
               <Text
@@ -863,73 +866,14 @@ export default function PostDetailScreen() {
         totalCount={post.comments_count}
       />
       {/* Report modal */}
-      <Modal
-        visible={showReportModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowReportModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.reportBackdrop}
-          activeOpacity={1}
-          onPress={() => setShowReportModal(false)}
-        />
-        <View style={[styles.reportSheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.reportHeader}>
-            <Text style={[styles.reportTitle, { color: theme.textPrimary }]}>
-              Report ({post?.name})
-            </Text>
-            <TouchableOpacity onPress={() => setShowReportModal(false)}>
-              <Text style={[styles.reportClose, { color: theme.textMuted }]}>✕</Text>
-            </TouchableOpacity>
-          </View>
 
-          <Text style={[styles.reportSubtitle, { color: theme.textSecondary }]}>
-            Why are you reporting this post?
-          </Text>
-
-          {REPORT_REASONS.map((reason) => (
-            <TouchableOpacity
-              key={reason}
-              style={[
-                styles.reportOption,
-                {
-                  borderColor: reportReason === reason ? theme.primary : theme.border,
-                  backgroundColor: reportReason === reason ? theme.primary + "15" : "transparent",
-                },
-              ]}
-              onPress={() => setReportReason(reason)}
-            >
-              <Text style={[styles.reportOptionText, { color: reportReason === reason ? theme.primary : theme.textPrimary }]}>
-                {reason}
-              </Text>
-              {reportReason === reason && <Text style={{ color: theme.primary }}>✓</Text>}
-            </TouchableOpacity>
-          ))}
-
-          {reportReason === "Other" && (
-            <TextInput
-              style={[styles.otherInput, { color: theme.textPrimary, backgroundColor: theme.inputBackground, borderColor: theme.border }]}
-              placeholder="Describe the issue..."
-              placeholderTextColor={theme.textPlaceholder}
-              value={otherReason}
-              onChangeText={setOtherReason}
-              multiline
-              maxLength={200}
-            />
-          )}
-
-          <TouchableOpacity
-            style={[styles.reportSubmit, { backgroundColor: reportReason ? theme.primary : theme.border }]}
-            onPress={handleReportSubmit}
-            disabled={!reportReason || isReporting}
-          >
-            {isReporting
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.reportSubmitText}>Submit Report</Text>}
-          </TouchableOpacity>
-        </View>
-      </Modal>
+      <ReportPostModal
+        isVisible={showReportModal}
+        id={post.id}
+        name={post.name}
+        isCommunity={true}
+        onClose={() => setShowReportModal(false)}
+      />
       {/*  auth prompt  */}
       <AuthPrompt />
 

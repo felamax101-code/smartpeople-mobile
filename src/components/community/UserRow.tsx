@@ -1,9 +1,13 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
+import { Image } from "expo-image"
+
 import { router } from 'expo-router';
-import { Radius } from '@/constants/colors';
+import { FontSize, FontWeight, Radius } from '@/constants/colors';
 import { getAvatarColor } from '@/hooks/useUserGenerateAvatarColor';
+import { useAuthStore } from '@/stores/auth.store';
+import { FontSlant } from '@shopify/react-native-skia';
 interface UserRowProps {
   avatarUrl?: string;
   username: string;
@@ -13,32 +17,36 @@ interface UserRowProps {
 
 export function UserRow({ avatarUrl, username, info, children }: UserRowProps) {
   const theme = useTheme()
+  const { user } = useAuthStore()
   return (
     <View style={[styles.row, { backgroundColor: theme.textMuted, borderColor: theme.border }]}>
       <View style={[{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 3 }]}>
         <TouchableOpacity
           onPress={() => router.push(`/profile/${username}`)}>
 
-          {!avatarUrl || avatarUrl==undefined || avatarUrl == null || !avatarUrl.trim() ? (
+          {!avatarUrl || avatarUrl == undefined || avatarUrl == null || !avatarUrl.trim() ? (
             <View
               style={[styles.usernamePlacaholder, { backgroundColor: getAvatarColor(username) }]}
             >
               <Text
-                style={[{ color: "white" }]}
+                style={[{ color: "white", fontWeight: FontWeight.extrabold, fontSize: FontSize.lg }]}
               >{username.charAt(0)}</Text>
             </View>
           ) : (
             <Image
               source={avatarUrl as any}
-              style={styles.avatar}
+              style={[styles.avatar, { backgroundColor: theme.backgroundMuted }]}
+              contentFit="cover"
             />
           )}
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => router.push(`/profile/${username}`)}>
+          onPress={() => router.push(user && user.username === username ? `/profile` : `/profile/${username}`)}>
           <Text style={[styles.username, { color: theme.textPrimary }]} numberOfLines={1}>
             @{username}
-          </Text></TouchableOpacity></View>
+          </Text>
+        </TouchableOpacity>
+      </View>
       {info === undefined && (
 
         <Text style={[styles.info, { color: theme.textPrimary }]} numberOfLines={1}>
@@ -62,14 +70,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   avatar: {
-    width: 44,
-    height: 44,
+    width: 30,
+    height: 30,
     borderRadius: 22,
-    backgroundColor: '#e5e5e5',
+
   },
   username: {
     paddingLeft: 0,
-    flex: 1,
     fontSize: 15,
     fontWeight: '500',
 
@@ -78,8 +85,8 @@ const styles = StyleSheet.create({
     display: "flex",
     alignItems: 'center',
     justifyContent: "center",
-    width: 25,
-    height: 25,
+    width: 30,
+    height: 30,
     borderRadius: "50%"
 
   },

@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from "react"
+import React, { useState, useCallback, useEffect,useRef } from "react"
 import {
   View,
   Text,
@@ -26,9 +26,9 @@ import { ReviewForm } from "@/components/reviews/ReviewForm"
 import { Radius, Spacing, FontSize, FontWeight } from "@/constants/colors"
 import { messagingService } from "@/services/messaging.service"
 import { useConversations } from "@/hooks/useConversations"
-
+import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
-import { QueryClient } from "@tanstack/react-query"
+import { authService } from "@/services/auth.service"
 type Tab = "posts" | "reviews" | "about"
 export default function PublicProfileScreen() {
   const { user } = useAuthStore()
@@ -124,12 +124,19 @@ export default function PublicProfileScreen() {
       }
     }
   }, [reviews, user, isOwn, myExistingReview])
+const recorded = useRef<string | null>(null);
 
+useEffect(() => {
+  if (!profile || recorded.current === profile.id) return;
+  recorded.current = profile.id;
+
+  authService.viewProfile(profile.id).catch(() => {});
+}, [profile]);
 
   if (isLoading) {
     return (
       <View style={[styles.loadingScreen, { backgroundColor: theme.background }]}>
-        <ActivityIndicator color={theme.primary} size="large" />
+        <BouncingBarsIndicator/>
       </View>
     )
   }

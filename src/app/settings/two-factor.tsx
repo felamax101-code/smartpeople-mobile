@@ -1,6 +1,6 @@
 
 //disable two factor auth
-import React, { useState ,useRef,useEffect} from "react"
+import React, { useState, useRef, useEffect } from "react"
 import {
   View,
   Text,
@@ -9,41 +9,45 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+ KeyboardAvoidingView,
+ Platform,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router } from "expo-router"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery,useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
-import { OTPInput } from "@/components/ui/OTPInput"
 import api from "@/services/api"
+import { FormInput } from "@/components/ui/FormInput"
 import { SettingsSectionHeader, SettingsSectionCard, SettingsRow } from "@/components/settings/SettingsRow"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
-
+import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 interface TwoFAStatus {
   is_enabled: boolean
   method: "email" | "sms" | "totp"
 }
 
 export default function TwoFactorScreen() {
+  const queryClient = useQueryClient()
 
   const [disableCodeSent, setDisableCodeSent] = useState(false)
-const [disableCooldown, setDisableCooldown] = useState(0)
-const cooldownRef = useRef<ReturnType<typeof setInterval>>(null)
+  const [disableCooldown, setDisableCooldown] = useState(0)
+  const cooldownRef = useRef<ReturnType<typeof setInterval>>(null)
 
-const startCooldown = () => {
-  setDisableCooldown(60)
-  cooldownRef.current = setInterval(() => {
-    setDisableCooldown((c) => {
-      if (c <= 1) {
-        clearInterval(cooldownRef.current)
-        return 0
-      }
-      return c - 1
-    })
-  }, 1000)
-}
+  const startCooldown = () => {
+    setDisableCooldown(60)
+    cooldownRef.current = setInterval(() => {
+      setDisableCooldown((c) => {
+        if (c <= 1) {
+          clearInterval(cooldownRef.current)
+          return 0
+        }
+        return c - 1
+      })
+    }, 1000)
+  }
 
-useEffect(() => () => clearInterval(cooldownRef.current), [])
+  useEffect(() => () => clearInterval(cooldownRef.current), [])
 
 
 
@@ -52,7 +56,7 @@ useEffect(() => () => clearInterval(cooldownRef.current), [])
   const [showDisableModal, setShowDisableModal] = useState(false)
   const [disableCode, setDisableCode] = useState("")
 
-  const { data: status, isLoading, refetch } = useQuery({
+  const { data: status, isLoading, refetch,isError } = useQuery({
     queryKey: ["2fa-status"],
     queryFn: async (): Promise<TwoFAStatus> => {
       const { data } = await api.get("/users/me/2fa-status/")
@@ -62,19 +66,21 @@ useEffect(() => () => clearInterval(cooldownRef.current), [])
       }
     },
   })
-  
 
-const sendDisableOTPMutation = useMutation({
-  mutationFn: async () => {
-    // reuse the setup endpoint — sends OTP for current method
-    await api.post("/auth/2fa/setup/", { method: status?.method })
-  },
-  onSuccess: () => {
-    setDisableCodeSent(true)
-    startCooldown()
-  },
-  onError: () => Alert.alert("Error", "Failed to send code. Try again."),
-})
+
+  const sendDisableOTPMutation = useMutation({
+    mutationFn: async () => {
+      // reuse the setup endpoint — sends OTP for current method
+      await api.post("/auth/2fa/setup/", { method: status?.method })
+    },
+    onSuccess: () => {
+      setDisableCodeSent(true)
+      startCooldown()
+                queryClient.invalidateQueries({ queryKey: ["2fa-status"] });
+
+    },
+    onError: () => Alert.alert("Error", "Failed to send code. Try again."),
+  })
 
   const disableMutation = useMutation({
     mutationFn: async (code: string) => {
@@ -98,11 +104,29 @@ const sendDisableOTPMutation = useMutation({
       disableMutation.mutate(disableCode)
     }
   }, [disableCode])
-
+  if (isError) {
+    return (
+      <View style={styles.loading}>
+        <Text style={[styles.errorIcon]}>⚠️</Text>
+        <Text style={[styles.errorText, { color: theme.textMuted }]}>
+          Failed to load  your 2FA details
+        </Text>
+        <Text style={[styles.errorText, { color: theme.textMuted }]}>
+          This might be a problem we are solving now. Make sure you are well cnnected to the internet
+        </Text>
+        <TouchableOpacity
+          onPress={() => refetch()}
+        >
+          <Text style={[styles.retryText, { color: theme.primary }]}>
+            Try again
+          </Text>
+        </TouchableOpacity>
+      </View>)
+  }
   if (isLoading) {
     return (
       <View style={[styles.loading, { backgroundColor: theme.background }]}>
-        <ActivityIndicator color={theme.primary} />
+        <BouncingBarsIndicator  />
       </View>
     )
   }
@@ -120,13 +144,20 @@ const sendDisableOTPMutation = useMutation({
     >
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backIcon, { color: theme.textPrimary }]}>←</Text>
+          <Text style={[styles.backIcon, { color: theme.textPrimary }]}>
+                          <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+            
+          </Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
           Two-Factor Authentication
         </Text>
         <View style={{ width: 32 }} />
       </View>
+       <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -187,16 +218,16 @@ const sendDisableOTPMutation = useMutation({
                 label="Disable 2FA"
                 sublabel="Requires your current 2FA code"
                 isDestructive
-               onPress={() => {
-  setShowDisableModal(true)
-  // for email/sms — send OTP immediately when modal opens
-  if (status?.method === "email" || status?.method === "sms") {
-    sendDisableOTPMutation.mutate()
-  } else {
-    // totp — no send needed, user reads from app
-    setDisableCodeSent(true)
-  }
-}}
+                onPress={() => {
+                  setShowDisableModal(true)
+                  // for email/sms — send OTP immediately when modal opens
+                  if (status?.method === "email" || status?.method === "sms") {
+                    sendDisableOTPMutation.mutate()
+                  } else {
+                    // totp — no send needed, user reads from app
+                    setDisableCodeSent(true)
+                  }
+                }}
               />
             </SettingsSectionCard>
           </>
@@ -218,98 +249,102 @@ const sendDisableOTPMutation = useMutation({
           </View>
         )}
 
-        
-
-
-{showDisableModal && (
-  <View style={[styles.disableModal, {
-    backgroundColor: theme.surface,
-    borderColor: theme.border,
-  }]}>
-
-    {/* sending state */}
-    {sendDisableOTPMutation.isPending && (
-      <View style={styles.sendingRow}>
-        <ActivityIndicator color={theme.primary} size="small" />
-        <Text style={[styles.sendingText, { color: theme.textSecondary }]}>
-          Sending code...
-        </Text>
-      </View>
-    )}
-
-    {/* code sent banner — email/sms only */}
-    {disableCodeSent && status?.method !== "totp" && (
-      <View style={[styles.sentBanner, { backgroundColor: theme.successLight }]}>
-        <Text style={[styles.sentText, { color: Colors.success }]}>
-          ✓ Code sent to your{" "}
-          {status?.method === "email" ? "email" : "phone"}
-        </Text>
-      </View>
-    )}
-
-    <Text style={[styles.disableTitle, { color: theme.textPrimary }]}>
-      {status?.method === "totp"
-        ? "Enter your authenticator code"
-        : `Enter the code sent to your ${status?.method === "email" ? "email" : "phone"} to disable `}
-    </Text>
-
-    {/* only show input when code is sent or totp */}
-    {disableCodeSent && (
-      <OTPInput
-        value={disableCode}
-        onChange={setDisableCode}
-        hasError={disableMutation.isError}
-      />
-    )}
-
-    {disableMutation.isPending && (
-      <ActivityIndicator color={theme.primary} />
-    )}
-
-    {/* resend — email/sms only */}
-    {disableCodeSent && status?.method !== "totp" && (
-      <TouchableOpacity
-        disabled={disableCooldown > 0 || sendDisableOTPMutation.isPending}
-        onPress={() => {
-          setDisableCode("")
-          sendDisableOTPMutation.mutate()
-        }}
-      >
-        <Text style={[
-          styles.resendText,
-          {
-            color: disableCooldown > 0
-              ? theme.textMuted
-              : theme.primary
-          }
-        ]}>
-          {disableCooldown > 0
-            ? `Resend in ${disableCooldown}s`
-            : "Resend code"}
-        </Text>
-      </TouchableOpacity>
-    )}
-
-    <TouchableOpacity
-      onPress={() => {
-        setShowDisableModal(false)
-        setDisableCode("")
-        setDisableCodeSent(false)
-        clearInterval(cooldownRef.current)
-      }}
-    >
-      <Text style={[styles.cancelText, { color: theme.textMuted }]}>
-        Cancel
-      </Text>
-    </TouchableOpacity>
-  </View>
-)}
 
 
 
+        {showDisableModal && (
+          <View style={[styles.disableModal, {
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+          }]}>
 
+            {/* sending state */}
+            {sendDisableOTPMutation.isPending && (
+              <View style={styles.sendingRow}>
+                <ActivityIndicator color={theme.primary} size="small" />
+                <Text style={[styles.sendingText, { color: theme.textSecondary }]}>
+                  Sending code...
+                </Text>
+              </View>
+            )}
+
+            {/* code sent banner — email/sms only */}
+            {disableCodeSent && status?.method !== "totp" && (
+              <View style={[styles.sentBanner, { backgroundColor: theme.successLight }]}>
+                <Text style={[styles.sentText, { color: Colors.success }]}>
+                  ✓ Code sent to your{" "}
+                  {status?.method === "email" ? "email" : "phone"}
+                </Text>
+              </View>
+            )}
+
+            <Text style={[styles.disableTitle, { color: theme.textPrimary }]}>
+              {status?.method === "totp"
+                ? "Enter your authenticator code"
+                : `Enter the code sent to your ${status?.method === "email" ? "email" : "phone"} to disable `}
+            </Text>
+
+            {/* only show input when code is sent or totp */}
+            {disableCodeSent && (
+
+              <FormInput
+                label=""
+                value={disableCode}
+                onChangeText={(t) => {
+                  setDisableCode(t)
+                }}
+                keyboardType="default"
+                placeholder="6-digit code"
+                returnKeyType="done"
+                autoCapitalize="characters"
+              />
+            )}
+
+            {disableMutation.isPending && (
+              <ActivityIndicator color={theme.primary} />
+            )}
+
+            {/* resend — email/sms only */}
+            {disableCodeSent && status?.method !== "totp" && (
+              <TouchableOpacity
+                disabled={disableCooldown > 0 || sendDisableOTPMutation.isPending}
+                onPress={() => {
+                  setDisableCode("")
+                  sendDisableOTPMutation.mutate()
+                }}
+              >
+                <Text style={[
+                  styles.resendText,
+                  {
+                    color: disableCooldown > 0
+                      ? theme.textMuted
+                      : theme.primary
+                  }
+                ]}>
+                  {disableCooldown > 0
+                    ? `Resend in ${disableCooldown}s`
+                    : "Resend code"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowDisableModal(false)
+                setDisableCode("")
+                setDisableCodeSent(false)
+                clearInterval(cooldownRef.current)
+              }}
+            >
+              <Text style={[styles.cancelText, { color: theme.textMuted }]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
@@ -321,6 +356,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+   errorIcon: {
+      fontSize: 32,
+      marginBottom: Spacing.sm,
+      textAlign: "center",
+    },
+    retryText: {
+      fontSize: FontSize.sm,
+      fontWeight: FontWeight.semibold,
+    },
+    errorText: {
+      fontSize: FontSize.lg,
+      fontWeight: FontWeight.bold,
+    },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -382,11 +430,10 @@ const styles = StyleSheet.create({
   },
   disableModal: {
     margin: Spacing.md,
-    padding: Spacing.xl,
+    padding: Spacing.xs,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    alignItems: "center",
-    gap: Spacing.lg,
+    gap: Spacing.xs,
   },
   disableTitle: {
     fontSize: FontSize.md,
@@ -398,27 +445,27 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
   sendingRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: Spacing.sm,
-},
-sendingText: {
-  fontSize: FontSize.sm,
-},
-sentBanner: {
-  width: "100%",
-  padding: Spacing.sm,
-  borderRadius: Radius.md,
-  alignItems: "center",
-},
-sentText: {
-  fontSize: FontSize.sm,
-  fontWeight: FontWeight.semibold,
-},
-resendText: {
-  fontSize: FontSize.sm,
-  fontWeight: FontWeight.semibold,
-},
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  sendingText: {
+    fontSize: FontSize.sm,
+  },
+  sentBanner: {
+    width: "100%",
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    alignItems: "center",
+  },
+  sentText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
+  resendText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+  },
 
 })
 

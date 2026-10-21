@@ -33,8 +33,9 @@ import { useMessageStore } from "@/stores/message.store"
 import { messagingService } from "@/services/messaging.service"
 import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
 import { usePushToken } from "@/hooks/useRegisterForPushnotification"
-
+import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
+
 
 // how many posts from the end to trigger prefetch
 const PREFETCH_THRESHOLD = 3
@@ -52,141 +53,17 @@ export default function FeedScreen() {
   const queryClient = useQueryClient()
   const feedQueryKey = ["feed", filters, selectedCategory, searchText]
   const { user } = useAuthStore()
-  const handleWSEventRef = useRef<(event: any) => void>(null)
-  handleWSEventRef.current = useCallback((event: any) => {
-    switch (event.type) {
-      case "new_post": {
-        queryClient.setQueryData(feedQueryKey, (old: any) => {
-          if (!old?.pages?.length) return old
-          const alreadyExist = old.pages.some((page: any) =>
-            page.data.posts?.some((p: any) => p.id === event.data.id))
-          if (alreadyExist) return old
-          return {
-            ...old,
-            pages: [
-              {
-                //                 ...old.pages[0],
-                data: {
-                  ...old.pages[0].data,
-                  posts: [
-                    event.data,
-                    ...old.pages[0].data.posts,
-                  ],
-                },
-              },
-              ...old.pages.slice(1),
-            ],
-          }
-        })
-        break
-      }
+ 
 
-      case "post_removed": {
-        queryClient.setQueryData(feedQueryKey, (old: any) => {
-          if (!old?.pages) return old
-
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              data: {
-                ...page.data,
-                posts: page.data.posts.filter(
-                  (p: any) => p.id !== event.data.id
-                ),
-              },
-            })),
-          }
-        })
-        break
-      }
-
-      case "post_updated": {
-        queryClient.setQueryData(feedQueryKey, (old: any) => {
-          if (!old?.pages) return old
-
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              data: {
-                ...page.data,
-                posts: page.data.posts.map((p: any) =>
-                  p.id === event.data.id
-                    ? { ...p, ...event.data }
-                    : p
-                ),
-              },
-            })),
-          }
-        })
-        break
-      }
-
-      case "change_upvotes_count_post": {
-        queryClient.setQueryData(feedQueryKey, (old: any) => {
-          if (!old?.pages) return old
-
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              data: {
-                ...page.data,
-                posts: page.data.posts.map((p: Post) =>
-                  p.id === event.data.id
-                    ? { ...p, ...event.data }
-                    : p
-                ),
-              },
-            })),
-          }
-        })
-        break
-      }
-
-      case "change_comments_count_post": {
-        queryClient.setQueryData(feedQueryKey, (old: any) => {
-          if (!old?.pages) return old
-
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              data: {
-                ...page.data,
-                posts: page.data.posts.map((p: any) =>
-                  p.id === event.data.id
-                    ? { ...p, ...event.data }
-                    : p
-                ),
-              },
-            })),
-          }
-        });
-        queryClient.setQueryData(["post", event.data.slug], (old: any) => ({
-          ...old,
-          comments_count: event.data.comments_count,
-        }));
-        break
-      }
-
-
-
-    }
-  }, [feedQueryKey])
-
-  const stableHandler = useCallback((event: any) => {
-    handleWSEventRef.current?.(event)
-  }, [])
-  const { status } = useWebSocket({
-    userId: user?.id ?? "",
-    onEvent: stableHandler,
-  })
+  // const stableHandler = useCallback((event: any) => {
+  //   handleWSEventRef.current?.(event)
+  // }, [])
+  // const { status } = useWebSocket({
+  //   userId: user?.id ?? "",
+  //   onEvent: stableHandler,
+  // })
 
 usePushToken()
-
-
   useEffect(() => {
     if (!user) return
 
@@ -325,13 +202,6 @@ usePushToken()
       }
     );
 
-    // queryClient.setQueryData(["post", slug], (old: Post) => ({
-    //       ...old,
-    //       is_upvoted: !old.is_upvoted,
-    //       upvotes_count: old.is_upvoted
-    //         ? old.upvotes_count - 1
-    //         : old.upvotes_count + 1,
-    //     }))
   }, [queryClient, filters, selectedCategory, searchText],
 
 
@@ -357,11 +227,7 @@ usePushToken()
         }
       }
     );
-    // queryClient.setQueryData(["post", post_slug], (old: Post) => ({
-    //     ...old,
-    //     is_saved: !old.is_saved,
-    //     saves_count:old.is_saved?old.saves_count-1:old.saves_count+1
-    //   }))
+
   }, [queryClient, filters, selectedCategory, searchText, data])
 
   //  render post card 
@@ -486,10 +352,10 @@ usePushToken()
 
 
       {/*  sticky header  */}
-      <View style={[styles.header, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, {position:"absolute",zIndex:2000,marginTop:30,top:0,left:0,right:0,backgroundColor: "transparent"}]}>
         {/* search bar */}
-        <View style={styles.headerTop} >
-          <View style={[styles.searchContainer, { borderColor: theme.primaryDark }]}>
+        <View style={[styles.headerTop,{justifyContent:'flex-end'}]} >
+          {/* <View style={[styles.searchContainer, { borderColor: theme.primaryDark }]}>
             <Text style={styles.searchIcon}>🔍</Text>
             <TextInput
               style={styles.searchInput}
@@ -504,7 +370,7 @@ usePushToken()
                 <Text style={styles.clearIcon}>✕</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </View> */}
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.headerButton}
@@ -554,7 +420,7 @@ usePushToken()
       {/*  feed list  */}
       {isLoading ? (
         <View style={styles.loadingState}>
-          <LoadingIndicator fullScreen={true} />
+          <BouncingBarsIndicator  />
           <Text style={styles.loadingStateText}>Loading feed...</Text>
         </View>
       ) :
@@ -631,19 +497,11 @@ usePushToken()
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+   
   },
   header: {
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomRightRadius: Radius.sm,
-    borderBottomLeftRadius: Radius.sm,
-    borderBottomColor: Colors.gray[100],
     elevation: 2,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+        
   },
   catDrop: {
     position: "absolute",
@@ -685,6 +543,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: Colors.gray[100],
     alignItems: "center",
+    padding:0,
     justifyContent: "center",
   },
   headerButtonIcon: {

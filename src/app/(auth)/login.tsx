@@ -15,11 +15,12 @@ import { router } from "expo-router"
 import { useMutation } from "@tanstack/react-query"
 import { FormInput } from "@/components/ui/FormInput"
 import { Image } from "expo-image"
+import * as SecureStore from "expo-secure-store"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { authService } from "@/services/auth.service"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
-const APP_ICON = require('../../assets/images/icon-192.png');
+const APP_ICON = require('../../assets/images/maskable_icon_x192.png');
 
 export default function LoginScreen() {
   const theme = useTheme()
@@ -36,6 +37,9 @@ export default function LoginScreen() {
     onSuccess: async (data) => {
       if (data.requires_2fa) {
         // navigate to 2FA screen with temp_token
+        await SecureStore.setItemAsync("log_temp_token",data.temp_token!)
+        await SecureStore.setItemAsync("log_method",data.method!)
+        await SecureStore.setItemAsync("log_email",email)
         router.push({
           pathname: "/(auth)/two-factor",
           params: {

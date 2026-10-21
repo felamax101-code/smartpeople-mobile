@@ -28,15 +28,14 @@ import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/color
 import { useNotificationStore } from "@/stores/notification.store"
 import { notificationService } from "@/services/notification.service"
 import { useTheme } from "@/hooks/useTheme"
-import { useWebSocket } from "@/hooks/useWebSocket"
 import { communityservice } from "@/services/community.sevice"
 import GuidelinesModal from "@/components/community/GuideLines"
 import { AnimatedBanner, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
 import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
-import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
-
+import {MaterialCommunityIcons} from "@expo/vector-icons"
+import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
 // how many posts from the end to trigger prefetch
 const PREFETCH_THRESHOLD = 3
 // show a row of group suggestions after every N posts in the feed
@@ -71,138 +70,6 @@ export default function FeedScreen() {
   const slideAnim = useRef(new Animated.Value(-300)).current // 300 = drawer width
   const [cMember, setCMember] = useState<string>("false")
 
-  const handleWSEventRef = useRef<(event: any) => void>(null)
-  handleWSEventRef.current = useCallback((event: any) => {
-    switch (event.type) {
-      case "new_post-com": {
-        queryClient.setQueryData([...feedQueryKey, event.data.community_slug], (old: any) => {
-          if (!old?.pages?.length) return old
-          const alreadyExist = old.pages.some((page: any) =>
-            page.data.posts?.some((p: any) => p.id === event.data.id))
-          if (alreadyExist) return old
-          return {
-            ...old,
-            pages: [
-              {
-                //                 ...old.pages[0],
-                data: {
-                  ...old.pages[0].data,
-                  posts: [
-                    event.data,
-                    ...old.pages[0].data.posts,
-                  ],
-                },
-              },
-              ...old.pages.slice(1),
-            ],
-          }
-        })
-        break
-      }
-
-      case "post_removed-com": {
-        queryClient.setQueryData([...feedQueryKey, event.data.community_slug], (old: any) => {
-          if (!old?.pages) return old
-
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              data: {
-                ...page.data,
-                posts: page.data.posts.filter(
-                  (p: any) => p.id !== event.data.id
-                ),
-              },
-            })),
-          }
-        })
-        break
-      }
-
-      case "post_updated-community": {
-        queryClient.setQueryData([...feedQueryKey, event.data.community_slug], (old: any) => {
-          if (!old?.pages) return old
-
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              data: {
-                ...page.data,
-                posts: page.data.posts.map((p: any) =>
-                  p.id === event.data.id
-                    ? { ...p, ...event.data }
-                    : p
-                ),
-              },
-            })),
-          }
-        })
-        break
-      }
-
-      case "change_upvotes_count_post-com": {
-        queryClient.setQueryData([...feedQueryKey, event.data.community_slug], (old: any) => {
-          if (!old?.pages) return old
-
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              data: {
-                ...page.data,
-                posts: page.data.posts.map((p: any) =>
-                  p.id === event.data.id
-                    ? { ...p, ...event.data }
-                    : p
-                ),
-              },
-            })),
-          }
-        })
-        break
-      }
-
-      case "change_comments_count_post-com": {
-        queryClient.setQueryData([...feedQueryKey, event.data.community_slug], (old: any) => {
-          if (!old?.pages) return old
-
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              data: {
-                ...page.data,
-                posts: page.data.posts.map((p: any) =>
-                  p.id === event.data.id
-                    ? { ...p, ...event.data }
-                    : p
-                ),
-              },
-            })),
-          }
-        });
-        queryClient.setQueryData(["com-post", event.data.slug], (old: any) => ({
-          ...old,
-          comments_count: event.data.comments_count,
-        }));
-        break
-      }
-
-
-
-    }
-  }, [feedQueryKey])
-
-  const stableHandler = useCallback((event: any) => {
-    handleWSEventRef.current?.(event)
-  }, [])
-
-  const { status } = useWebSocket({
-    userId: user?.id ?? "",
-    onEvent: stableHandler,
-  })
   useEffect(() => {
     setCMember(is_member)
   }
@@ -418,7 +285,7 @@ export default function FeedScreen() {
   //  render post card 
   const renderPost = useCallback(
     ({ item, index }: { item: Post; index: number }) => {
-      // when user is PREFETCH_THRESHOLD items from end â€” prefetch
+      // when user is PREFETCH_THRESHOLD items from end  prefetch
       if (index === posts.length - PREFETCH_THRESHOLD) {
         prefetchNextPage()
       }
@@ -450,7 +317,7 @@ export default function FeedScreen() {
     [posts.length, prefetchNextPage, handleUpvote, handleSave, groupChunks]
   )
 
-  // â”€â”€ render footer 
+  //  render footer 
   const renderFooter = () => {
     if (!isFetchingNextPage) return null
     return (
@@ -571,11 +438,7 @@ export default function FeedScreen() {
               </TouchableOpacity>
             ))
             }
-
-
-
-
-            <TouchableOpacity onPress={
+<TouchableOpacity onPress={
               () => {
 
                 setMenuVisible(false)
@@ -584,22 +447,22 @@ export default function FeedScreen() {
               <View style={[styles.menuText, { backgroundColor: theme.background }]}>
                 <Text style={[styles.menuInnerText, { color: theme.textPrimary }]}>Comminity Guidlines</Text>
               </View></TouchableOpacity>
-              <TouchableOpacity onPress={
-                () => {
-                  router.push({
-                    pathname: `/community/communityinfo/${cslug}` as any,
-                    params: {
-                      slug: cslug,
-                      role:communityInfo?.role
-                    },
+            <TouchableOpacity onPress={
+              () => {
+                router.push({
+                  pathname: `/community/communityinfo/${cslug}` as any,
+                  params: {
+                    slug: cslug,
+                    role: communityInfo?.role
+                  },
 
-                  })
-                  setMenuVisible(false)
-                }}>
-                <View style={[styles.menuText, { backgroundColor: theme.background }]}>
-                  <Text style={[styles.menuInnerText, { color: theme.textPrimary }]}>Comminity Info</Text>
-                </View>
-              </TouchableOpacity>
+                })
+                setMenuVisible(false)
+              }}>
+              <View style={[styles.menuText, { backgroundColor: theme.background }]}>
+                <Text style={[styles.menuInnerText, { color: theme.textPrimary }]}>Comminity Info</Text>
+              </View>
+            </TouchableOpacity>
           </Animated.View>
         </>
       )}
@@ -607,24 +470,38 @@ export default function FeedScreen() {
 
 
       {/*  sticky header  */}
-      <View style={[styles.header, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { position: "absolute", zIndex: 2000, paddingTop: 30, top: 0, left: 0, right: 0, backgroundColor: getAvatarColor(communityname) }]}>
 
         {/* search bar */}
         <View style={styles.headerTop} >
-
-          <TouchableOpacity onPress={openMenu}>
-            <View style={styles.menu}>
-              <Feather name="menu" size={22} color="#8ee41dfb" />
+          <TouchableOpacity
+          
+          onPress={()=>  router.push({
+                  pathname: `/community/communityinfo/${cslug}` as any,
+                  params: {
+                    slug: cslug,
+                    role: communityInfo?.role
+                  }}) }
+          >
+          {(communityInfo?.cover_image == null || communityInfo?.cover_image == undefined) ? (
+            <View style={[styles.avatar, { backgroundColor: getAvatarColor(communityInfo?.name ?? "") }]}>
+              <Text>{communityInfo?.name.charAt(0)}</Text>
             </View>
-          </TouchableOpacity>
 
-
+          ) : (
+            <Image
+              source={{ uri: communityInfo?.cover_image ?? "" }}
+              style={styles.avatar}
+            />
+            
+            )}
+            </TouchableOpacity>
           <View style={[styles.searchContainer, { borderColor: theme.primaryDark }]}>
-            <Text style={styles.searchIcon}>🔍</Text>
+            
             <TextInput
               style={styles.searchInput}
-              placeholder="Search posts..."
-              placeholderTextColor={Colors.textMuted}
+              placeholder="🔍 Search this community..."
+              placeholderTextColor={getAvatarColor(`${communityname}${"comm"}`)}
               value={searchText}
               onChangeText={handleSearch}
               returnKeyType="search"
@@ -648,20 +525,17 @@ export default function FeedScreen() {
                   </Text>
                 </View>
               )}
+
+            </TouchableOpacity>
+            <TouchableOpacity onPress={openMenu}>
+              <View style={[{backgroundColor:getAvatarColor(cslug),borderRadius:Radius.md}]}>
+                <MaterialCommunityIcons name="dots-vertical" color={theme.primary} size={40} />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
         <View style={[styles.options, {}]}>
-          {(communityInfo?.cover_image == null || communityInfo?.cover_image == undefined) ? (
-            <View style={[styles.avatar, { backgroundColor: getAvatarColor(communityInfo?.name ?? "") }]}>
-              <Text>{communityInfo?.name.charAt(0)}</Text>
-            </View>
 
-          ) : (
-            <Image
-              source={{ uri: communityInfo?.cover_image ?? "" }}
-              style={styles.avatar}
-            />)}
           <View style={[styles.groupname, { backgroundColor: theme.textPrimary, borderColor: Colors.success }]}>
             <Text numberOfLines={1}>{communityname}</Text></View>
 
@@ -698,8 +572,8 @@ export default function FeedScreen() {
       {/*  feed list  */}
       {isLoading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator color={Colors.primary} size="large" />
-          <Text style={styles.loadingStateText}>Loading feed...</Text>
+          <BouncingBarsIndicator color={getAvatarColor(communityname)}  />
+          
         </View>
       ) :
 
@@ -721,6 +595,9 @@ export default function FeedScreen() {
               </Text>
             </TouchableOpacity>
           </View>) : (
+            <View
+            style={[{marginTop:100}]}
+            >
           <FlatList
             onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y }}
             scrollEventThrottle={16}
@@ -754,6 +631,7 @@ export default function FeedScreen() {
           //   index,
           // })}
           />
+          </View>
         )}
 
       {/*  auth prompt modal  */}
@@ -771,7 +649,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomRightRadius: Radius.sm,
     borderBottomLeftRadius: Radius.sm,
@@ -784,8 +661,6 @@ const styles = StyleSheet.create({
   },
   headerTop: {
     flexDirection: "row",
-
-    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
   },
   logo: {
@@ -799,8 +674,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   headerButton: {
-    width: 32,
-    height: 32,
+    width: 26,
+    height: 26,
     borderRadius: 16,
     backgroundColor: Colors.gray[100],
     alignItems: "center",
@@ -826,23 +701,22 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: Spacing.md,
+    marginHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,
     backgroundColor: Colors.gray[100],
     borderRadius: Radius.lg,
     borderWidth: 2,
-    paddingHorizontal: Spacing.md,
-    height: 36,
-    gap: Spacing.sm,
+   
+  
+    gap: Spacing.xs,
+    overflow:"hidden"
   },
 
 
-  searchIcon: {
-    fontSize: 16,
-  },
+  
   searchInput: {
-    flex: 1,
-    fontSize: FontSize.sm,
+   
+    fontSize: FontSize.md,
     color: Colors.textPrimary,
   },
   options: {
@@ -966,7 +840,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "rgba(220, 189, 189, 0.4)",
-    zIndex: 9,
+    zIndex: 2500,
   },
   menubar: {
     position: "absolute",
@@ -977,7 +851,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     paddingTop: 1,
     paddingHorizontal: Spacing.xs,
-    zIndex: 15,
+    zIndex: 3000,
     elevation: 10,
     shadowColor: "#000",
     shadowOpacity: 0.2,
@@ -1020,14 +894,10 @@ const styles = StyleSheet.create({
 
   },
   avatar: {
-    position: "absolute",
-    left: 15,
-    top: -22,
-    width: 25,
-    height: 25,
+    width: 40,
+    height: 40,
     borderRadius: 24,
-    zIndex: 10,
-    elevation: 999
+
   },
   menu: {
 

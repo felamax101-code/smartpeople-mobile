@@ -12,6 +12,7 @@ import {
   TextInput,
   BackHandler
 } from "react-native"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -31,6 +32,8 @@ import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIn
 import { communityservice } from "@/services/community.sevice"
 import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
+import { SelectedSound } from "@/components/createpost/SoundModal"
+
 //  screen steps ─
 type Step =
   | "media_type"    // choose images or video
@@ -45,6 +48,7 @@ function SellScreen() {
   const { user } = useAuthStore()
   const { slug, cname } = useLocalSearchParams<{ slug: string, cname: string }>()
   const queryClient = useQueryClient()
+  const [sound, setsound] = useState<SelectedSound|null|undefined>(null)
 
   //  step state 
   const [step, setStep] = useState<Step>("media_type")
@@ -65,7 +69,7 @@ function SellScreen() {
   const [errors, setErrors] = useState<Partial<typeof form>>({})
   const [mediaError, setMediaErrors] = useState<string | null>()
   //  location (auto GPS) 
-  const { location: gpsLocation } = useLocation()
+  // const { location: gpsLocation } = useLocation()
   const { startUpload } = useUploadQueue()
 
   //  fetch categories 
@@ -166,10 +170,11 @@ function SellScreen() {
         postType: mediaType, // "text" | "image" | "video"
         mediaType: mediaType === "image" ? "photo" : mediaType === "video" ? "video" : undefined,
         mediaUris: mediaType === "text" ? [] : selectedUris,
+        soundId:sound?.id
       },
       {
         onDone: (postId, postSlug) => {
-          showNotifToast(`Post uploaded to ${cname??"community"}`, "success")
+          showNotifToast(`Post uploaded to ${cname ?? "community"}`, "success")
           queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
           setTimeout(() => {
             router.push(`/community/post/${postSlug}`)
@@ -313,11 +318,7 @@ function SellScreen() {
               disabled={opengalleryDisabled}
             >
               <Text style={styles.continueButtonText}>
-
-                {mediaType === "text" ?
-                  "Continue"
-                  : "Open Gallery"
-                }
+                Continue
               </Text>
             </TouchableOpacity>
           </View>
@@ -335,7 +336,10 @@ function SellScreen() {
         <SafeAreaView edges={["top"]} style={{ backgroundColor: "#000" }}>
           <View style={styles.galleryHeader}>
             <TouchableOpacity onPress={() => setStep("media_type")}>
-              <Text style={styles.galleryBack}>←</Text>
+              <Text style={styles.galleryBack}>
+                <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+
+              </Text>
             </TouchableOpacity>
             <Text style={styles.galleryTitle}>
               {mediaType === "image" ? "Select Photos" : "Select Video"}
@@ -363,14 +367,15 @@ function SellScreen() {
       <ImageEditScreen
         imageUris={selectedUris}
         onCancel={() => setStep("gallery")}
-        onDone={(finalUris) => {
+        onDone={(finalUris,sound_id) => {
           setSelectedUris(finalUris)
+          setsound(sound_id)
           setStep("form")
         }}
       />
     )
   }
- 
+
   //  post form 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]} >

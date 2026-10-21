@@ -32,6 +32,7 @@ import { DownloadProgressRing } from "../ui/DownloadProgress"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
 import { useToast } from "../activityIndicator/ToastProvider"
 import { parseText } from "@/hooks/useTextParser"
+import ReportPostModal from "../reportpost/ReportPostModal"
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
 
 interface Props {
@@ -49,6 +50,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
   const { gatedAction } = useAuthGate()
   const theme = useTheme()
   const { showToast } = useToast()
+  const [moreOptionsVisible, setMoreOptionsVisisble] = useState<boolean>(false)
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "downloading" | "success" | "error">("idle")
   const [downloadProgress, setDownloadProgress] = useState(0)
   const { user } = useAuthStore()
@@ -56,8 +58,9 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
   const [shareModalVisible, setShareModalVisible] = useState<boolean>(false)
   const queryClient = useQueryClient()
   //  upvote 
+
   const handleUpvote = useCallback(() => {
-    
+
     gatedAction(
       { type: "upvote", postSlug: post.slug },
       async () => {
@@ -74,21 +77,20 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
 
   //  save 
   const handleSave = useCallback(() => {
-
+    onSave?.(post.slug, true)
     gatedAction(
       { type: "save", postId: post.id, postSlug: post.slug },
       async () => {
         try {
-          onSave?.(post.slug, true)
+
           const result = isSP ? await spfeedService.toggleSave(post.slug) : await feedService.toggleSave(post.slug)
-          
-          showNotifToast("Saved to your profile", "success")
+
+          showNotifToast(post.is_saved ? "Removed from your profile" : "Saved to your profile", "success")
         } catch (error) {
         }
       }
     )
   }, [post.id, post.slug, gatedAction, onSave])
-
   const [activeMedia, setActiveMedia] = useState<{ type: "image" | "video"; url: string } | null>(
     post.videos?.[0]
       ? { type: "video", url: post.videos[0].video }
@@ -258,60 +260,173 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
   }
   return (
     <View style={[styles.container, { backgroundColor: theme.background, borderColor: theme.textMuted }]}>
+      {shareModalVisible && <TouchableOpacity
+        style={[{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
 
-      {/*  media carousel  */}
-      <View ref={carouselRef}>
-         <View
-         style={[styles.userRow,{justifyContent:"space-between"}]}
-        >
-        <View
-         style={styles.userRow}
-        >
+          zIndex: 800
+
+        }]}
+        onPress={() => setShareModalVisible(false)}
+      />
+
+      }
+      {shareModalVisible && <View
+        style={[{
+          position: "absolute", backgroundColor: theme.backgroundMuted, borderWidth: 2, borderColor: theme.textPlaceholder,
+          right: 3, bottom: 30, zIndex: 1000, width: 150, gap: 10, borderRadius: Radius.md, paddingVertical: 6,
+        }]}
+      >
         <TouchableOpacity
-          style={styles.userRow}
-          onPress={() => router.push({
-            pathname: (user && post.owner.username === user?.username && !isSP) ? `/profile` : (user && post.owner.username !== user?.username && !isSP || !user && !isSP) ? `/profile/${post.owner.username}` : (isSP && user && post.owner.username == user?.username) ? `/sp/profile` : (isSP && user && post.owner.username != user.username || !user && isSP) ? `/sp/profile/${post.owner.username}` : `/` as any,
-
-
-          })
-          }
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, borderWidth: 0, justifyContent: "space-between" }]}
+          onPress={() => setShareModalVisible(false)}
           activeOpacity={0.7}
         >
-          {post.owner.avatar === null ? (
-            <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
-              <Text style={[{color:"#fff",fontSize:FontSize.lg}]} >  {post.owner.username.charAt(0)}</Text>
-            </View>
-          ) : (
-            <Image
-              source={{ uri: post.owner.avatar }}
-              style={[styles.avatar, { borderColor: theme.textPlaceholder, borderWidth: 1 }]}
-              transition={200}
-            />
-          )}
-
-         
-           <View
-           style={[{flexDirection:"row"}]}
-           >
-            <Text style={[styles.userName, { color: theme.primary }]}>{isSP ? "sp/" : "@/"}</Text>
-            <Text style={[styles.userName, { color: theme.textPrimary }]}>{post.owner?.username}</Text>
-            </View>
-            {/* <VerifiedBadge badge={post.owner?.verification_badge} size="sm" /> */}
-          
-          </TouchableOpacity>
-          {isSP && <TouchableOpacity
-          style={[{backgroundColor:theme.backgroundMuted,borderRadius:Radius.md,paddingHorizontal:4,borderWidth:1,borderColor:theme.textPlaceholder}]}
-           onPress={()=>router.push(user && post.owner.username === user?.username?`/sp/profile`:`/sp/profile/${post.owner.username}`)}
-           activeOpacity={0.7}
-           >
-             <Text   style={[styles.userName, { color: theme.primary }]}>{`${post.property_profile?.name??post.property_profile?.org_name??"Smartproperty"}`}</Text>
-             </TouchableOpacity>}
-              </View>
-          <Text style={[styles.timeAgo, { color: theme.textPrimarylight }]}>
-            {formatTimeAgo(post.created_at)}
+          <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
+            Select share action
           </Text>
-        
-      </View>
+          <View
+            style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 3 }]}
+          >
+            <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
+              Close
+            </Text>
+          </View>
+        </TouchableOpacity>
+        {!isSP && <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleRepostPost}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="repeat-variant" color={theme.primary} />
+
+          <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+            Repost
+          </Text>
+        </TouchableOpacity>}
+        {post.post_type != "text" &&
+          <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            onPress={handleDownload}
+            activeOpacity={0.7}
+            disabled={downloadStatus === "downloading"}
+          >
+            {downloadStatus === "idle" ? (
+              <>
+                <MaterialCommunityIcons name="download" color={theme.primary} />
+                <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+                  Download
+                </Text>
+              </>
+            ) : (
+              <>
+                <DownloadProgressRing progress={downloadProgress} status={downloadStatus} size={16} />
+                <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+                  {downloadStatus === "downloading" ? `${Math.round(downloadProgress * 100)}%` : downloadStatus === "success" ? "Saved" : "Failed"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        }
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleCopyinapplink}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="link" color={theme.primary} />
+          <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+            Copy inapp link
+          </Text>
+        </TouchableOpacity>
+        {post.description &&
+          <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            onPress={handleCopy}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="content-copy" color={theme.primary} />
+            <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+              Copy text body
+            </Text>
+          </TouchableOpacity>}
+
+        <TouchableOpacity
+          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleShare}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="message-text" color={theme.primary} />
+          <Text style={[{ color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+            Via another app
+          </Text>
+        </TouchableOpacity>
+      </View>}
+      {/*  media carousel  */}
+      <View ref={carouselRef}>
+        <View
+          style={[styles.userRow, { justifyContent: "space-between" }]}
+        >
+          <View
+            style={styles.userRow}
+          >
+            <TouchableOpacity
+              style={styles.userRow}
+              onPress={() => router.push({
+                pathname: (user && post.owner.username === user?.username && !isSP) ? `/profile` : (user && post.owner.username !== user?.username && !isSP || !user && !isSP) ? `/profile/${post.owner.username}` : (isSP && user && post.owner.username == user?.username) ? `/sp/profile` : (isSP && user && post.owner.username != user.username || !user && isSP) ? `/sp/profile/${post.owner.username}` : `/` as any,
+
+
+              })
+              }
+              activeOpacity={0.7}
+            >
+              {post.owner.avatar === null ? (
+                <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
+                  <Text style={[{ color: "#fff", fontSize: FontSize.xl, fontWeight: FontWeight.bold }]} >  {post.owner.username.charAt(0)}</Text>
+                </View>
+              ) : (
+                <Image
+                  source={{ uri: post.owner.avatar }}
+                  style={[styles.avatar, { borderColor: theme.textPlaceholder, borderWidth: 1 }]}
+                  transition={200}
+                />
+              )}
+
+
+              <View
+                style={[{ flexDirection: "row" }]}
+              >
+                <Text style={[styles.userName, { color: theme.primary }]}>{isSP ? "sp/" : "@/"}</Text>
+                <Text style={[styles.userName, { color: theme.textPrimary }]}>{post.owner?.username}</Text>
+              </View>
+              {/* <VerifiedBadge badge={post.owner?.verification_badge} size="sm" /> */}
+
+            </TouchableOpacity>
+            {isSP && <TouchableOpacity
+              style={[{ backgroundColor: theme.backgroundMuted, borderRadius: Radius.md, paddingHorizontal: 4, borderWidth: 1, borderColor: theme.textPlaceholder }]}
+              onPress={() => router.push(user && post.owner.username === user?.username ? `/sp/profile` : `/sp/profile/${post.owner.username}`)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.userName, { color: theme.primary }]}>{`${post.property_profile?.name ?? post.property_profile?.org_name ?? "Smartproperty"}`}</Text>
+            </TouchableOpacity>}
+          </View>
+          <View
+            style={[{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginRight: 10 }]}
+          >
+            <Text style={[styles.timeAgo, { color: theme.textPrimarylight }]}>
+              {formatTimeAgo(post.created_at)}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setMoreOptionsVisisble(true)}
+            >
+              <MaterialCommunityIcons name="dots-vertical" size={20} color={theme.primary} />
+            </TouchableOpacity>
+          </View>
+
+        </View>
         <View >
           {post.post_type === "text" ? (
             <View style={[styles.textConatiner]}>
@@ -343,8 +458,19 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
           ) : (
             <>
               <View style={[styles.textConatiner]}>
-                <View>
-                  <Text style={[styles.textTitle, { color: theme.textPrimary }]}>{post.name}</Text>
+                <View
+                  style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
+                >
+                  <Text style={[styles.textTitle, { color: theme.textPrimary }]}>{post.name.slice(0,30)}{post.name.length>30?"...":null}</Text>
+                  {post.sound && (
+                    <View
+                    style={[{flexDirection:"row",alignItems:"center",borderWidth:1,borderRadius:Radius.md,borderColor:theme.textPlaceholder,paddingHorizontal:3}]}
+                    >
+                      <MaterialCommunityIcons name="music-note" size={14} color={theme.primary} />
+
+                      <Text style={[, { color: theme.textPrimary, fontSize: FontSize.sm }]}>{post.sound?.title.slice(0, 11) ?? "sound"}{post.sound?.title?.length > 11 ? "..." : null}</Text>
+                    </View>
+                  )}
                 </View>
                 <TouchableOpacity onPress={() =>
                   post.description.length > 100 ?
@@ -383,6 +509,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
                   setActiveMedia(item)
                   setActiveIndex(index)
                 }}
+                sound_url={post.sound?.preview_url}
 
               />
             </>
@@ -441,12 +568,13 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
           <View style={{ flexDirection: "row", gap: 10 }}>
             {/* save */}
             <TouchableOpacity
-              style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor:post.is_saved?theme.primary: theme.textPlaceholder }]}
+              style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: post.is_saved ? theme.primary : theme.textPlaceholder }]}
               onPress={handleSave}
               activeOpacity={0.7}
             >
               <Text style={[styles.interactionIcon, { color: theme.textPrimary }]}>
-                {post.is_saved ? "Saved" : "Save"}
+                <MaterialCommunityIcons name="bookmark" size={20} color={post.is_saved ? theme.primary : theme.textMuted} />
+
               </Text>
               <Text style={styles.interactionCount}>{post.saves_count}</Text>
             </TouchableOpacity>
@@ -457,103 +585,20 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
               onPress={() => setShareModalVisible((v) => !v)}
               activeOpacity={0.7}
             >
-              {shareModalVisible && <View
-                style={[{
-                  position: "absolute", backgroundColor: theme.backgroundMuted, borderWidth: 2, borderColor: theme.textPlaceholder,
-                  right: 3, bottom: 30, zIndex: 1000, width: 150, gap: 10, borderRadius: Radius.md, paddingVertical: 6
-                }]}
-              >
-                <TouchableOpacity
-                  style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, borderWidth: 0, justifyContent: "space-between" }]}
-                  onPress={() => setShareModalVisible(false)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
-                    Select share action
-                  </Text>
-                  <View
-                    style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 3 }]}
-                  >
-                    <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
-                      Close
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-                {!isSP && <TouchableOpacity
-                  style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                  onPress={handleRepostPost}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons name="repeat-variant" color={theme.primary} />
 
-                  <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
-                    Repost
-                  </Text>
-                </TouchableOpacity>}
-                {post.post_type != "text" &&
-                  <TouchableOpacity
-                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                    onPress={handleDownload}
-                    activeOpacity={0.7}
-                    disabled={downloadStatus === "downloading"}
-                  >
-                    {downloadStatus === "idle" ? (
-                      <>
-                        <MaterialCommunityIcons name="download" color={theme.primary} />
-                        <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
-                          Download
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <DownloadProgressRing progress={downloadProgress} status={downloadStatus} size={16} />
-                        <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
-                          {downloadStatus === "downloading" ? `${Math.round(downloadProgress * 100)}%` : downloadStatus === "success" ? "Saved" : "Failed"}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                }
-                <TouchableOpacity
-                  style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                  onPress={handleCopyinapplink}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons name="link" color={theme.primary} />
-                  <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
-                    Copy inapp link
-                  </Text>
-                </TouchableOpacity>
-                {post.description &&
-                  <TouchableOpacity
-                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                    onPress={handleCopy}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons name="content-copy" color={theme.primary} />
-                    <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
-                      Copy text body
-                    </Text>
-                  </TouchableOpacity>}
-
-                <TouchableOpacity
-                  style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                  onPress={handleShare}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons name="message-text" color={theme.primary} />
-                  <Text style={[{ color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
-                    Via another app
-                  </Text>
-                </TouchableOpacity>
-              </View>}
               <Text style={[styles.interactionIcon, { color: theme.textPrimary, borderColor: theme.borderMuted }]}>Share</Text>
               <Text style={styles.interactionCount}></Text>
             </TouchableOpacity>
           </View>
         </View>
 
+        <ReportPostModal
+          isVisible={moreOptionsVisible}
+          id={post.id}
+          name={post.name}
+          onClose={() => setMoreOptionsVisisble(false)}
 
+        />
       </View>
     </View>
   )
@@ -613,15 +658,14 @@ const styles = StyleSheet.create({
   },
   usernamePlcaholder: {
     width: 28,
-    alignItems: "center",
-    justifyContent: "center",
+
     height: 28,
     borderRadius: 14,
   },
   userInfo: {
     flex: 1,
     flexDirection: "row",
-    gap:10
+    gap: 10
   },
   userName: {
     fontSize: FontSize.sm,

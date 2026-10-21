@@ -99,7 +99,7 @@ const {showNotifToast}=useNotificationToast()
         is_saved: !old.is_saved,
         
       }));
-      showNotifToast(post?.is_saved?"Removed from your profile":"Save to your","success")
+      showNotifToast(post?.is_saved?"Removed from your profile":"Saved to your profile","success")
        queryClient.setQueryData(
             ["com-feed", filters, selectedCategory, searchText],
             (old: any) => {

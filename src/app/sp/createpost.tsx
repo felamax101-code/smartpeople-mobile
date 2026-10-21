@@ -29,6 +29,8 @@ import { spfeedService } from "@/services/realestate.service"
 import { ImageEditScreen } from "@/components/imageedit/ImageEditScreen"
 import { useUploadQueue } from "@/components/createpost/UploadQueuecontext"
 import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { SelectedSound } from "@/components/createpost/SoundModal"
 //  screen steps 
 type Step =
   | "media_type"    // choose images or video
@@ -61,6 +63,8 @@ function SellScreen() {
 
 
   //  step state 
+    const [sound, setsound] = useState<SelectedSound|null|undefined>(null)
+  
   const [step, setStep] = useState<Step>("media_type")
   const [mediaType, setMediaType] = useState<"image" | "video">("image")
   const [selectedUris, setSelectedUris] = useState<string[]>([])
@@ -68,7 +72,7 @@ function SellScreen() {
   const [opengalleryDisabled, setopengalleryDisabled] = useState(false)
   const [banner, setBanner] = useState<BannerState | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false)
-  const [pinnedCoords, setPinnedCoords] = useState<{ latitude: number ; longitude: number } |null>(null)
+  const [pinnedCoords, setPinnedCoords] = useState<{ latitude: number; longitude: number } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { showNotifToast } = useNotificationToast()
   const { startUpload } = useUploadQueue()
@@ -268,14 +272,14 @@ function SellScreen() {
     }
     if (isSubmitting) return // guard against a double-tap firing two uploads
     setIsSubmitting(true)
- const isSale = form.listingType === "sale"
+    const isSale = form.listingType === "sale"
     startUpload(
       {
-          name: form.name.trim(),
+        name: form.name.trim(),
         description: form.description.trim(),
         categoryId: form.category,
         postType: mediaType,
-        mediaUris:selectedUris,
+        mediaUris: selectedUris,
         mediaType: mediaType === "image" ? "photo" : "video",
         locationDisplay: form.location.trim(),
         listing_type: form.listingType,
@@ -286,8 +290,10 @@ function SellScreen() {
         deposit: isSale ? form.deposit.replace(/,/g, "") : undefined,
         monthlyInstallment: isSale ? form.monthlyInstallment.replace(/,/g, "") : undefined,
         locationLat: pinnedCoords?.latitude as unknown as string ?? gpsLocation?.lat ?? undefined,
-        locationLng: pinnedCoords?.longitude as unknown as string?? gpsLocation?.lng  as unknown as string??undefined,
-    
+        locationLng: pinnedCoords?.longitude as unknown as string ?? gpsLocation?.lng as unknown as string ?? undefined,
+        soundId: sound?.id
+
+
       },
       {
         onDone: (postId, postSlug) => {
@@ -298,7 +304,7 @@ function SellScreen() {
         onFailed: (error) => {
           showNotifToast("Failed to upload post", "error")
         },
-      },false,undefined,true
+      }, false, undefined, true
     )
 
     // leave immediately — the upload continues in the background via the
@@ -471,7 +477,10 @@ function SellScreen() {
         <SafeAreaView edges={["top"]} style={{ backgroundColor: "#000" }}>
           <View style={styles.galleryHeader}>
             <TouchableOpacity onPress={() => setStep("media_type")}>
-              <Text style={styles.galleryBack}>←</Text>
+              <Text style={styles.galleryBack}>
+                <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+
+              </Text>
             </TouchableOpacity>
             <Text style={styles.galleryTitle}>
               {mediaType === "image" ? "Select Photos" : "Select Video"}
@@ -499,14 +508,15 @@ function SellScreen() {
       <ImageEditScreen
         imageUris={selectedUris}
         onCancel={() => setStep("gallery")}
-        onDone={(finalUris) => {
+        onDone={(finalUris,sound_id) => {
           setSelectedUris(finalUris)
+           setsound(sound_id)
           setStep("form")
         }}
       />
     )
   }
-  
+
   //  post form 
   return (
     <SafeAreaView

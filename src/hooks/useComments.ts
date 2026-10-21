@@ -1,5 +1,5 @@
 
-import { useState ,useCallback} from "react"
+import { useState, useCallback } from "react"
 import {
   useInfiniteQuery,
   useMutation,
@@ -7,17 +7,21 @@ import {
 } from "@tanstack/react-query"
 import { feedService } from "@/services/feed.service"
 import { useAuthGate } from "@/hooks/useAuthGate"
-import { Comment,VerificationBadge,Post } from "@/types"
-import {useAuthStore} from "@/stores/auth.store"
+import { Comment, VerificationBadge, Post, PickedImage,Sticker } from "@/types"
+import { useAuthStore } from "@/stores/auth.store"
+import { pickCommentImage } from "./usePickCommentImage"
 export const useComments = (slug: string) => {
   const queryClient = useQueryClient()
   const { gatedAction } = useAuthGate()
   const [commentText, setCommentText] = useState("")
-const [replyingTo, setReplyingTo] = useState<Comment | null>(null)
-const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>>({})
-  const [replyiRootId,setRelyRootId]=useState<string|null>(null)
+  const [image, setImage] = useState<PickedImage | null>(null)
+const [sticker, setSticker] = useState<Sticker | null>(null)
 
- //  fetch comments 
+  const [replyingTo, setReplyingTo] = useState<Comment | null>(null)
+  const [optimisticReplies, setOptimisticReplies] = useState<Record<string, Comment[]>>({})
+  const [replyiRootId, setRelyRootId] = useState<string | null>(null)
+
+  //  fetch comments 
   const {
     data,
     fetchNextPage,
@@ -40,13 +44,20 @@ const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>
   const { user } = useAuthStore()
   const comments = data?.pages.flatMap((page: any) => page.data?.comments) ?? []
   const totalCount = data?.pages[0]?.data?.pagination.total ?? 0
-
+  const pickImage = useCallback(async () => {
+    const picked = await pickCommentImage()
+    if (picked) {setImage(picked);    setSticker(null);}
+  }, [])
+  const selectSticker = useCallback((s: Sticker) => {
+  setSticker(s)
+  setImage(null)
+}, [])
   //  post comment 
   //  post comment mutation ─
-  const postCommentMutation = useMutation<Comment, Error, string, { tempComment: Comment }>({
-    mutationFn: (body) => feedService.postComment(slug, body),
+  const postCommentMutation = useMutation<Comment, Error, { body: string; image: PickedImage | null;sticker: Sticker | null }, { tempComment: Comment }>({
+    mutationFn: ({ body, image }) => feedService.postComment(slug, body, image,sticker),
 
-    onMutate: (body) => {
+    onMutate: ({ body, image }) => {
       const tempComment: Comment = {
         id: `temp-${Date.now()}`,
         body,
@@ -61,7 +72,10 @@ const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>
         parent_id: null,
         is_deleted: false,
         is_edited: false,
-        replied_to:null
+        replied_to: null,
+        image: image ? image.uri : null,
+        sticker
+
       }
       queryClient.setQueryData(["comments", slug], (old: any) => ({
         ...old,
@@ -74,11 +88,15 @@ const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>
       return { tempComment }
     },
     onSuccess: (_, __, context) => {
+      setImage(null)
+      setSticker(null)
       //  invalidate after a delay to let the temp comment show briefly
-      queryClient.setQueryData(["post", slug], (old: Post) => ({
+      queryClient.setQueryData(["post", slug], (old: Post) => (
+
+        old ? {
           ...old,
-          comments_count: old.comments_count+1
-        }))
+          comments_count: old.comments_count + 1
+        } : old))
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["comments", slug] })
       }, 500)
@@ -119,12 +137,12 @@ const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>
         name: string | null
         avatar: string | null
         verification_badge: VerificationBadge
-      };replied_to_comment_id:string
+      }; replied_to_comment_id: string, image: PickedImage | null; sticker: Sticker | null
     },
     { tempReply: Comment; commentId: string }>
     ({
-      mutationFn: ({ commentId, body, replyToId,replied_to_comment_id }) =>
-        feedService.postReply(slug, commentId, body, replyToId?.id,replied_to_comment_id),
+      mutationFn: ({ commentId, body, replyToId, replied_to_comment_id, image ,sticker}) =>
+        feedService.postReply(slug, commentId, body, replyToId?.id, replied_to_comment_id, image,sticker),
 
 
       //  commentId is already correctly resolved in handlePost
@@ -143,7 +161,10 @@ const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>
           reply_to: replyingTo ? { id: replyingTo?.author.id, username: replyingTo?.author.username, } : null,
           is_deleted: false,
           is_edited: false,
-          replied_to:null
+          replied_to: null,
+          image: image ? image.uri : null,
+          sticker
+
         }
 
         setOptimisticReplies(prev => ({
@@ -156,12 +177,16 @@ const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>
       },
 
       onSuccess: (_, __, context) => {
-
+        //  setReplyingTo(null)
+        //   setRelyRootId(null)
+        setImage(null)
+        setSticker(null)
         // invalidate both replies AND comments (to update replies_count)
-         queryClient.setQueryData(["post", slug], (old: Post) => ({
-          ...old,
-          comments_count: old.comments_count+1
-        }))
+        queryClient.setQueryData(["post", slug], (old: Post) => (
+          old ? {
+            ...old,
+            comments_count: old.comments_count + 1
+          } : old))
         queryClient.invalidateQueries({ queryKey: ["replies", context!.commentId] })
         queryClient.invalidateQueries({ queryKey: ["comments", slug] })
         // clear optimistic only AFTER invalidation settles
@@ -185,28 +210,30 @@ const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>
 
 
   const handlePost = useCallback(() => {
-    if (!commentText.trim()) return
-
+    if (!commentText.trim() && !image && !sticker) return
+    const body = commentText.trim()
+    console.log("hdfrrrr",body)
     gatedAction(
       { type: "comment", postSlug: slug },
       async () => {
         if (replyingTo && replyiRootId) {
           postReplyMutation.mutate({
             commentId: replyiRootId,
-            body: commentText.trim(),
+            body,
+            image,
+            sticker,
             replyToId: replyingTo.author,
-            replied_to_comment_id:replyingTo.id
+            replied_to_comment_id: replyingTo.id
 
           })
-          setReplyingTo(null)
-          setRelyRootId(null)
+         
         } else {
-          postCommentMutation.mutate(commentText.trim())
+          postCommentMutation.mutate({ body, image,sticker })
         }
         setCommentText("")
       }
     )
-  }, [commentText, replyingTo,replyiRootId, slug, gatedAction])
+  }, [commentText, replyingTo, replyiRootId, image, slug, gatedAction,sticker])
 
 
   return {
@@ -225,6 +252,12 @@ const [optimisticReplies,setOptimisticReplies]=useState<Record<string,Comment[]>
     handlePost,
     isError,
     refetch,
+    image,
+    pickImage,
+    setImage,
+    sticker,
+    setSticker,
+    selectSticker,
     isPosting: postCommentMutation.isPending || postReplyMutation.isPending,
     ProcessError: postCommentMutation.isError || postReplyMutation.isError
 

@@ -1,20 +1,19 @@
 import { useState, useRef, useEffect, useMemo } from "react"
-import { View, StyleSheet, Platform, useWindowDimensions, BackHandler, Text } from "react-native"
+import { View, StyleSheet, Platform, useWindowDimensions, Text, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import {
   Canvas,
   Group,
   Image as SkiaImage,
   Path,
-  Text as SkiaText,
   ColorMatrix,
   useCanvasRef,
   useImage,
   matchFont,
-  Paragraph, Skia
-
+  Paragraph,
+  Skia,RoundedRect,
 } from "@shopify/react-native-skia"
-
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio"
 import { buildColorMatrix } from "./ColorMatrices"
 import { initialEditState, EditHistory, initialHistory } from "@/types/ImageEditor"
 import type { EditState, EditTool, CropRect } from "@/types/ImageEditor"
@@ -24,28 +23,33 @@ import { TextTouchLayer } from "./TexttouchLayer"
 import { TextInputModal } from "./Textinputmodal"
 import { DrawTouchLayer } from "./Drawtouchlayer"
 import { EditorToolbar } from "./EditToolbar"
-
-
-
+import { useTheme } from "@/hooks/useTheme"
+import SoundSearchModal, { type SelectedSound } from "../createpost/SoundModal"
+import { Radius } from "@/constants/colors"
+const ACTIVE_TEXT_OPACITY = 0.3
 type Props = {
   imageUris: string[]
   onCancel: () => void
-  onDone: (finalUris: string[]) => void
+  // The second argument is optional, so existing callers of the form
+  // (uris) => ... keep working. It is the sound the user picked, or null.
+  onDone: (finalUris: string[], idd?: SelectedSound | null) => void
+  isMessageScreen?: boolean
 }
 
 const TOOLBAR_ESTIMATE = 260 // rough height reserved for the bottom toolbar
-const COUNTER_BAR_HEIGHT = 32
+const TOP_BAR_HEIGHT = 40 // always rendered now, because it holds the sound button
 
-export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
+export function ImageEditScreen({ imageUris, onCancel, onDone, isMessageScreen }: Props) {
   const canvasRef = useCanvasRef()
   const [currentIndex, setCurrentIndex] = useState(0)
   const imageUri = imageUris[currentIndex]
+  const [songModalVisisble, setsongModalVisisble] = useState<boolean>(false)
   const skImage = useImage(imageUri)
   const { width: screenWidth, height: screenHeight } = useWindowDimensions()
-
+  const theme = useTheme()
   const canvasWidth = screenWidth
-  const canvasHeight = screenHeight - TOOLBAR_ESTIMATE - (imageUris.length > 1 ? COUNTER_BAR_HEIGHT : 0)
-
+  const canvasHeight = screenHeight - TOOLBAR_ESTIMATE - TOP_BAR_HEIGHT
+  const [activeTextId, setActiveTextId] = useState<string | null>(null)
   const [edits, setEdits] = useState<EditState>(initialEditState)
   const [history, setHistory] = useState<EditHistory>(initialHistory)
   const [activeTool, setActiveTool] = useState<EditTool>(null)
@@ -54,6 +58,60 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
   const [currentStroke, setCurrentStroke] = useState<string | null>(null)
   const [pendingTextPos, setPendingTextPos] = useState<{ x: number; y: number } | null>(null)
   const [exporting, setExporting] = useState(false)
+
+  /* ------------------------------ sound playback ------------------------------ */
+
+  // One sound for the whole post. It is not part of the per-image state above,
+  // so moving between images (goTo) never touches it and playback never restarts.
+  const [selectedSound, setSelectedSound] = useState<SelectedSound | null>(null)
+  const soundSource = useMemo(
+    () => (selectedSound ? { uri: selectedSound.url } : null),
+    [selectedSound?.id, selectedSound?.url]
+  )
+  const player = useAudioPlayer(soundSource)
+  const soundStatus = useAudioPlayerStatus(player)
+  const playerRef = useRef(player)
+  playerRef.current = player
+
+  const pauseSound = () => {
+    try {
+      playerRef.current.pause()
+    } catch {
+      // already released
+    }
+  }
+
+  useEffect(() => {
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => { })
+  }, [])
+
+  // Start (and keep) looping as soon as the chosen sound has loaded.
+  useEffect(() => {
+    if (selectedSound && soundStatus.isLoaded) {
+      player.loop = true
+      player.play()
+    }
+  }, [selectedSound?.id, soundStatus.isLoaded, player])
+  useEffect(() => {
+    if (songModalVisisble) pauseSound()
+    else if (selectedSound && soundStatus.isLoaded) playerRef.current.play()
+  }, [songModalVisisble])
+  // Never leave audio running when the editor goes away.
+  useEffect(() => {
+    return () => pauseSound()
+  }, [])
+
+  const removeSound = () => {
+    pauseSound()
+    setSelectedSound(null)
+  }
+
+  const handleCancel = () => {
+    pauseSound()
+    onCancel()
+  }
+
+  /* ------------------------------- per-image state ------------------------------ */
 
   // Per-image state, indexed by position (not append-only) so moving
   // backward with Previous and re-exporting after further edits doesn't
@@ -106,23 +164,32 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
     default: ["sans-serif", "Roboto", "Noto Color Emoji"],
   })!
 
-  const paragraphs = useMemo(
-    () =>
-      edits.textLayers.map((t) => {
-        const p = Skia.ParagraphBuilder.Make({ textAlign: 0 /* TextAlign.Left */ })
-          .pushStyle({
-            color: Skia.Color(t.color),
-            fontSize: t.fontSize,
-            fontFamilies: textFamilies,
-            fontStyle: { weight: 700 },
-          })
-          .addText(t.text)
-          .pop()
-          .build()
-        return { id: t.id, x: t.x, y: t.y, fontSize: t.fontSize, paragraph: p }
-      }),
-    [edits.textLayers]
-  )
+const paragraphs = useMemo(
+  () =>
+    edits.textLayers.map((t) => {
+      const p = Skia.ParagraphBuilder.Make({ textAlign: 0 })
+        .pushStyle({
+          color: Skia.Color(t.color),
+          fontSize: t.fontSize,
+          fontFamilies: textFamilies,
+          fontStyle: { weight: 700 },
+        })
+        .addText(t.text)
+        .pop()
+        .build()
+      p.layout(canvasWidth) // needed before measuring
+      return {
+        id: t.id,
+        x: t.x,
+        y: t.y,
+        fontSize: t.fontSize,
+        paragraph: p,
+        width: p.getLongestLine(),
+        height: p.getHeight(),
+      }
+    }),
+  [edits.textLayers, canvasWidth]
+)
   const handleRedo = () => {
     if (!canRedo) return
     const pointer = history.pointer + 1
@@ -214,13 +281,25 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
       perImageEdits.current[currentIndex] = edits
 
       if (isLastImage) {
-        onDone(exportedUris.current as string[])
+        pauseSound()
+        onDone(exportedUris.current as string[], selectedSound)
       } else {
         goTo(currentIndex + 1)
       }
     } finally {
       setExporting(false)
     }
+  }
+  // Live size while pinching: not committed (handleTextMoveEnd commits once on release)
+  const handleResizeTextLayer = (id: string, fontSize: number) => {
+    setEdits((e) => ({
+      ...e,
+      textLayers: e.textLayers.map((l) => (l.id === id ? { ...l, fontSize } : l)),
+    }))
+  }
+
+  const handleDeleteTextLayer = (id: string) => {
+    commitEdits({ ...edits, textLayers: edits.textLayers.filter((l) => l.id !== id) })
   }
 
   const handlePrevious = () => {
@@ -246,13 +325,39 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {imageUris.length > 1 && (
-        <View style={styles.counterBar}>
-          <Text style={styles.counterText}>
-            Editing {currentIndex + 1} of {imageUris.length}
-          </Text>
+      {/* always shown, so a single-image post can add a sound too */}
+      <View style={styles.topBar}>
+        <Text style={styles.counterText}>
+          {imageUris.length > 1 ? `Editing ${currentIndex + 1} of ${imageUris.length}` : ""}
+        </Text>
+
+        <View style={styles.soundWrap}>
+          {!isMessageScreen && <TouchableOpacity
+            style={[styles.soundBtn, { backgroundColor: theme.primary }]}
+            onPress={() => setsongModalVisisble(true)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={selectedSound ? `Change sound, current: ${selectedSound.title}` : "Add sound"}
+          >
+            <Text style={styles.soundBtnText} numberOfLines={1}>
+              {selectedSound ? selectedSound.title : "Add sound"}
+            </Text>
+          </TouchableOpacity>}
+
+          {selectedSound && (
+            <TouchableOpacity
+              onPress={removeSound}
+              hitSlop={10}
+              style={styles.removeBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Remove sound"
+            >
+              <Text style={styles.removeText}>x</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
+      </View>
+
       <View style={{ width: canvasWidth, height: canvasHeight }}>
         <Canvas ref={canvasRef} style={{ width: canvasWidth, height: canvasHeight }}>
           <Group
@@ -297,15 +402,39 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
               />
             )}
 
-            {paragraphs.map((p) => (
-              <Paragraph
-                key={p.id}
-                paragraph={p.paragraph}
-                x={p.x}
-                y={p.y - p.fontSize}   // Paragraph y = top; SkiaText y = baseline
-                width={canvasWidth}
-              />
-            ))}
+            {paragraphs.map((p) => {
+  const active = p.id === activeTextId
+  const top = p.y - p.fontSize
+  return (
+    <Group key={p.id}>
+      {active && (
+        <>
+          <RoundedRect
+            x={p.x - 8}
+            y={top - 6}
+            width={p.width + 16}
+            height={p.height + 12}
+            r={8}
+            color="rgba(255,255,255,0.18)"
+          />
+          <RoundedRect
+            x={p.x - 8}
+            y={top - 6}
+            width={p.width + 16}
+            height={p.height + 12}
+            r={8}
+            color="rgba(255,255,255,0.9)"
+            style="stroke"
+            strokeWidth={1.5}
+          />
+        </>
+      )}
+      <Group opacity={active ? ACTIVE_TEXT_OPACITY : 1}>
+        <Paragraph paragraph={p.paragraph} x={p.x} y={top} width={canvasWidth} />
+      </Group>
+    </Group>
+  )
+})}
           </Group>
         </Canvas>
 
@@ -333,6 +462,9 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
             onTapEmpty={(x, y) => setPendingTextPos({ x, y })}
             onMoveLayer={handleMoveTextLayer}
             onMoveEnd={handleTextMoveEnd}
+            onResizeLayer={handleResizeTextLayer}
+            onDeleteLayer={handleDeleteTextLayer}
+            onActiveChange={setActiveTextId}
           />
         )}
       </View>
@@ -342,9 +474,9 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
         activeTool={activeTool}
         onToolChange={setActiveTool}
         onChange={commitEdits}
-        onCancel={onCancel}
+        onCancel={handleCancel}
         onDone={handleDone}
-        doneLabel={imageUris.length > 1 && !isLastImage ? "Next" : "Done"}
+        doneLabel={imageUris.length > 1 && !isLastImage ? "Next" : isLastImage && isMessageScreen ? "Send" : "Done"}
         onPrevious={imageUris.length > 1 && !isFirstImage ? handlePrevious : undefined}
         drawColor={drawColor}
         onDrawColorChange={setDrawColor}
@@ -354,12 +486,18 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
         canRedo={canRedo}
         onUndo={handleUndo}
         onRedo={handleRedo}
+        isMessageScreen={isMessageScreen}
       />
 
       <TextInputModal
         visible={!!pendingTextPos}
         onSubmit={handleTextSubmit}
         onCancel={() => setPendingTextPos(null)}
+      />
+      <SoundSearchModal
+        isVisible={songModalVisisble}
+        onClose={() => setsongModalVisisble(false)}
+        onSelect={(sound) => setSelectedSound(sound)}
       />
     </SafeAreaView>
   )
@@ -368,14 +506,26 @@ export function ImageEditScreen({ imageUris, onCancel, onDone }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
   loading: { flex: 1 },
-  counterBar: {
-    height: 32,
+  topBar: {
+    height: TOP_BAR_HEIGHT,
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 10,
   },
   counterText: {
     color: "#ccc",
     fontSize: 13,
     fontWeight: "600",
   },
+  soundWrap: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#726d6d", borderRadius: Radius.md },
+  soundBtn: {
+    maxWidth: 190,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  soundBtnText: { fontWeight: "700", color: "#fff" },
+  removeBtn: { paddingHorizontal: 4 },
+  removeText: { color: "#fff", fontSize: 20, fontWeight: "300" },
 })

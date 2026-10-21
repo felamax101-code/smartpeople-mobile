@@ -60,7 +60,7 @@ export const SettingsRow = ({
           {label}
         </Text>
         {sublabel && (
-          <Text style={[styles.sublabel, { color: theme.textMuted }]}>
+          <Text style={[styles.sublabel, { color: theme.textPrimarylight }]}>
             {sublabel}
           </Text>
         )}

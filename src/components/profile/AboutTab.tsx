@@ -1,6 +1,6 @@
 
 
-import  {useState} from "react"
+import { useState } from "react"
 import {
   View,
   Text,
@@ -9,97 +9,66 @@ import {
   Alert,
   Modal,
   TextInput,
-    ActivityIndicator,
+  ActivityIndicator,
 
 } from "react-native"
 import { useTheme } from "@/hooks/useTheme"
 import { User } from "@/types"
 import { feedService } from "@/services/feed.service"
-import {  Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
+import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { BannerType } from "../activityIndicator/AnimatedBanner"
 import { MaterialIcons } from "@expo/vector-icons"
+import ReportUserModal from "../reportuser/ReportModal"
 interface Props {
   profile: any
   isOwn: boolean
-  showBanner?:(type:BannerType,message:string)=>(void)
+  showBanner?: (type: BannerType, message: string) => (void)
 }
 
 // verification level descriptions
 const LEVEL_INFO = [
   {
     level: 1,
-    icon: <MaterialIcons name="mark-email-read" size={20}/>,
+    icon: <MaterialIcons name="mark-email-read" size={20} />,
     label: "Email Verified",
     description: "Email address confirmed",
   },
   {
     level: 2,
-    icon: <MaterialIcons name="smartphone" size={20}/>,
+    icon: <MaterialIcons name="smartphone" size={20} />,
     label: "Phone Verified",
     description: "Phone number confirmed",
   },
   {
     level: 3,
-    icon: <MaterialIcons name="badge" size={20}/>,
+    icon: <MaterialIcons name="badge" size={20} />,
     label: "ID Verified",
     description: "Government ID confirmed",
   },
   {
     level: 4,
-    icon: <MaterialIcons name="business" size={20}/>,
+    icon: <MaterialIcons name="business" size={20} />,
     label: "Business Verified",
     description: "Business registration confirmed",
   },
 ]
 
-export const AboutTab = ({ profile, isOwn ,showBanner}: Props) => {
+export const AboutTab = ({ profile, isOwn, showBanner }: Props) => {
   const theme = useTheme()
 
-  
-const [showReportModal, setShowReportModal] = useState(false)
-const [reportReason, setReportReason] = useState("")
-const [otherReason, setOtherReason] = useState("")
-const [isReporting, setIsReporting] = useState(false)
-const REPORT_REASONS =[
-        "Spam or scam", 
-        "Fake Account",
-        "Harassment", 
-        "Inappropriate Content", 
-        "Inappropriate Behavior",
-        "Impersonation", 
-        "Other",
-        ]
 
-
-const formatTimeAgo = (dateString: string): string => {
-  const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
-  if (seconds < 60) return "just now"
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}minutes ago`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}hours ago`
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}days ago`
-  return new Date(dateString).toLocaleDateString()
-}
+  const [showReportModal, setShowReportModal] = useState(false)
 
 
 
-
-const handleReportSubmit = async () => {
-  const reason = reportReason
-  if (!reason.trim()) return
-  
-  try {
-    setIsReporting(true)
-    await feedService.reportUser(profile.username, reason,otherReason)
-    setShowReportModal(false)
-    setReportReason("")
-    setOtherReason("")
-    showBanner!("success", "Thank you, we'll review this report.")
-  } catch (e) {
-    showBanner!("error", "Failed to submit report. Try again.")
-  } finally {
-    setIsReporting(false)
+  const formatTimeAgo = (dateString: string): string => {
+    const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
+    if (seconds < 60) return "just now"
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}minutes ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}hours ago`
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}days ago`
+    return new Date(dateString).toLocaleDateString()
   }
-}
 
 
   return (
@@ -185,7 +154,7 @@ const handleReportSubmit = async () => {
           {[
             {
               label: "Member since",
-              value:formatTimeAgo(profile.created_at),
+              value: formatTimeAgo(profile.created_at),
             },
             {
               label: "Total posts",
@@ -222,122 +191,25 @@ const handleReportSubmit = async () => {
       </View>
 
       {/* ── report button (other user only) ──────────────── */}
-    
-{!isOwn && (
-  <TouchableOpacity
-    style={[styles.reportButton, { borderColor: theme.error }]}
-    onPress={() => setShowReportModal(true)}
-  >
-    <Text style={[styles.reportText, { color: theme.error }]}>
-      🚩 Report @{profile.username}
-    </Text>
-  </TouchableOpacity>
-)}
+
+      {!isOwn && (
+        <TouchableOpacity
+          style={[styles.reportButton, { borderColor: theme.error }]}
+          onPress={() => setShowReportModal(true)}
+        >
+          <Text style={[styles.reportText, { color: theme.error }]}>
+            🚩 Report @{profile.username}
+          </Text>
+        </TouchableOpacity>
+      )}
 
 
 
-      
-
- <Modal
-  visible={showReportModal}
-  transparent
-  animationType="slide"
-  onRequestClose={() => setShowReportModal(false)}
->
-  <TouchableOpacity
-    style={styles.reportBackdrop}
-    activeOpacity={1}
-    onPress={() => setShowReportModal(false)}
-  />
-  <View style={[styles.reportSheet, { backgroundColor: theme.surface }]}>
-    
-    {/* header */}
-    <View style={styles.reportHeader}>
-      <Text style={[styles.reportTitle, { color: theme.textPrimary }]}>
-        Report @{profile.username}
-      </Text>
-      <TouchableOpacity onPress={() => setShowReportModal(false)}>
-        <Text style={[styles.reportClose, { color: theme.textMuted }]}>✕</Text>
-      </TouchableOpacity>
-    </View>
-
-    <Text style={[styles.reportSubtitle, { color: theme.textSecondary }]}>
-      Why are you reporting this user?
-    </Text>
-
-    {/* reason options */}
-    {REPORT_REASONS.map((reason) => (
-      <TouchableOpacity
-        key={reason}
-        style={[
-          styles.reportOption,
-          {
-            borderColor: reportReason === reason ? theme.primary : theme.border,
-            backgroundColor: reportReason === reason
-              ? theme.primary + "15"
-              : "transparent",
-          },
-        ]}
-        onPress={() => setReportReason(reason)}
-      >
-        <Text style={[
-          styles.reportOptionText,
-          { color: reportReason === reason ? theme.primary : theme.textPrimary }
-        ]}>
-          {reason}
-        </Text>
-        {reportReason === reason && (
-          <Text style={{ color: theme.primary }}>✓</Text>
-        )}
-      </TouchableOpacity>
-    ))}
-
-    {/* other input */}
-    {reportReason === "Other" && (
-      <TextInput
-        style={[styles.otherInput, {
-          color: theme.textPrimary,
-          backgroundColor: theme.inputBackground,
-          borderColor: theme.border,
-        }]}
-        placeholder="Describe the issue..."
-        placeholderTextColor={theme.textPlaceholder}
-        value={otherReason}
-        onChangeText={setOtherReason}
-        multiline
-        maxLength={200}
+      <ReportUserModal
+        isVisible={showReportModal}
+        username={profile.username}
+        onClose={() => setShowReportModal(false)}
       />
-    )}
-
-    {/* submit */}
-    <TouchableOpacity
-      style={[
-        styles.reportSubmit,
-        {
-          backgroundColor: reportReason ? theme.primary : theme.border,
-        },
-      ]}
-      onPress={handleReportSubmit}
-      disabled={!reportReason || isReporting}
-    >
-      {isReporting
-        ? <ActivityIndicator color="#fff" size="small" />
-        : <Text style={styles.reportSubmitText}>Submit Report</Text>
-      }
-    </TouchableOpacity>
-
-  </View>
-</Modal>
-
-
-
-
-
-
-
-
-
-
     </View>
   )
 }
@@ -423,71 +295,71 @@ const styles = StyleSheet.create({
   },
 
 
-  
 
 
-reportBackdrop: {
-  flex: 1,
-  backgroundColor: "rgba(0,0,0,0.5)",
-},
-reportSheet: {
-  borderTopLeftRadius: Radius.xl,
-  borderTopRightRadius: Radius.xl,
-  padding: Spacing.lg,
-  gap: Spacing.sm,
-},
-reportHeader: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: Spacing.xs,
-},
-reportTitle: {
-  fontSize: FontSize.lg,
-  fontWeight: FontWeight.bold,
-},
-reportClose: {
-  fontSize: 18,
-  fontWeight: FontWeight.bold,
-  padding: 4,
-},
-reportSubtitle: {
-  fontSize: FontSize.sm,
-  marginBottom: Spacing.xs,
-},
-reportOption: {
-  borderWidth: 1,
-  borderRadius: Radius.md,
-  paddingHorizontal: Spacing.md,
-  paddingVertical: Spacing.sm,
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "center",
-},
-reportOptionText: {
-  fontSize: FontSize.sm,
-  fontWeight: FontWeight.medium,
-},
-otherInput: {
-  borderWidth: 1,
-  borderRadius: Radius.md,
-  paddingHorizontal: Spacing.md,
-  paddingVertical: Spacing.sm,
-  fontSize: FontSize.sm,
-  minHeight: 80,
-  marginTop: Spacing.xs,
-},
-reportSubmit: {
-  borderRadius: Radius.md,
-  paddingVertical: Spacing.md,
-  alignItems: "center",
-  marginTop: Spacing.sm,
-},
-reportSubmitText: {
-  color: "#fff",
-  fontSize: FontSize.md,
-  fontWeight: FontWeight.bold,
-}
+
+  reportBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  reportSheet: {
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  reportHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.xs,
+  },
+  reportTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+  },
+  reportClose: {
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+    padding: 4,
+  },
+  reportSubtitle: {
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.xs,
+  },
+  reportOption: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  reportOptionText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
+  otherInput: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: FontSize.sm,
+    minHeight: 80,
+    marginTop: Spacing.xs,
+  },
+  reportSubmit: {
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.md,
+    alignItems: "center",
+    marginTop: Spacing.sm,
+  },
+  reportSubmitText: {
+    color: "#fff",
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  }
 })
 
 

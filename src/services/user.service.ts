@@ -2,6 +2,7 @@
 import api from "./api"
 import { ENDPOINTS } from "@/constants/api"
 import { User, FeedApiResponse, ReviewApiResponse, DisableCode } from "@/types"
+import { UsersSearchResponse } from "@/types";
 
 
 
@@ -16,6 +17,30 @@ export const userService = {
   //  get own profile ─
   getMe: async (): Promise<User> => {
     const { data } = await api.get(ENDPOINTS.ME)
+    return data
+  },
+  getMyFollowers: async (
+    page:number,
+    page_size:20,
+    username:string
+  ): Promise<UsersSearchResponse> => {
+    const { data } = await api.get(`/followers/${username}/`,{
+      params:{
+        page:page,page_size:page_size
+      }
+    })
+    return data
+  },
+  getMyFollowing: async (
+    page:number,
+    page_size:20,
+    username:string
+  ): Promise<UsersSearchResponse> => {
+    const { data } = await api.get(`/following/${username}/`,{
+      params:{
+        page:page,page_size:page_size
+      }
+    })
     return data
   },
   changeEmailRequest: async (email: string): Promise<User> => {

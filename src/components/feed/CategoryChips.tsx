@@ -62,6 +62,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
     flexDirection: "row",
+    backgroundColor:"rgb(0,0,0,0.0)"
   },
   chip: {
     flexDirection: "row",

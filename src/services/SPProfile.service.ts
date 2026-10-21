@@ -1,6 +1,6 @@
 
 import api from "@/services/api"
-import { FeedApiResponse,ReviewApiResponse } from "@/types"
+import { FeedApiResponse,ReviewApiResponse,ProfileViwersAPIResponse } from "@/types"
 export interface PropertyProfile {
   id: string
   username: string
@@ -50,4 +50,19 @@ export const propertyProfileService = {
     })
     return data
   },
+    viewProfile: async (
+              id:string
+      ): Promise<{ message: string }> => {
+          const { data } = await api.post(`/view/profile/${id}`, {
+  
+          })
+          return data
+      },
+      getProfileViwers: async (
+  
+      ): Promise<ProfileViwersAPIResponse> => {
+          const { data } = await api.get("/list/profile-viewers/", {
+          })
+          return data
+      },
 }

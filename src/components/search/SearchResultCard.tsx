@@ -90,26 +90,22 @@ export const SearchResultCard = ({
           : 
             
            <Image
-            source={{ uri: post.videos[0]?.video }}
+            source={{ uri: post.images[0]?.image }}
             style={styles.gridImage}
             contentFit="cover"
             transition={200}
           />
         
         }
-          <Image
-            source={{ uri: post.images[0]?.image }}
-            style={styles.gridImage}
-            contentFit="cover"
-            transition={200}
-          />
+         
           {/* save button */}
           <TouchableOpacity
             style={styles.gridSaveButton}
             onPress={handleSave}
           >
             <Text style={[styles.gridSaveIcon,{color:theme.textPrimary}]}>
-              {post.is_saved ? "Save" : "Saved"}
+                    <MaterialCommunityIcons  name="bookmark"size={20} color={post.is_saved?theme.primary:"white"} />
+
             </Text>
           </TouchableOpacity>
 
@@ -209,7 +205,7 @@ export const SearchResultCard = ({
           : 
             
            <Image
-            source={{ uri: post.videos[0]?.video }}
+            source={{ uri: post.images[0]?.image }}
             style={styles.gridImage}
             contentFit="cover"
             transition={200}
@@ -286,7 +282,7 @@ export const SearchResultCard = ({
             onPress={handleSave}
           >
             <Text style={[styles.interactionIcon,{color:theme.textPrimary}]}>
-              {post.is_saved ? "Save" : "Saved"}
+            <MaterialCommunityIcons  name="bookmark"size={20} color={post.is_saved?theme.primary:theme.textMuted} />
             </Text>
           </TouchableOpacity>
         </View>

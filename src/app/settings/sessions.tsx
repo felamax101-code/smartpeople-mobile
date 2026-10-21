@@ -7,7 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
+  
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router } from "expo-router"
@@ -15,9 +15,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import api from "@/services/api"
 import {  Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
-import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { useToast } from "@/components/activityIndicator/ToastProvider"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
+import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 interface Session {
   id: string
   device: string
@@ -33,8 +34,8 @@ interface Session {
 export default function SessionsScreen() {
   const theme = useTheme()
   const queryClient = useQueryClient()
-  const [banner, setBanner] = useState<BannerState | null>(null);
   const { showToast } = useToast()
+  const {showNotifToast}=useNotificationToast()
   const { data: sessions, isLoading } = useQuery({
     queryKey: ["sessions"],
     queryFn: async (): Promise<Session[]> => {
@@ -48,17 +49,17 @@ export default function SessionsScreen() {
     mutationFn: (sessionId: string) =>
       api.delete(`/users/me/sessions/${sessionId}/`),
     onSuccess: () => {
-      showBanner("success","Session terminated")
+      showNotifToast("Session terminated","success")
       queryClient.invalidateQueries({ queryKey: ["sessions"] })
     },
-    onError: () => showBanner("error", "Failed to terminate session"),
+    onError: () => showNotifToast("Failed to terminate session","error"),
   })
 
   const terminateAllMutation = useMutation({
     mutationFn: () => api.post("/auth/logout-others/",),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] })
-      showBanner("success", "All other sessions terminated")
+      showNotifToast( "All other sessions terminated","success")
     },
   })
 
@@ -74,9 +75,7 @@ export default function SessionsScreen() {
     )
 
   }
-  const showBanner = useCallback((type: BannerType, message: string) => {
-    setBanner({ id: Date.now(), type, message });
-  }, []);
+  
   const formatTime = (dateString: string): string => {
     const date = new Date(dateString)
     const now = new Date()
@@ -92,13 +91,6 @@ export default function SessionsScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={["top"]}
     >
-      {banner && (
-        <AnimatedBanner
-          key={banner.id}
-          type={banner.type}
-          message={banner.message}
-          onHide={() => setBanner(null)}
-        />)}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.backIcon, { color: theme.textPrimary }]}>←</Text>
@@ -111,7 +103,7 @@ export default function SessionsScreen() {
 
       {isLoading ? (
         <View style={styles.loading}>
-          <ActivityIndicator color={theme.primary} />
+          <BouncingBarsIndicator color={theme.primary} />
         </View>
       ) : (
         <ScrollView
@@ -179,7 +171,7 @@ export default function SessionsScreen() {
                 <Text style={[styles.sessionDetail, { color: theme.textSecondary }]}>
                   Location: {session.location} · {session.ip_address}
                 </Text>
-                <Text style={[styles.sessionTime, { color: theme.textMuted }]}>
+                <Text style={[styles.sessionTime, { color: theme.textPrimarylight }]}>
                   🕐 {formatTime(session.last_active)}
                 </Text>
               </View>

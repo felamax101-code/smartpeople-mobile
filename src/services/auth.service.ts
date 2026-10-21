@@ -3,32 +3,40 @@ import api from "./api"
 import * as SecureStore from "expo-secure-store"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { ENDPOINTS } from "@/constants/api"
-import { RegisterPayload,LoginPayload,  LoginResponse,User } from "@/types"
+import { RegisterPayload, LoginPayload, LoginResponse, User,ProfileViwersAPIResponse ,ViewerPeriod} from "@/types"
 import { Platform } from "react-native"
 
 
 export const authService = {
 
     register: async (payload: RegisterPayload): Promise<{ success: boolean; message: string, user: any }> => {
-        const { data } = await api.post(ENDPOINTS.REGISTER, payload)
+        const { data } = await api.post(ENDPOINTS.REGISTER, payload, {
+            timeout: 150000
+        })
         return data
     },
 
     verifyEmail: async (email: string, otp: string, user_id: string): Promise<{ success: boolean }> => {
         const { data } = await api.post("/verify-email/", { email, otp, user_id })
-           if (Platform.OS === "web") {
-                await AsyncStorage.setItem("access_token", data.access_token)
-                await AsyncStorage.setItem("refresh_token", data.refresh_token)
-            }
-            else {
-                await SecureStore.setItemAsync("access_token", data.access_token)
-                await SecureStore.setItemAsync("refresh_token", data.refresh_token)
-            }
+        if (Platform.OS === "web") {
+            await AsyncStorage.setItem("access_token", data.access_token)
+            await AsyncStorage.setItem("refresh_token", data.refresh_token)
+        }
+        else {
+            await SecureStore.setItemAsync("access_token", data.access_token)
+            await SecureStore.setItemAsync("refresh_token", data.refresh_token)
+        }
         return data
     },
 
     resendOTP: async (email: string): Promise<void> => {
-        await api.post("/resend-verification/", { email })
+        await api.post("/resend-verification/", { email },
+            {
+                timeout: 150000
+            }
+
+
+        )
     },
 
     login: async (payload: LoginPayload): Promise<LoginResponse> => {
@@ -37,7 +45,7 @@ export const authService = {
         // store tokens securely if login is complete (no 2FA)
         if (data.access_token && data.refresh_token) {
 
-           if (Platform.OS === "web") {
+            if (Platform.OS === "web") {
                 await AsyncStorage.setItem("access_token", data.access_token)
                 await AsyncStorage.setItem("refresh_token", data.refresh_token)
             }
@@ -70,16 +78,16 @@ export const authService = {
             }
             else {
                 await SecureStore.deleteItemAsync("access_token")
-            await SecureStore.deleteItemAsync("refresh_token")
+                await SecureStore.deleteItemAsync("refresh_token")
             }
-           
+
         }
     },
 
 
 
     verify2FA: async (payload: {
-        temp_token: string
+        resolvedTempToken: string
         code: string
         trust_device: boolean
     }): Promise<{ success: boolean; warning?: string }> => {
@@ -151,7 +159,29 @@ export const authService = {
         })
         return data
     },
+    viewProfile: async (
+            id:string
+    ): Promise<{ message: string }> => {
+        const { data } = await api.post(`/view/profile/${id}/`, {
 
+        })
+        return data
+    },
+    getProfileViewers: async (
+  page = 1,
+  pageSize = 20,
+  period: ViewerPeriod = "all"
+): Promise<ProfileViwersAPIResponse> => {
+  const { data } = await api.get("/list/profile-viewers/", {
+    params: {
+      page,
+      page_size: pageSize,
+      // omit the param for "all" so the backend returns all-time
+      ...(period !== "all" && { period }),
+    },
+  });
+  return data;
+},
 }
 
 

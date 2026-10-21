@@ -1,8 +1,8 @@
 export interface RegisterPayload {
-    name: string
-    username: string
-    email: string
-    password: string
+  name: string
+  username: string
+  email: string
+  password: string
 
 }
 export interface ListingFilterValues {
@@ -10,7 +10,7 @@ export interface ListingFilterValues {
   house_type?: string
   min_price?: string
   max_price?: string
-  category?:string
+  category?: string
   condition?: PostCondition
   negotiable?: boolean
   sort?: SortOption
@@ -22,17 +22,17 @@ export interface ListingFilterValues {
 }
 
 export interface LoginPayload {
-    email: string
-    password: string
+  email: string
+  password: string
 }
 
 export interface LoginResponse {
-    success: boolean
-    requires_2fa: boolean
-    message: string
-    // only present when requires_2fa = true
-    temp_token?: string
-    method?: "email" | "sms" | "totp"
+  success: boolean
+  requires_2fa: boolean
+  message: string
+  // only present when requires_2fa = true
+  temp_token?: string
+  method?: "email" | "sms" | "totp"
 }
 export interface User {
   id: string
@@ -50,13 +50,15 @@ export interface User {
   total_posts: number
   rating: number
   reviews_count: number
-//   verification_level: VerificationLevel
-//   verification_badge: VerificationBadge
+  //   verification_level: VerificationLevel
+  //   verification_badge: VerificationBadge
   can_message: boolean        // from privacy settings
   can_follow: boolean
   created_at: string
-  member_since?:string
+  member_since?: string
   location: string | null
+  profile_views_count: number
+  can_view_profile_viewers: boolean
 }
 
 
@@ -66,14 +68,14 @@ export interface FeedApiResponse {
   success: boolean;
   data: {
     posts: Post[];
-    pagination:PaginationMeta
+    pagination: PaginationMeta
   };
 }
 export interface UsersSearchResponse {
- success: boolean;
- data:{
-  users: SearchableUser[]
-     pagination: {
+  success: boolean;
+  data: {
+    users: SearchableUser[]
+    pagination: {
       page: number;
       page_size: number;
       total: number;
@@ -81,8 +83,31 @@ export interface UsersSearchResponse {
       has_next: boolean;
       has_prev: boolean;
     };
-}}
+  }
+}
+export interface ProfileViwersAPIResponse {
+  success: boolean;
+  data: {
+    viewers: ProfileViewer[]
+    pagination: {
+      page: number;
+      page_size: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  }
+}
 
+export interface ProfileViewer {
+  id: string
+  username: string
+  view_count: number
+  last_viewed: string
+  avatar: string
+}
+export type ViewerPeriod = "week" | "month" | "all";
 export interface PaginatedResponse<T> {
   count: number
   next: string | null
@@ -95,32 +120,45 @@ export interface CommentApiResponse {
   success: boolean;
   data: {
     comments: Comment[];
-    pagination:PaginationMeta
+    pagination: PaginationMeta
   };
 }
-export interface Member extends UserSummary{
-  role?:"admin"|"moderator"|"member"
+export interface CommentImage {
+  url: string
+  width: number
+  height: number
 }
 
-export interface Invites{
-  id:string;
-  community_name:string;
-  created_at:string;
-  community_slug:string;
+export interface PickedImage {
+  uri: string
+  width: number
+  height: number
+  mimeType: string
 }
 
-export interface MyInvites{
+export interface Member extends UserSummary {
+  role?: "admin" | "moderator" | "member"
+}
+
+export interface Invites {
+  id: string;
+  community_name: string;
+  created_at: string;
+  community_slug: string;
+}
+
+export interface MyInvites {
   success: boolean;
   data: {
     invites: Invites[];
-    pagination:PaginationMeta
+    pagination: PaginationMeta
   };
 }
-export interface MyRequests{
+export interface MyRequests {
   success: boolean;
   data: {
     requests: Invites[];
-    pagination:PaginationMeta
+    pagination: PaginationMeta
   };
 }
 
@@ -128,7 +166,7 @@ export interface ReviewApiResponse {
   success: boolean;
   data: {
     reviews: Review[];
-    pagination:PaginationMeta
+    pagination: PaginationMeta
   };
 }
 
@@ -139,34 +177,34 @@ export interface ReviewApiResponse {
 
 
 export interface PendingRequestsResponse {
- success: boolean;
+  success: boolean;
   data: {
-    join_requests:PendingRequest[];
+    join_requests: PendingRequest[];
     pagination: PaginationMeta
   };
 }
 
 
 export interface UsersSearchResponse {
- success: boolean;
- data:{
-  users: SearchableUser[]
+  success: boolean;
+  data: {
+    users: SearchableUser[]
     pagination: PaginationMeta
- }
+  }
 }
-export interface PaginationMeta{
-   page: number;
-      page_size: number;
-      total: number;
-      total_pages: number;
-      has_next: boolean;
-      has_prev: boolean;
+export interface PaginationMeta {
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
 }
 export interface PendingInvitesResponse {
- success: boolean;
+  success: boolean;
   data: {
-    pending_invites:PendingInvite[];
-    
+    pending_invites: PendingInvite[];
+
     pagination: PaginationMeta
   };
 }
@@ -227,7 +265,7 @@ export interface PostVideo {
   id: string
   video: string
   order: number
-  processing_status:"uploading" | "processing" | "done" | "failed"
+  processing_status: "uploading" | "processing" | "done" | "failed"
 }
 
 export interface Report {
@@ -282,19 +320,31 @@ export interface Post {
   is_saved: boolean           // current user saved this? (null if guest)
   is_upvoted: boolean
   created_at: string
-  post_type:"text"|"video"|"image",
-  listing_type:string
-  monthly_installment:string
-  deposit:string
-  rooms:string
-  client_upload_id?:string
-  rejection_reason?:string
-  property_profile:PropertyProfile
+  post_type: "text" | "video" | "image",
+  listing_type: string
+  monthly_installment: string
+  deposit: string
+  rooms: string
+  client_upload_id?: string
+  rejection_reason?: string
+  property_profile: PropertyProfile
+  is_harmful?: boolean
+  is_AI_generated?: boolean
+  allow_download?: boolean
+  sound?: Sound
 
 }
 
 //  Comment 
-
+export interface Sound {
+  id: string
+  title: string
+  creator: string
+  preview_url: string
+  duration: string
+  start_offset: string
+  usage_count: number
+}
 export interface Reply_to {
 
   id: string | null
@@ -302,14 +352,37 @@ export interface Reply_to {
 }
 
 
-interface RepliedToComment{
-  body :string
+interface RepliedToComment {
+  body: string
+  image: string
+  sticker:Sticker|null
 }
+
+/**
+ * "giphy"  -> discovered through the backend proxy
+ * "user"   -> created/uploaded by users, hosted by your backend (future)
+ *
+ * The client never decides what is trusted: the backend re-validates the
+ * sticker when a comment is posted and returns its own stored metadata.
+ */
+export type StickerSource = "giphy" | "user"
+
+export interface Sticker {
+  id: string            // provider id (giphy) or your own sticker id (user)
+  source: StickerSource
+  url: string           // full-size animated/static asset
+  preview_url: string   // small asset for the picker grid
+  width: number
+  height: number
+}
+
+// Also add to your existing Comment interface:
+//   sticker?: Sticker | null
 export interface Comment {
   id: string
   body: string
   parent_id: string | null
-    replied_to: RepliedToComment|null
+  replied_to: RepliedToComment | null
 
   author: {
     id: string
@@ -325,8 +398,10 @@ export interface Comment {
   is_deleted: Boolean
   is_edited: Boolean
   created_at: string
-  has_upvoted: Boolean,
+  has_upvoted: Boolean
   has_downvoted: Boolean
+  image: string | null
+ sticker?: Sticker | null
 
 }
 
@@ -413,13 +488,13 @@ export interface UserSummary {
 
 export interface PendingRequest extends UserSummary {
   id: string;
-  requester:UserSummary[]
+  requester: UserSummary[]
   // id of the join-request record (not the user id)
 }
 
 export interface PendingInvite {
   id: string; // id of the invite record (not the user id)
-  invited:UserSummary
+  invited: UserSummary
 }
 
 
@@ -429,7 +504,7 @@ export interface NewsItem {
   id: string;
   title: string;
   summary: string;
-  slug:string
+  slug: string
 
   /**
    * Full rich text — only present when contentType === 'internal'.
@@ -497,10 +572,10 @@ export interface VoteResponse {
 }
 
 
-export type AdminRole="admin"| "moderator"|"member"
+export type AdminRole = "admin" | "moderator" | "member"
 
-export interface SearchableUser extends UserSummary{
-  is_member:boolean
+export interface SearchableUser extends UserSummary {
+  is_member: boolean
 }
 
 
@@ -525,8 +600,8 @@ export interface MyModeratorRoles {
 export interface PanelItem {
   key: string;
   label: string;
-  info?:string;
-  route:(params:{slug:string,communityslug?:string})=>string; // expo-router path this button navigates to
+  info?: string;
+  route: (params: { slug: string, communityslug?: string }) => string; // expo-router path this button navigates to
   // Roles (from MyModeratorRoles) that unlock this button on the
   // MODERATOR panel. Admins always see every item regardless of this
   // field. Leave undefined/empty to make an item admin-only.

@@ -1,5 +1,5 @@
 
-import React from "react"
+import React, { useState } from "react"
 import {
   View,
   Text,
@@ -14,6 +14,10 @@ import { User } from "@/types"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { getAvatarColor } from "@/hooks/useUserGenerateAvatarColor"
+import FollowModal from "./FollowModal"
+import ProfileViewersModal from "@/components/profile/ProfileViewerModal"
+import { CommentImageViewer } from "../coments/ImageViewer"
+import { useNotificationToast } from "../activityIndicator/ToastNotification"
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
 const BANNER_HEIGHT = 140
 const AVATAR_SIZE = 80
@@ -39,7 +43,10 @@ export const ProfileHeader = ({
   isMessageButtonDisabled
 }: Props) => {
   const theme = useTheme()
-
+  const [folloWModalVisible, setfolloWModalVisible] = useState<boolean>(false)
+  const [viewersModalVisible, setviewrsModalVisible] = useState<boolean>(false)
+  const [imageViewerVisible, setimageViewerVisbble] = useState<boolean>(false)
+  const { showNotifToast } = useNotificationToast()
   // format large numbers — 1200 → 1.2k
   const formatCount = (n: number | null): string => {
     if (n === null) return "—"   // hidden by privacy
@@ -47,7 +54,6 @@ export const ProfileHeader = ({
     return String(n)
   }
   const memberSince = new Date(profile.member_since !== undefined ? profile.member_since : profile.created_at).toLocaleDateString()
-
 
 
   return (
@@ -59,9 +65,40 @@ export const ProfileHeader = ({
         {/* placeholder gradient banner — replace with actual banner image later */}
         <View style={[styles.bannerGradient, { backgroundColor: theme.primary }]} />
       </View>
+      {isOwn && <TouchableOpacity
+        onPress={() => setviewrsModalVisible(true)}
+        style={[styles.profileViewers, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}>
 
+        <View
+          style={[{
+            position: "absolute", backgroundColor: "#fff", top: -14, width: 20, height: 20, right: -5, borderRadius: Radius.full,
+            borderWidth: 1, borderColor: theme.ALLwarning, justifyContent: "center",
+            alignItems: "center",
+          }]}
+        >
+          <Text
+            style={[{ color: theme.primary, fontWeight: FontWeight.bold }]}
+          >
+            {profile.profile_views_count > 99 ? "99+" : profile.profile_views_count}
+          </Text>
+        </View>
+        <Text style={[{ color: theme.primary, fontWeight: FontWeight.bold }]}>
+          Profile Viewers
+        </Text>
+
+      </TouchableOpacity>}
       {/*  avatar  */}
-      <View style={styles.avatarWrapper}>
+      <TouchableOpacity
+        onPress={() => {
+          if (!profile.avatar) {
+            showNotifToast("No profile picture","success")
+          } else {
+            setimageViewerVisbble(true)
+          }
+        }
+
+        }
+        style={styles.avatarWrapper}>
 
         {profile.avatar != null ? (
           <Image
@@ -74,7 +111,7 @@ export const ProfileHeader = ({
             style={[styles.usernamePlacaholder, { backgroundColor: getAvatarColor(profile.username) }]}
           >
             <Text
-              style={[{ color: "white" ,fontSize:FontSize.lg,fontWeight:700,fontFamily:"Poppins"}]}
+              style={[{ color: "white", fontSize: FontSize.xxxl + 20, fontWeight: 700, fontFamily: "Poppins" }]}
             >{profile.username.charAt(0)}</Text>
           </View>
         )}
@@ -84,7 +121,7 @@ export const ProfileHeader = ({
           styles.onlineIndicator,
           { backgroundColor: Colors.success, borderColor: theme.surface }
         ]} /> */}
-      </View>
+      </TouchableOpacity>
 
       {/*  info section  */}
       <View style={styles.infoSection}>
@@ -109,7 +146,7 @@ export const ProfileHeader = ({
               🏳️ {profile.location}
             </Text>
           )}
-          <Text style={[styles.meta, { color: theme.textPrimary,fontFamily:"Consolas" }]}>
+          <Text style={[styles.meta, { color: theme.textPrimary, fontFamily: "Consolas" }]}>
             Joined: {memberSince}
           </Text>
         </View>
@@ -124,7 +161,9 @@ export const ProfileHeader = ({
         {/*  stats row ─ */}
         <View style={[styles.statsRow, { borderColor: theme.border }]}>
           {/* followers */}
-          <TouchableOpacity style={styles.stat}>
+          <TouchableOpacity style={styles.stat}
+            onPress={() => setfolloWModalVisible(true)}
+          >
             <Text style={[styles.statValue, { color: theme.textPrimary }]}>
               {formatCount(profile.followers)}
             </Text>
@@ -136,7 +175,7 @@ export const ProfileHeader = ({
           <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
 
           {/* following */}
-          <TouchableOpacity style={styles.stat}>
+          <TouchableOpacity style={styles.stat} onPress={() => setfolloWModalVisible(true)}>
             <Text style={[styles.statValue, { color: theme.textPrimary }]}>
               {formatCount(profile.following)}
             </Text>
@@ -231,6 +270,21 @@ export const ProfileHeader = ({
         )}
 
       </View>
+      <FollowModal
+        isVisible={folloWModalVisible}
+        onClose={() => setfolloWModalVisible(false)}
+        username={profile.username}
+      />
+      <ProfileViewersModal
+        isVisible={viewersModalVisible}
+        onClose={() => setviewrsModalVisible(false)}
+        isOwn={isOwn}
+      />
+      <CommentImageViewer
+        visible={imageViewerVisible}
+        image_url={profile.avatar}
+        onClose={() => setimageViewerVisbble(false)}
+      />
     </View>
 
   )
@@ -248,11 +302,22 @@ const styles = StyleSheet.create({
   bannerGradient: {
     flex: 1,
     opacity: 0.3,
+    backgroundColor: "#020A30",
   },
   avatarWrapper: {
     position: "absolute",
     top: BANNER_HEIGHT - AVATAR_SIZE / 2,
     left: Spacing.lg,
+  },
+  profileViewers: {
+    position: "absolute",
+    top: 150,
+    right: Spacing.lg,
+    borderRadius: Radius.md,
+    borderWidth: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+
   },
   avatar: {
     width: AVATAR_SIZE,
@@ -351,16 +416,16 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
   },
-    usernamePlacaholder: {
-        width: AVATAR_SIZE,
+  usernamePlacaholder: {
+    width: AVATAR_SIZE,
     height: AVATAR_SIZE,
-    borderRadius:"50%",
+    borderRadius: "50%",
     borderWidth: 3,
     backgroundColor: Colors.gray[200],
     display: "flex",
     alignItems: 'center',
     justifyContent: "center",
-    
+
   },
 })
 

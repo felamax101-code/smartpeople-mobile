@@ -13,12 +13,11 @@ import {
 } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useMutation } from "@tanstack/react-query"
-import { OTPInput } from "@/components/ui/OTPInput"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { authService } from "@/services/auth.service"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
-
+import { FormInput } from "@/components/ui/FormInput"
 const RESEND_COOLDOWN = 60  // seconds before user can resend
 
 export default function VerifyEmailScreen() {
@@ -64,7 +63,7 @@ export default function VerifyEmailScreen() {
       authService.verifyEmail(email, otp, user_id),
     onSuccess: async () => {
       // email verified — now log them in
-      
+
       const user = await authService.getMe()
       setUser(user)
       // navigate back to feed
@@ -75,9 +74,9 @@ export default function VerifyEmailScreen() {
       const status = error?.response.status
       const responseData = error?.response?.data
       const fieldErrors: typeof error = {}
-      if (status==429){
+      if (status == 429) {
 
-        fieldErrors.general="Attempts excceded at this time window .Try again after some some time"
+        fieldErrors.general = "Attempts excceded at this time window .Try again after some some time"
       }
       // Check if error is in the nested { error: { field: [messages] } } format
       if (responseData?.error && typeof responseData.error === 'object') {
@@ -134,9 +133,9 @@ export default function VerifyEmailScreen() {
       const status = error?.response.status
       const responseData = error?.response?.data
       const fieldErrors: typeof error = {}
-      if (status==429){
+      if (status == 429) {
 
-        fieldErrors.general="Attempts exceeded.Try again later"
+        fieldErrors.general = "Attempts exceeded.Try again later"
       }
       // Check if error is in the nested { error: { field: [messages] } } format
       if (responseData?.error && typeof responseData.error === 'object') {
@@ -194,114 +193,112 @@ export default function VerifyEmailScreen() {
 
   return (
     <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/*  header  */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Text style={[styles.backIcon, { color: theme.textPrimary }]}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.stepIndicator}>
-          <View style={[styles.step, { backgroundColor: theme.border }]} />
-          <View style={[styles.step, styles.stepActive, { backgroundColor: theme.primary }]} />
-        </View>
-      </View>
-
-      {/*  content ─ */}
-      <View style={styles.mainContent}>
-        <Text style={styles.emailIcon}>📧</Text>
-
-        <Text style={[styles.title, { color: theme.textPrimary }]}>
-          Check your email
-        </Text>
-
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          We sent a 6-digit verification code to
-        </Text>
-        <Text style={[styles.emailText, { color: theme.primary }]}>
-          {email}
-        </Text>
-
-        {/* OTP input */}
-        <View style={styles.otpContainer}>
-          <OTPInput
-            value={otp}
-            onChange={(val) => {
-              setOtp(val)
-              if (error)     setError({})
-
-            }}
-            hasError={!!error}
-          />
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/*  header  */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Text style={[styles.backIcon, { color: theme.textPrimary }]}>←</Text>
+          </TouchableOpacity>
+          <View style={styles.stepIndicator}>
+            <View style={[styles.step, { backgroundColor: theme.border }]} />
+            <View style={[styles.step, styles.stepActive, { backgroundColor: theme.primary }]} />
+          </View>
         </View>
 
+        {/*  content ─ */}
+        <View style={styles.mainContent}>
+          <Text style={styles.emailIcon}>📧</Text>
+
+          <Text style={[styles.title, { color: theme.textPrimary }]}>
+            Check your email
+          </Text>
+
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            We sent a 6-digit verification code to
+          </Text>
+          <Text style={[styles.emailText, { color: theme.primary }]}>
+            {email}
+          </Text>
+          {/* error */}
+          {error && (
+            <View style={[styles.errorBanner, { backgroundColor: theme.errorLight }]}>
+              {Object.values(error).filter(Boolean).length > 0 && (
+                <Text style={[styles.errorText, { color: theme.error }]}>
+                  {Object.values(error).filter(Boolean).join(" • ")}
+                </Text>
+              )}
+            </View>
+          )}
+          {/* OTP input */}
+          <View style={styles.otpContainer}>
+
+            <FormInput
+              label="OTP"
+              value={otp}
+              onChangeText={(t) => {
+                setOtp(t)
+              }}
+              keyboardType="default"
+              placeholder="6-digit code"
+              returnKeyType="done"
+              autoCapitalize="characters"
+            />
+          </View>
 
 
+          {/* loading indicator */}
+          {isLoading && (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={theme.primary} size="small" />
+              <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+                Verifying...
+              </Text>
+            </View>
+          )}
 
-
-        {/* error */}
-        {error && (
-          <View style={[styles.errorBanner, { backgroundColor: theme.errorLight }]}>
-            {Object.values(error).filter(Boolean).length > 0 && (
-              <Text style={[styles.errorText, { color: theme.error }]}>
-                {Object.values(error).filter(Boolean).join(" • ")}
+          {/* resend section */}
+          <View style={styles.resendSection}>
+            {canResend ? (
+              <TouchableOpacity
+                onPress={handleResend}
+                disabled={resendMutation.isPending}
+              >
+                <Text style={[styles.resendLink, { color: theme.primary }]}>
+                  {resendMutation.isPending ? "Sending..." : "Resend code"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={[styles.resendCooldown, { color: theme.textMuted }]}>
+                Resend code in {formatCooldown(cooldown)}
               </Text>
             )}
           </View>
-        )}
 
-        {/* loading indicator */}
-        {isLoading && (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color={theme.primary} size="small" />
-            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-              Verifying...
-            </Text>
-          </View>
-        )}
-
-        {/* resend section */}
-        <View style={styles.resendSection}>
-          {canResend ? (
-            <TouchableOpacity
-              onPress={handleResend}
-              disabled={resendMutation.isPending}
-            >
-              <Text style={[styles.resendLink, { color: theme.primary }]}>
-                {resendMutation.isPending ? "Sending..." : "Resend code"}
+          {/* wrong email */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.wrongEmailButton}
+          >
+            <Text style={[styles.wrongEmailText, { color: theme.textSecondary }]}>
+              Wrong email?{" "}
+              <Text style={{ color: theme.primary, fontWeight: FontWeight.bold }}>
+                Go back
               </Text>
-            </TouchableOpacity>
-          ) : (
-            <Text style={[styles.resendCooldown, { color: theme.textMuted }]}>
-              Resend code in {formatCooldown(cooldown)}
             </Text>
-          )}
+          </TouchableOpacity>
         </View>
 
-        {/* wrong email */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.wrongEmailButton}
-        >
-          <Text style={[styles.wrongEmailText, { color: theme.textSecondary }]}>
-            Wrong email?{" "}
-            <Text style={{ color: theme.primary, fontWeight: FontWeight.bold }}>
-              Go back
-            </Text>
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-    </ScrollView>
+      </ScrollView>
     </KeyboardAvoidingView>
   )
 }
@@ -339,7 +336,7 @@ const styles = StyleSheet.create({
   mainContent: {
     flex: 1,
     alignItems: "center",
-    
+
     gap: Spacing.md,
   },
   emailIcon: {

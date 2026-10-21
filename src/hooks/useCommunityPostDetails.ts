@@ -89,7 +89,7 @@ export const useCommunityPostDetail = (slug: string,cslug:string) => {
 
   // ── optimistic save ───────────────────────────────────────
   const saveMutation = useMutation({
-    mutationFn: () => communityservice.toggleSave(post!.id),
+    mutationFn: () => communityservice.toggleSave(post!.slug),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["com-post", slug] })
       const previous = queryClient.getQueryData(["com-post", slug])

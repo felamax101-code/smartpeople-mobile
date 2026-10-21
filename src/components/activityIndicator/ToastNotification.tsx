@@ -31,14 +31,14 @@ export const ToastNotificationProvider = ({ children }: { children: React.ReactN
     setToast({ message, type })
 
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start()
 
     hideTimer.current = setTimeout(() => {
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 20, duration: 200, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 20, duration: 600, useNativeDriver: true }),
       ]).start(() => setToast(null))
     }, DISPLAY_DURATION)
   }, [opacity, translateY])

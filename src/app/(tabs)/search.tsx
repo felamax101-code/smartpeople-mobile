@@ -25,6 +25,7 @@ import { messagingService } from "@/services/messaging.service"
 import { UserRow } from "@/components/community/UserRow"
 import { ActionButton } from "@/components/community/ActionButton"
 import { useAuthStore } from "@/stores/auth.store"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
 type TABS = "posts" | "users" | "communities"
 
@@ -202,7 +203,9 @@ useEffect(()=>{
                     Keyboard.dismiss()
                   }}
                 >
-                  <Text style={styles.recentIcon}></Text>
+                  <Text style={styles.recentIcon}>
+                    <MaterialCommunityIcons color={theme.primary} name="history"/>
+                  </Text>
                   <Text style={[styles.recentText, { color: theme.textPrimary }]}>
                     {term}
                   </Text>
@@ -291,7 +294,7 @@ useEffect(()=>{
             style={[styles.input, { color: theme.textPrimary }]}
             value={query}
             onChangeText={setQuery}
-            placeholder="Search posts, brands, sellers..."
+            placeholder="Search posts, people..."
             placeholderTextColor={theme.textPlaceholder}
             autoFocus
             returnKeyType="search"
@@ -564,17 +567,17 @@ const styles = StyleSheet.create({
   recentRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: Spacing.md,
-    gap: Spacing.md,
+    paddingVertical: Spacing.xs,
+    gap: Spacing.xs,
     borderBottomWidth: 1,
   },
   recentIcon: { fontSize: 16 },
   recentText: {
     flex: 1,
-    fontSize: FontSize.md,
+    fontSize: FontSize.xs,
   },
   removeIcon: {
-    fontSize: 13,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
   },
   trendingGrid: {

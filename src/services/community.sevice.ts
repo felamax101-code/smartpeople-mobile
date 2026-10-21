@@ -13,7 +13,7 @@ import {
   Comment, MyModeratorRoles,
   MyInvites,MyRequests,
   FeedFilters, PendingRequestsResponse, PendingInvitesResponse, UsersSearchResponse,
-  FeedApiResponse, CommentApiResponse,
+  FeedApiResponse, CommentApiResponse,PickedImage,Sticker
 } from "@/types"
 import { GroupSuggestion, CommunityInfo } from "@/components/community/suggestion"
 
@@ -93,8 +93,42 @@ export interface CreateGroupResponse {
   id: string
   slug?: string
 }
+const stickerFields = (sticker?: Sticker | null): Record<string, string> =>
+  sticker
+    ? {
+        sticker_id: sticker.id,
+        sticker_source: sticker.source,
+        sticker_url: sticker.url,
+        sticker_preview_url: sticker.preview_url,
+        sticker_width: String(sticker.width),
+        sticker_height: String(sticker.height),
+      }
+    : {}
+const buildCommentForm = (
+  body: string,
+  image?: PickedImage | null,
+  extra: Record<string, string | undefined> = {}
+): FormData => {
+  const form = new FormData()
 
+  if (body) form.append("body", body)
 
+  Object.entries(extra).forEach(([key, value]) => {
+    if (value) form.append(key, value)
+  })
+
+  if (image) {
+    form.append("image", {
+      uri: image.uri,
+      name: `comment-${Date.now()}.jpg`,
+      type: image.mimeType,
+    } as any) // React Native's FormData file shape
+    form.append("image_width", String(image.width))
+    form.append("image_height", String(image.height))
+  }
+
+  return form
+}
 export const communityservice = {
 
   //  feed 
@@ -208,7 +242,7 @@ export const communityservice = {
   reportPost: async (Id: any, reason: string, description: string): Promise<void> => {
     const { data } = await api.post(`/groups/post/${Id}/report/`, { reason, description }
     )
-    return data
+        return data
   },
 
   reportUser: async (username: string, reason: string, description: string): Promise<{ message: string }> => {
@@ -226,11 +260,20 @@ export const communityservice = {
     const { data } = await api.delete(`/groups/block/${id}/`)
     return data
   },
-  postComment: async (slug: string, body: string): Promise<Comment> => {
-    const { data } = await api.post(`/groups/post/${slug}/comments/`, { body })
-    return data
-  },
-
+  postComment: async (
+   slug: string,
+   body: string,
+   image?: PickedImage | null,
+   sticker?:Sticker|null
+ ): Promise<Comment> => {
+const { data } = await api.post(
+      `/groups/post/${slug}/comments/`, 
+     buildCommentForm(body, image,stickerFields(sticker)),
+     { headers: { "Content-Type": "multipart/form-data" } }
+   )
+   return data
+  
+ },
   //  comment votes ─
   voteComment: async (
     commentId: string,
@@ -253,19 +296,27 @@ export const communityservice = {
     return data
   },
 
-  postReply: async (
-    slug: string,
-    commentId: string,
-    body: string,
-    replyToId?: string,  // optional — who specifically being replied to
-    replied_to_comment_id?:string
-  ): Promise<Comment> => {
-    const { data } = await api.post(
-      `/groups/post/${slug}/comments/${commentId}/reply/`,
-      { body, reply_to_id: replyToId ,replied_to_comment_id:replied_to_comment_id}
-    )
-    return data
-  },
+ postReply: async (
+  slug: string,
+  commentId: string,
+  body: string,
+  replyToId?: string, // optional: who specifically is being replied to
+  replied_to_comment_id?: string,
+  image?: PickedImage | null,
+  sticker?:Sticker|null
+): Promise<Comment> => {
+
+  const { data } = await api.post(
+    `/groups/post/${slug}/comments/${commentId}/reply/`,
+    buildCommentForm(body, image, {
+      reply_to_id: replyToId,
+      replied_to_comment_id,
+      ...stickerFields(sticker),
+    }),
+    { headers: { "Content-Type": "multipart/form-data" } }
+  )
+  return data
+},
 
 
 

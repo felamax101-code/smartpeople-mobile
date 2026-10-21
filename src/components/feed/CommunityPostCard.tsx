@@ -12,10 +12,10 @@ import {
   BackHandler
 } from "react-native"
 import { Image } from "expo-image"  // expo-image has better caching than RN Image
-import { useRouter, useNavigation ,useFocusEffect} from "expo-router"
+import { useRouter, useNavigation, useFocusEffect } from "expo-router"
 import { Post } from "@/types"
 import * as Clipboard from "expo-clipboard"
-
+import ReportPostModal from "../reportpost/ReportPostModal"
 import { Colors, Spacing, FontSize, FontWeight, Radius } from "@/constants/colors"
 import { ImageCarousel } from "./ImageCarousel"
 // import { VerifiedBadge } from "@/components/ui/VerifiedBadge"
@@ -55,6 +55,8 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
   const { gatedAction } = useAuthGate()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
+
+  const isOwn = user && user.username === post.owner.username
   const theme = useTheme()
   const router = useRouter()
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "downloading" | "success" | "error">("idle")
@@ -63,14 +65,14 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
 
   //  upvote 
   const handleUpvote = useCallback(() => {
-   
+
     gatedAction(
       { type: "upvote", postSlug: post.slug },
       async () => {
-         onUpvote?.(post.slug, !post.is_upvoted)
+        onUpvote?.(post.slug, !post.is_upvoted)
         try {
           const result = await communityservice.toggleUpvote(post.slug)
-          
+
         } catch (error) {
         }
       }
@@ -79,14 +81,14 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
 
   //  save 
   const handleSave = useCallback(() => {
-   
+
     gatedAction(
       { type: "save", postId: post.id, postSlug: post.slug },
       async () => {
-         onSave?.(post.slug, true)
+        onSave?.(post.slug, true)
         try {
-          const result = await communityservice.toggleSave(post.id)
-          showNotifToast("Saved to your profile","success")
+          const result = await communityservice.toggleSave(post.slug)
+          showNotifToast("Saved to your profile", "success")
           // onSave?.(post.slug, result.saved)
         } catch (error) {
         }
@@ -97,6 +99,8 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
   const [isApproving, setIsApproving] = useState<boolean>(false)
   const [isrejecting, setIsRejecting] = useState<boolean>(false)
   const [rejetionReason, setRejectionReason] = useState<string>("")
+  const [moreOptionsVisible, setMoreOptionsVisisble] = useState<boolean>(false)
+
   const [reasonInputVisible, setReasonInputVisble] = useState<boolean>(false)
   const [inputHeight, setInputHeight] = useState<number>(58)
   const [expanded, setExpanded] = useState<boolean>(false)
@@ -254,7 +258,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
       }
     })
   }, [post.slug])
- useFocusEffect(
+  useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
         if (shareModalVisible) {
@@ -284,22 +288,26 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
 
       {/*  media carousel  */}
       <View ref={carouselRef}>
-        <TouchableOpacity
+        <View
           style={styles.userRow}
-          onPress={() => router.push(`/profile/${post.owner?.username}`)}
-          activeOpacity={0.7}
+
         >
-          {post.owner.avatar === null ? (
-            <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
-              <Text>{post.owner.username.charAt(0)}</Text>
-            </View>
-          ) : (
-            <Image
-              source={{ uri: post.owner.avatar }}
-              style={styles.avatar}
-              transition={200}
-            />
-          )}
+          <TouchableOpacity
+
+            onPress={() => router.push((user && user.username === post.owner.username) ? `/profile` : `/profile/${post.owner.username}`)}
+            activeOpacity={0.7}>
+            {post.owner.avatar === null ? (
+              <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
+                <Text style={[{ color: "#fff", fontSize: FontSize.xl, fontWeight: FontWeight.bold }]}>{post.owner.username.charAt(0)}</Text>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: post.owner.avatar }}
+                style={styles.avatar}
+                transition={200}
+              />
+            )}
+          </TouchableOpacity>
 
           <View style={styles.userInfo}>
             <Text style={[styles.userName, { color: theme.primary }]}>sc/</Text>
@@ -310,9 +318,14 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
           <Text style={styles.timeAgo}>
             {formatTimeAgo(post.created_at)}
           </Text>
-        </TouchableOpacity>
+          {!isOwn && <TouchableOpacity
+            onPress={(e) => { e.stopPropagation(); setMoreOptionsVisisble(true) }}
+          >
+            <MaterialCommunityIcons name="dots-vertical" size={20} color={theme.primary} />
+          </TouchableOpacity>}
+        </View>
 
-        <TouchableOpacity  activeOpacity={0.97}>
+        <TouchableOpacity activeOpacity={0.97}>
           {post.post_type === "text" ? (
 
 
@@ -322,7 +335,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
               </View>
 
               <View>
-                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description,300) )}</Text>
+                <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description, 300))}</Text>
               </View>
               {post.description.length > 100 && (
                 <TouchableOpacity
@@ -338,12 +351,23 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
           ) : (
             <>
               <View style={[styles.textConatiner]}>
-                <View>
-                  <Text style={[styles.textTitle, { color: theme.textPrimary }]}>{post.name}</Text>
+                <View
+                  style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
+                >
+                  <Text style={[styles.textTitle, { color: theme.textPrimary }]}>{post.name.slice(0, 30)}{post.name.length > 30 ? "..." : null}</Text>
+                  {post.sound && (
+                    <View
+                      style={[{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: Radius.md, borderColor: theme.textPlaceholder, paddingHorizontal: 3 }]}
+                    >
+                      <MaterialCommunityIcons name="music-note" size={14} color={theme.primary} />
+
+                      <Text style={[, { color: theme.textPrimary, fontSize: FontSize.sm }]}>{post.sound?.title.slice(0, 11) ?? "sound"}{post.sound?.title?.length > 11 ? "..." : null}</Text>
+                    </View>
+                  )}
                 </View>
 
                 <View>
-                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description) )}</Text>
+                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description))}</Text>
                 </View>
                 {post.description.length > 100 && (
                   <TouchableOpacity
@@ -368,6 +392,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
                   setActiveIndex(index)
                 }}
                 communityslug={communityslug}
+                sound_url={post?.sound?.preview_url}
               />
             </>
           )}
@@ -439,7 +464,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
               {/* share — no auth required */}
               <TouchableOpacity
                 style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-                onPress={()=>setShareModalVisible((v)=>!v)}
+                onPress={() => setShareModalVisible((v) => !v)}
                 activeOpacity={0.7}
               >
                 {shareModalVisible && <View
@@ -449,19 +474,19 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
                   }]}
                 >
                   <TouchableOpacity
-                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, borderWidth: 0,justifyContent:"space-around" }]}
+                    style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, borderWidth: 0, justifyContent: "space-around" }]}
                     onPress={() => setShareModalVisible((false))}
                     activeOpacity={0.7}
                   >
                     <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }]}>
                       Select share action
-                       </Text>
-                      <View
-                      style={[{backgroundColor:theme.primary,borderRadius:Radius.md,paddingHorizontal:3}]}
-                      >
-                    <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
-                      Cancel
                     </Text>
+                    <View
+                      style={[{ backgroundColor: theme.primary, borderRadius: Radius.md, paddingHorizontal: 3 }]}
+                    >
+                      <Text style={[{ color: theme.textPrimary, fontSize: FontSize.xs, fontWeight: FontWeight.bold }]}>
+                        Cancel
+                      </Text>
                     </View>
                   </TouchableOpacity>
                   {/* {!isSP && <TouchableOpacity
@@ -536,7 +561,7 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
               <View style={[styles.reasonInput]}>
                 <TextInput
                   placeholder="Reason"
-                  style={[styles.reasonBarInput, { color:theme.textPlaceholder, height: Math.min(Math.max(50, inputHeight), 120) }]}
+                  style={[styles.reasonBarInput, { color: theme.textPlaceholder, height: Math.min(Math.max(50, inputHeight), 120) }]}
                   onChangeText={setRejectionReason}
                   multiline
                   placeholderTextColor={theme.textMuted}
@@ -610,6 +635,13 @@ export const CommunityPostCard = ({ post, onSave, showBanner, onUpvote, communit
             </TouchableOpacity>
           </View>
         )}
+        <ReportPostModal
+          isVisible={moreOptionsVisible}
+          id={post.id}
+          name={post.name}
+          onClose={() => setMoreOptionsVisisble(false)}
+          isCommunity={true}
+        />
       </View>
     </View>
   )

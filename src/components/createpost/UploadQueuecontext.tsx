@@ -30,6 +30,7 @@ export interface CreatePostInput {
   rooms?: string
   deposit?: string
   listing_type?: string
+  soundId?:string
 }
 
 export interface UploadEntry {
@@ -170,6 +171,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
       if (input.monthlyInstallment) formData.append("monthly_installment", input.monthlyInstallment)
       if (input.listing_type) formData.append("listing_type", input.listing_type)
       if (input.rooms) formData.append("house_type", input.rooms)
+        if(input.soundId) {formData.append("sound_id",input.soundId);}
 
 
 

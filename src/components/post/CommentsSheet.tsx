@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useCallback, useState } from "react"
+import { useEffect, useRef, useCallback, useState } from "react"
 import {
   View,
   Text,
@@ -8,24 +8,27 @@ import {
   TouchableOpacity,
   FlatList,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   BackHandler,
   Animated,
   Dimensions,
   Keyboard,
-  KeyboardEvent
+  KeyboardEvent,
+
 } from "react-native"
 import {
   useQueryClient,
 } from "@tanstack/react-query"
+import { SafeAreaView } from "react-native-safe-area-context"
 import { useTheme } from "@/hooks/useTheme"
 import { useComments } from "@/hooks/useComments"
-import { Comment } from "@/types"
+import { Comment, Sticker } from "@/types"
+import { Image } from "expo-image"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { CommentItem } from "@/components/coments/CommentItem"
-
+import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { StickerPicker } from "../coments/StickerPicker"
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85  // sheet covers 85% of screen
 
@@ -39,7 +42,9 @@ interface Props {
 export const CommentsSheet = ({ slug, visible, onClose, totalCount }: Props) => {
   const inputRef = useRef<TextInput>(null)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
-
+  const [showStickers, setShowStickers] = useState(false)
+  const lastKeyboardHeight = useRef(300)
+  const PICKER_HEIGHT = Math.min(lastKeyboardHeight.current, SHEET_HEIGHT * 0.45)
   const theme = useTheme()
   const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current
   const queryClient = useQueryClient()
@@ -60,11 +65,18 @@ export const CommentsSheet = ({ slug, visible, onClose, totalCount }: Props) => 
     setReplyingTo,
     optimisticReplies,
     ProcessError,
-    setRelyRootId
+    setRelyRootId,
+    image,
+    setImage,
+    pickImage,
+    sticker,
+    setSticker,
+    selectSticker
+
   } = useComments(slug)
 
 
-const[processError,setProcessError]=useState<boolean>(false)
+  const [processError, setProcessError] = useState<boolean>(false)
   const handleEditSuccess = useCallback((commentId: string, newBody: string) => {
     queryClient.setQueryData(["comments", slug], (old: any) => ({
       ...old,
@@ -97,6 +109,44 @@ const[processError,setProcessError]=useState<boolean>(false)
       })),
     }))
   }, [slug])
+  const showSub = Keyboard.addListener(
+    Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+    (e: KeyboardEvent) => {
+      lastKeyboardHeight.current = e.endCoordinates.height
+      setKeyboardHeight(e.endCoordinates.height)
+    }
+  )
+
+  useEffect(() => {
+    if (!visible) setShowStickers(false)
+  }, [visible])
+  useEffect(() => {
+    if (!visible) return
+    const handler = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (showStickers) {
+        setShowStickers(false)
+        return true
+      }
+      onClose()
+      return true
+    })
+    return () => handler.remove()
+  }, [visible, onClose, showStickers])
+  const toggleStickers = () => {
+    if (showStickers) {
+      setShowStickers(false)
+      inputRef.current?.focus()
+    } else {
+      Keyboard.dismiss()
+      setShowStickers(true)
+    }
+  }
+
+  const handleSelectSticker = useCallback((s: Sticker) => {
+    selectSticker(s)
+    setShowStickers(false)
+    inputRef.current?.focus() // lets the user add a caption, then send
+  }, [selectSticker])
   //  slide animation 
   useEffect(() => {
     if (visible) {
@@ -150,12 +200,12 @@ const[processError,setProcessError]=useState<boolean>(false)
     return () => handler.remove()
   }, [visible, onClose])
 
-  const handleProcessError=()=>{
+  const handleProcessError = () => {
     setProcessError(true);
-    setTimeout(()=>{
+    setTimeout(() => {
       setProcessError(false);
 
-    },2000)
+    }, 2000)
   }
   //  render comment 
   const renderComment = useCallback(
@@ -164,7 +214,7 @@ const[processError,setProcessError]=useState<boolean>(false)
         comment={item}
         postSlug={slug}
         depth={0}
-        onReplyPress={(comment:Comment,rootId:string) => {
+        onReplyPress={(comment: Comment, rootId: string) => {
           setReplyingTo(comment)
           setRelyRootId(rootId)
           inputRef.current?.focus()
@@ -199,14 +249,14 @@ const[processError,setProcessError]=useState<boolean>(false)
       </View>
     )
     if (isError) {
-return(
-      <View style={styles.loading}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={[styles.errorText, { color: theme.textMuted }]}>Failed to load </Text>
-        <TouchableOpacity style={[styles.retryBtn, { borderColor: theme.primary }]} onPress={() => refetch}>
-          <Text style={[styles.retryText, { color: theme.primary }]}>Try again</Text>
-        </TouchableOpacity>
-      </View>)
+      return (
+        <View style={styles.loading}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={[styles.errorText, { color: theme.textMuted }]}>Failed to load </Text>
+          <TouchableOpacity style={[styles.retryBtn, { borderColor: theme.primary }]} onPress={() => refetch()}>
+            <Text style={[styles.retryText, { color: theme.primary }]}>Try again</Text>
+          </TouchableOpacity>
+        </View>)
 
     }
     return (
@@ -230,149 +280,180 @@ return(
       onRequestClose={onClose}  // called on Android back press — but we handle it above
       statusBarTranslucent
     >
+
       {/*  backdrop ─ */}
       <TouchableOpacity
         style={styles.backdrop}
         activeOpacity={1}
         onPress={onClose}
       />
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
 
-      {/*  sheet  */}
-      <Animated.View
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: theme.surface,
-            transform: [{ translateY: slideAnim }],
-            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : 0,
-          },
-        ]}
-      >
+        {/*  sheet  */}
+        <Animated.View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: theme.surface,
+              transform: [{ translateY: slideAnim }],
+              paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : 0,
+            },
+          ]}
+        >
 
-        {/*  sheet header ─ */}
-        <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
-          {/* drag handle */}
-          <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
+          {/*  sheet header ─ */}
+          <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
+            {/* drag handle */}
+            <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
 
-          <View style={styles.sheetTitleRow}>
-            <Text style={[styles.sheetTitle, { color: theme.textPrimary }]}>
-              Comments{totalCount > 0 ? ` (${totalCount})` : ""}
-            </Text>
-            {/* close button */}
-            <TouchableOpacity
-              onPress={onClose}
-              style={[styles.closeButton, { backgroundColor: theme.surfaceSecondary }]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={[styles.closeIcon, { color: theme.textSecondary }]}>✕</Text>
-            </TouchableOpacity>
-           
-          </View>
-           {(ProcessError || processError) && (<Text style={[styles.errorText, { color: theme.ALLwarning }]}>
+            <View style={styles.sheetTitleRow}>
+              <Text style={[styles.sheetTitle, { color: theme.textPrimary }]}>
+                Comments{totalCount > 0 ? ` (${totalCount})` : ""}
+              </Text>
+              {/* close button */}
+              <TouchableOpacity
+                onPress={onClose}
+                style={[styles.closeButton, { backgroundColor: theme.surfaceSecondary }]}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={[styles.closeIcon, { color: theme.textSecondary }]}>✕</Text>
+              </TouchableOpacity>
+
+            </View>
+            {(ProcessError || processError) && (<Text style={[styles.errorText, { color: theme.ALLwarning }]}>
               An error has occured ,please try again
             </Text>)}
-        </View>
+          </View>
 
-        {/*  comments list  */}
-        <FlatList
-          data={comments}
-          keyExtractor={(item) => item.id}
-          renderItem={renderComment}
-          ListEmptyComponent={renderEmpty}
-          ListFooterComponent={renderFooter}
-          onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) fetchNextPage()
-          }}
-          onEndReachedThreshold={0.3}
-          contentContainerStyle={styles.commentsList}
-          showsVerticalScrollIndicator={false}
-        />
+          {/*  comments list  */}
+          <FlatList
+            data={comments}
+            keyExtractor={(item) => item.id}
+            renderItem={renderComment}
+            ListEmptyComponent={renderEmpty}
+            ListFooterComponent={renderFooter}
+            onEndReached={() => {
+              if (hasNextPage && !isFetchingNextPage) fetchNextPage()
+            }}
+            onEndReachedThreshold={0.3}
+            contentContainerStyle={styles.commentsList}
+            showsVerticalScrollIndicator={false}
+          />
 
 
-        {/*  replying-to banner ─ */}
-        {replyingTo && (
-          <View style={[styles.replyingToBanner, { backgroundColor: theme.surfaceSecondary }]}>
-            <Text style={[styles.replyingToText, { color: theme.textSecondary }]}>
-              Replying to{" "}
-              <Text style={{ color: theme.primary }}>@{replyingTo.author.username.slice(0,11)}{`→[${replyingTo.body.slice(0,5)}...]`}</Text>
-            </Text>
-            <TouchableOpacity onPress={() => setReplyingTo(null)}>
-              <Text style={[styles.cancelReply, { color: theme.textMuted }]}>✕</Text>
+          {/*  replying-to banner ─ */}
+          {replyingTo && (
+            <View style={[styles.replyingToBanner, { backgroundColor: theme.surfaceSecondary }]}>
+              <Text style={[styles.replyingToText, { color: theme.textSecondary }]}>
+                Replying to{" "}
+                <Text style={{ color: theme.primary }}>@{replyingTo.author.username.slice(0, 11)}{`→[${replyingTo.body?`${replyingTo.body.slice(0, 5)}${"..."}`:replyingTo.image?"Photo":replyingTo.sticker?"Sticker":""}]`}</Text>
+              </Text>
+              <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                <Text style={[styles.cancelReply, { color: theme.textMuted }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {sticker && (
+            <View style={styles.previewRow}>
+              <View style={styles.previewWrap}>
+                <Image source={{ uri: sticker.preview_url }} style={styles.previewThumb} contentFit="contain" />
+                <TouchableOpacity onPress={() => setSticker(null)} style={styles.previewRemove}>
+                  <Text style={{ color: "#fff" }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+          {image && (
+            <View style={styles.previewRow}>
+              <Image source={{ uri: image.uri }} style={styles.previewThumb} />
+              <TouchableOpacity onPress={() => setImage(null)} style={styles.previewRemove}>
+                <Text style={{ color: "#fff" }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {/*  comment input ─ */}
+          <View style={[
+            styles.inputBar,
+            {
+              backgroundColor: theme.surface,
+              borderTopColor: theme.border,
+              marginBottom: showStickers ? 0 : 32,
+            }
+          ]}>
+
+            <TouchableOpacity onPress={pickImage} disabled={isPosting}>
+              <MaterialCommunityIcons name="image-outline" size={26} color={theme.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={toggleStickers} disabled={isPosting}>
+              <MaterialCommunityIcons
+                name={showStickers ? "keyboard-outline" : "sticker-emoji"}
+                size={26}
+                color={showStickers ? theme.primary : theme.textMuted}
+              />
+            </TouchableOpacity>
+
+            <TextInput
+              style={[
+                styles.commentInput,
+                {
+                  backgroundColor: theme.inputBackground,
+                  color: theme.textPrimary, borderColor: theme.textMuted
+                }
+              ]}
+              placeholder={replyingTo ? `Reply to @${replyingTo.author.username.slice(0, 11)}→[${replyingTo.body.slice(0, 5)}...]` : "Add a comment…"}
+              placeholderTextColor={theme.textPlaceholder}
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+              maxLength={2000}
+              returnKeyType="send"
+              onSubmitEditing={() => {
+                handlePost()
+              }}
+
+
+            />
+            <TouchableOpacity
+              onPress={() => {
+                handlePost()
+              }}
+              disabled={(!commentText.trim() && !image && !sticker) || isPosting}
+              style={[
+                styles.sendButton,
+                {
+                  backgroundColor:
+                    (commentText.trim() || image || sticker) ? theme.primary : theme.border,
+                },
+              ]}
+            >
+              {isPosting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.sendIcon}>↑</Text>
+              )}
             </TouchableOpacity>
           </View>
-        )}
 
-        {/*  comment input ─ */}
-        <View style={[
-          styles.inputBar,
-          {
-            backgroundColor: theme.surface,
-            borderTopColor: theme.border,
-          }
-        ]}>
-          <TextInput
-            style={[
-              styles.commentInput,
-              {
-                backgroundColor: theme.inputBackground,
-                color: theme.textPrimary,borderColor:theme.textMuted
-              }
-            ]}
-            placeholder={replyingTo ? `Reply to @${replyingTo.author.username.slice(0,11)}→[${replyingTo.body.slice(0,5)}...]` : "Add a comment…"}
-            placeholderTextColor={theme.textPlaceholder}
-            value={commentText}
-            onChangeText={setCommentText}
-            multiline
-            maxLength={2000}
-            returnKeyType="send"
-            onSubmitEditing={() => {
-              handlePost()
-            }}
-
-
-          />
-          <TouchableOpacity
-            onPress={() => {
-              handlePost()
-            }}
-            disabled={!commentText.trim() || isPosting}
-            style={[
-              styles.sendButton,
-              {
-                backgroundColor:
-                  commentText.trim() ? theme.primary : theme.border,
-              },
-            ]}
-          >
-            {isPosting ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.sendIcon}>↑</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-
-      </Animated.View>
+          {showStickers && (
+            <StickerPicker height={PICKER_HEIGHT} onSelect={handleSelectSticker} />
+          )}
+        </Animated.View>
+      </SafeAreaView>
 
     </Modal>
+
   )
 }
 
-//  helpers 
-const formatTimeAgo = (dateString: string): string => {
-  const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
-  if (seconds < 60) return "just now"
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
-  return `${Math.floor(seconds / 86400)}d`
-}
+
 
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
   },
+  container: { flex: 1, },
+
   sheet: {
     position: "absolute",
     bottom: 0,
@@ -505,6 +586,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
     borderTopWidth: 1,
+    marginBottom: 32
   },
   commentInput: {
     flex: 1,
@@ -514,7 +596,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
     fontSize: FontSize.md,
     maxHeight: 100,
-    borderWidth:2,
+    borderWidth: 2,
     minHeight: 44,
   },
   sendButton: {
@@ -524,6 +606,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+  },
+  previewRow: {
+    flexDirection: "row",
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    width: 100
+  },
+  previewWrap: {
+    width: 72,
+    height: 72,
+  },
+  previewThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: Radius.md,
+  },
+  previewRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewRemoveIcon: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
   },
   sendIcon: {
     color: "#fff",

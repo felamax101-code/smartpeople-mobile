@@ -22,15 +22,13 @@ import {
   SettingsSectionCard,
 } from "@/components/settings/SettingsRow"
 import * as WebBrowser from 'expo-web-browser';
-
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
-import Constants from "expo-constants"
 import { useQueryClient } from "@tanstack/react-query"
+import * as Application from 'expo-application'
 import { useToast } from "@/components/activityIndicator/ToastProvider"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import HelpCenterModal from "@/components/help/HlpModal"
-const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0"
-
+const APP_VERSION=`${Application.nativeApplicationVersion}[${Application.nativeBuildVersion}]` 
 export default function SettingsScreen() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -159,7 +157,10 @@ export default function SettingsScreen() {
       {/* header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backIcon, { color: theme.textPrimary }]}>←</Text>
+          <Text style={[styles.backIcon, { color: theme.textPrimary }]}>
+                          <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+            
+          </Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
           Settings

@@ -19,7 +19,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useTheme } from "@/hooks/useTheme"
 import { useEvent } from "expo"
 import { useEventListener } from "expo"
-
+import { CarouselSound } from "./SoundPlayer"
 import { ToastProvider } from "../activityIndicator/ToastProvider"
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
@@ -45,7 +45,8 @@ interface Props {
     item: { type: "image" | "video"; url: string } | null,
     index: number
   ) => void
-  communityslug?:string
+  communityslug?: string
+  sound_url?: string
 }
 
 export const ImageCarousel = ({
@@ -57,6 +58,7 @@ export const ImageCarousel = ({
   slug,
   isSP = false,
   location,
+  sound_url,
   price,
   listing_type,
   deposit,
@@ -78,14 +80,14 @@ export const ImageCarousel = ({
     }, [])
   )
   //if videos + images are received -join them
-const mediaItems = [
-  ...(video || [])
-    .filter((v) => !!v.video?.trim())
-    .map((v) => ({ type: "video" as const, url: v.video })),
-  ...(images || [])
-    .filter((img) => !!img.image?.trim())
-    .map((img) => ({ type: "image" as const, url: img.image })),
-]
+  const mediaItems = [
+    ...(video || [])
+      .filter((v) => !!v.video?.trim())
+      .map((v) => ({ type: "video" as const, url: v.video })),
+    ...(images || [])
+      .filter((img) => !!img.image?.trim())
+      .map((img) => ({ type: "image" as const, url: img.image })),
+  ]
 
   const totalItems = mediaItems.length
 
@@ -102,7 +104,7 @@ const mediaItems = [
   const handlePress = useCallback(() => {
     router.push({
       pathname: isGroup ? `/community/post/${slug}` : isSP ? `/sp/post/${slug}` : `/post/${slug}` as any,
-      params:{
+      params: {
         communityslug: communityslug,
       }
 
@@ -112,13 +114,13 @@ const mediaItems = [
     onActiveMediaChange?.(mediaItems[currentIndex] ?? null, currentIndex)
   }, [currentIndex, mediaItems.length]) // eslint-disable-line react-hooks/exhaustive-deps
   if (totalItems === 0) {
-    
-  return (
-    <View style={[styles.container, { height: isDetail ? SCREEN_HEIGHT : CARD_HEIGHT, backgroundColor: "black", alignItems: "center", justifyContent: "center" }]}>
-      <Text style={{ color: "#fff" }}>No media available</Text>
-    </View>
-  )
-}
+
+    return (
+      <View style={[styles.container, { height: isDetail ? SCREEN_HEIGHT : CARD_HEIGHT, backgroundColor: "black", alignItems: "center", justifyContent: "center" }]}>
+        <Text style={{ color: "#fff" }}>No media available</Text>
+      </View>
+    )
+  }
   return (
     <View style={[styles.container, { height: isDetail ? SCREEN_HEIGHT : CARD_HEIGHT }]}>
 
@@ -243,13 +245,21 @@ const mediaItems = [
 
         </View>
       )}
+      {sound_url && mediaItems[0]?.type === "image" && (
+        <CarouselSound
+          url={sound_url}
+          isActive={isFocused && isVisible}
+          isDetail={!!isDetail}
+          top={isDetail ? 80 : 8}
+        />
+      )}
     </View>
   )
 }
 
 // ─── VideoMedia 
 
-const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP,communityslug }: { url: string; isActive: boolean, isDetail: boolean, slug: string, isGroup: boolean, isSP: boolean,communityslug:string | undefined}) => {
+const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP, communityslug }: { url: string; isActive: boolean, isDetail: boolean, slug: string, isGroup: boolean, isSP: boolean, communityslug: string | undefined }) => {
   const [isMuted, setIsMuted] = useState(true)
   const [isDetailMuted, setIsDetailMuted] = useState(false)
   const [speedIndex, setSpeedIndex] = useState(1)           // default 1x
@@ -258,13 +268,13 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP,communityslug
   const [seeking, setSeeking] = useState(false)
   const seekBarWidth = useRef(SCREEN_WIDTH - 32)
   const [isPlaying, setIsPlaying] = useState(false)
-const [status, setStatus] = useState<string>("idle")
+  const [status, setStatus] = useState<string>("idle")
 
   const router = useRouter()
   const handlePress = useCallback(() => {
     router.push({
       pathname: isGroup ? `/community/post/${slug}` as any : isSP ? `/sp/post/${slug}` : `/post/${slug}` as any,
-      params:{
+      params: {
         communityslug: communityslug,
       }
 
@@ -279,18 +289,18 @@ const [status, setStatus] = useState<string>("idle")
   })
 
   useEventListener(player, "playingChange", ({ isPlaying }) => {
-  setIsPlaying(isPlaying) // same value = React bails out, no loop
-})
+    setIsPlaying(isPlaying) // same value = React bails out, no loop
+  })
 
-useEventListener(player, "statusChange", ({ status }) => {
-  setStatus(status)
-  if (status === "readyToPlay") setDuration(player.duration ?? 0)
-})
+  useEventListener(player, "statusChange", ({ status }) => {
+    setStatus(status)
+    if (status === "readyToPlay") setDuration(player.duration ?? 0)
+  })
 
-useEventListener(player, "timeUpdate", ({ currentTime }) => {
-  if (seeking) return
-  setPosition((prev) => (Math.abs(prev - currentTime) > 0.25 ? currentTime : prev))
-})
+  useEventListener(player, "timeUpdate", ({ currentTime }) => {
+    if (seeking) return
+    setPosition((prev) => (Math.abs(prev - currentTime) > 0.25 ? currentTime : prev))
+  })
   useEffect(() => {
     if (isActive) {
       player.play()
@@ -302,7 +312,7 @@ useEventListener(player, "timeUpdate", ({ currentTime }) => {
   // sync mute
   useEffect(() => {
     player.muted = isDetail ? isDetailMuted : isMuted
-  }, [isMuted, isDetail, player,isDetailMuted])
+  }, [isMuted, isDetail, player, isDetailMuted])
 
   // sync speed
   useEffect(() => {
@@ -356,15 +366,15 @@ useEventListener(player, "timeUpdate", ({ currentTime }) => {
     const sec = Math.floor(s % 60)
     return `${m}:${sec.toString().padStart(2, "0")}`
   }
-if (status === "error") {
-  return (
-    <View style={[styles.image, { alignItems: "center", justifyContent: "center", backgroundColor: "black" }]}>
-      <Text style={{ color: "#fff" }}>
-        <MaterialCommunityIcons size={20} name="alert-circle-outline" /> Video unavailable
-      </Text>
-    </View>
-  )
-}
+  if (status === "error") {
+    return (
+      <View style={[styles.image, { alignItems: "center", justifyContent: "center", backgroundColor: "black" }]}>
+        <Text style={{ color: "#fff" }}>
+          <MaterialCommunityIcons size={20} name="alert-circle-outline" /> Video unavailable
+        </Text>
+      </View>
+    )
+  }
   return (
     <View style={{ flex: 1 }}>
       <VideoView
@@ -376,7 +386,7 @@ if (status === "error") {
 
       {/* ── video controls overlay ── */}
       {
-        <View style={[vc.overlay,{paddingBottom: isDetail?110:12,}]} pointerEvents="box-none">
+        <View style={[vc.overlay, { paddingBottom: isDetail ? 110 : 12, }]} pointerEvents="box-none">
 
           {/* centre row: skip-back | play-pause | skip-forward */}
           <View style={[vc.centreRow]}>
@@ -401,11 +411,11 @@ if (status === "error") {
                 <MaterialCommunityIcons size={15} name="fast-forward-10" />
               </Text>
             </TouchableOpacity>
-             {isDetail && <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() => setIsDetailMuted((m) => !m)}>
-              <Text style={vc.iconText}>{isDetailMuted? <MaterialCommunityIcons size={15} name="volume-mute" /> : <MaterialCommunityIcons size={15} name="volume-high" />}</Text>
+            {isDetail && <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() => setIsDetailMuted((m) => !m)}>
+              <Text style={vc.iconText}>{isDetailMuted ? <MaterialCommunityIcons size={15} name="volume-mute" /> : <MaterialCommunityIcons size={15} name="volume-high" />}</Text>
             </TouchableOpacity>
             }
-           
+
             {!isDetail && <TouchableOpacity
               activeOpacity={0.6}
               style={vc.fullscreen}
@@ -416,7 +426,7 @@ if (status === "error") {
           </View>
 
           {/* bottom: seek bar + time + mute + speed */}
-          <View style={[vc.bottomBar,{paddingRight:isDetail?50:undefined}]}>
+          <View style={[vc.bottomBar, { paddingRight: isDetail ? 50 : undefined }]}>
             {/* seek bar */}
             <View
               style={[{ flex: 1, height: 30, backgroundColor: "transparent" }]}
@@ -437,8 +447,8 @@ if (status === "error") {
             <Text style={vc.timeText}>{fmt(position)} / {fmt(duration)}</Text>
 
             {/* mute */}
-           {!isDetail && <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() =>setIsMuted((m) => !m)}>
-              <Text style={vc.iconText}>{isMuted? <MaterialCommunityIcons size={15} name="volume-mute" /> : <MaterialCommunityIcons size={15} name="volume-high" />}</Text>
+            {!isDetail && <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() => setIsMuted((m) => !m)}>
+              <Text style={vc.iconText}>{isMuted ? <MaterialCommunityIcons size={15} name="volume-mute" /> : <MaterialCommunityIcons size={15} name="volume-high" />}</Text>
             </TouchableOpacity>}
 
             {/* speed */}
@@ -541,7 +551,7 @@ const vc = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
-    
+
   },
   centreRow: {
     flexDirection: "row",
@@ -578,7 +588,7 @@ const vc = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    
+
     gap: 8,
   },
   seekBarTrack: {

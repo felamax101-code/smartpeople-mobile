@@ -14,18 +14,18 @@ import { AxiosError } from "axios"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
 import { useMutation } from "@tanstack/react-query"
-import { OTPInput } from "@/components/ui/OTPInput"
 import { Checkbox } from "@/components/ui/Checkbox"
 import { FormInput } from "@/components/ui/FormInput"
 import { useTheme } from "@/hooks/useTheme"
+import * as SecureStore from "expo-secure-store"
 import { useAuthStore } from "@/stores/auth.store"
 import { useShakeAnimation } from "@/hooks/useShakeAnimations"
 import { authService } from "@/services/auth.service"
 import { Spacing, Radius, FontSize, FontWeight, Colors } from "@/constants/colors"
-
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 type TwoFAMethod = "email" | "sms" | "totp"
-interface ErrorResponse{
-  error?:string
+interface ErrorResponse {
+  error?: string
 }
 const RESEND_COOLDOWN = 60
 
@@ -75,10 +75,30 @@ export default function TwoFactorLoginScreen() {
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN)
   const [canResend, setCanResend] = useState(false)
   const cooldownRef = useRef<ReturnType<typeof setInterval>>(null)
+  const [resolvedEmail, setResolvedEmail] = useState<string | null>("")
 
-  const config = METHOD_CONFIG[method ?? "email"]
+  const [resolvedTempToken, setResolvedTempToken] = useState<string>("")
+  const [resolvedMethod, setResolvedMethod] = useState<TwoFAMethod>("email")
+  const config = METHOD_CONFIG[resolvedMethod ?? "email"]
+  useEffect(() => {
 
-  // ── cooldown timer ────────────────────────────────────────
+    const loadDetails = async () => {
+      if (temp_token) { setResolvedTempToken(temp_token) } else {
+        const stored_temp_token = await SecureStore.getItemAsync("log_temp_token")
+        setResolvedTempToken(stored_temp_token ?? temp_token)
+      }
+      if (method) { setResolvedMethod(method) } else {
+        const stored_method = await SecureStore.getItemAsync("log_method")
+        setResolvedMethod(stored_method as TwoFAMethod ?? method)
+      }
+      if (email) { setResolvedEmail(email) } else {
+        const stored_log_email = await SecureStore.getItemAsync("log_email")
+        setResolvedEmail(stored_log_email)
+      }
+    }
+    loadDetails()
+  }, [])
+  //  cooldown timer 
   useEffect(() => {
     if (!config.canResend) return
     cooldownRef.current = setInterval(() => {
@@ -111,7 +131,7 @@ export default function TwoFactorLoginScreen() {
   const verifyMutation = useMutation({
     mutationFn: () =>
       authService.verify2FA({
-        temp_token,
+        resolvedTempToken,
         code: useBackupCode ? backupCode.replace("-", "") : code,
         trust_device: trustDevice,
       }),
@@ -123,7 +143,9 @@ export default function TwoFactorLoginScreen() {
       if (data.warning) {
         // backup code used warning — navigate anyway
       }
-
+      await SecureStore.deleteItemAsync("log_temp_token")
+      await SecureStore.deleteItemAsync("log_method")
+      await SecureStore.deleteItemAsync("log_email")
       router.replace("/(tabs)")
     },
     onError: (error: any) => {
@@ -134,7 +156,7 @@ export default function TwoFactorLoginScreen() {
 
       if (detail?.includes("Please log in again")) {
         setError("Too many attempts. Please log in again.")
-        setTimeout(() => router.replace("/(auth)/login"), 2000)
+        setTimeout(() => router.replace("/(auth)/login"), 0)
         return
       }
 
@@ -146,25 +168,26 @@ export default function TwoFactorLoginScreen() {
 
   // ── resend mutation ───────────────────────────────────────
   const resendMutation = useMutation({
-    mutationFn: () => authService.resend2FA(temp_token),
+    mutationFn: () => authService.resend2FA(resolvedTempToken),
     onSuccess: () => {
       setCanResend(false)
       setCooldown(RESEND_COOLDOWN)
       setCode("")
       setError(null)
     },
-    onError: (error:AxiosError<ErrorResponse>) => {
+    onError: (error: AxiosError<ErrorResponse>) => {
       const detail = error?.response?.data?.error
-        const status=error?.response?.status
-         if (status==429){
-          setError("Attempts exceeded.Try again later")
-         }
-         else{
-          setError(detail?? "Failed to resend.Try again")
-         }
-      
-    }})
- 
+      const status = error?.response?.status
+      if (status == 429) {
+        setError("Attempts exceeded.Try again later")
+      }
+      else {
+        setError(detail ?? "Failed to resend.Try again")
+      }
+
+    }
+  })
+
 
   const formatCooldown = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60)
@@ -193,7 +216,8 @@ export default function TwoFactorLoginScreen() {
             onPress={() => router.back()}
           >
             <Text style={[styles.backIcon, { color: theme.textPrimary }]}>
-              ←
+              <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
+
             </Text>
           </TouchableOpacity>
 
@@ -210,8 +234,8 @@ export default function TwoFactorLoginScreen() {
                 ? "Enter Backup Code"
                 : "Two-Step Verification"}
             </Text>
-             <Text style={[styles.title, { color: theme.textPrimary ,fontSize:10}]}>
-             This device is not in your trust list.Tick Trust device to add it
+            <Text style={[styles.title, { color: theme.textPrimary, fontSize: 10 }]}>
+              This device is not in your trust list.Tick Trust device to add it
             </Text>
 
             {/* method banner */}
@@ -224,7 +248,7 @@ export default function TwoFactorLoginScreen() {
                   {config.title}
                 </Text>
                 <Text style={[styles.methodSubtitle, { color: theme.textSecondary }]}>
-                  {config.subtitle(email)}
+                  {config.subtitle(resolvedEmail ?? "your email")}
                 </Text>
               </View>
             )}
@@ -236,7 +260,18 @@ export default function TwoFactorLoginScreen() {
                 Each code can only be used once.
               </Text>
             )}
-
+            {error && (
+              <View style={[styles.errorBanner, { backgroundColor: theme.errorLight }]}>
+                <Text style={[styles.errorText, { color: theme.error }]}>
+                  {error}
+                </Text>
+                {attemptsLeft < 5 && attemptsLeft > 0 && (
+                  <Text style={[styles.attemptsText, { color: theme.error }]}>
+                    {attemptsLeft} attempt{attemptsLeft !== 1 ? "s" : ""} remaining
+                  </Text>
+                )}
+              </View>
+            )}
             {/* input */}
             <Animated.View
               style={[
@@ -272,30 +307,21 @@ export default function TwoFactorLoginScreen() {
                   onSubmitEditing={() => verifyMutation.mutate()}
                 />
               ) : (
-                <OTPInput
+
+                <FormInput
+                  label=""
                   value={code}
-                  onChange={(val) => {
-                    setCode(val)
-                    if (error) setError(null)
+                  onChangeText={(t) => {
+                    setCode(t)
                   }}
-                  hasError={!!error}
+                  keyboardType="default"
+                  placeholder="6-digit code"
+                  returnKeyType="done"
+                  autoCapitalize="characters"
                 />
               )}
             </Animated.View>
 
-            {/* error */}
-            {error && (
-              <View style={[styles.errorBanner, { backgroundColor: theme.errorLight }]}>
-                <Text style={[styles.errorText, { color: theme.error }]}>
-                  {error}
-                </Text>
-                {attemptsLeft < 5 && attemptsLeft > 0 && (
-                  <Text style={[styles.attemptsText, { color: theme.error }]}>
-                    {attemptsLeft} attempt{attemptsLeft !== 1 ? "s" : ""} remaining
-                  </Text>
-                )}
-              </View>
-            )}
 
             {/* loading */}
             {isLoading && (

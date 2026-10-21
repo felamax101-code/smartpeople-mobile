@@ -25,7 +25,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { AnimatedBanner, BannerState, BannerType } from "@/components/activityIndicator/AnimatedBanner"
 import { useMessageStore } from "@/stores/message.store"
 import { UploadProgressBadge } from "@/components/createpost/UploadProgressbadge"
-
+import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
 
 type TabType = "all" | "dm" | "groups"
 export default function MessagesScreen() {
@@ -267,7 +267,7 @@ const handleDeleteConversation = async (id:string) => {
       {/* ── list states ────── */}
       {isLoading ? (
         <View style={styles.loading}>
-          <ActivityIndicator color={theme.primary} size="large" />
+          <BouncingBarsIndicator  />
         </View>
 
       ) : isError ? (

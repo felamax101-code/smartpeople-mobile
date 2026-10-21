@@ -61,6 +61,8 @@ export const useMediaPicker = (
         enablePreciseTrimming: true, // default stream-copy can drift past the limit
         headerText: " Edit and Trim video (max 60s)",
         closeWhenFinish: true,
+          trimmingText: 'Applying video edits...',
+
       })
     },
     [notify]

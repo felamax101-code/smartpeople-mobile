@@ -21,11 +21,15 @@ import {
 import {
   useQueryClient,
 } from "@tanstack/react-query"
+import { Image } from "expo-image"
 import { useTheme } from "@/hooks/useTheme"
 import { useCommunityComments } from "@/hooks/useCommunityComments"
-import { Comment } from "@/types"
+import { Comment ,Sticker} from "@/types"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { CommunityCommentItem } from "../coments/CommunityCommentItem"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { StickerPicker } from "../coments/StickerPicker"
+
 const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85  // sheet covers 85% of screen
 
@@ -39,6 +43,9 @@ interface Props {
 export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: Props) => {
   const inputRef = useRef<TextInput>(null)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const [showStickers, setShowStickers] = useState(false)
+    const lastKeyboardHeight = useRef(300)
+  const PICKER_HEIGHT = Math.min(lastKeyboardHeight.current, SHEET_HEIGHT * 0.45)
 
   const theme = useTheme()
   const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current
@@ -59,11 +66,17 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
     setReplyingTo,
     optimisticReplies,
     ProcessError,
-    setRelyRootId
+    setRelyRootId,
+    image,
+    setImage,
+    pickImage,
+    sticker,
+    setSticker,
+    selectSticker
   } = useCommunityComments(slug)
 
 
-const[processError,setProcessError]=useState<boolean>(false)
+  const [processError, setProcessError] = useState<boolean>(false)
   const handleEditSuccess = useCallback((commentId: string, newBody: string) => {
     queryClient.setQueryData(["com-comments", slug], (old: any) => ({
       ...old,
@@ -96,6 +109,43 @@ const[processError,setProcessError]=useState<boolean>(false)
       })),
     }))
   }, [slug])
+    const showSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (e: KeyboardEvent) => {
+        lastKeyboardHeight.current = e.endCoordinates.height
+        setKeyboardHeight(e.endCoordinates.height)
+      }
+    )
+     useEffect(() => {
+        if (!visible) setShowStickers(false)
+      }, [visible])
+      useEffect(() => {
+        if (!visible) return
+        const handler = BackHandler.addEventListener("hardwareBackPress", () => {
+          if (showStickers) {
+            setShowStickers(false)
+            return true
+          }
+          onClose()
+          return true
+        })
+        return () => handler.remove()
+      }, [visible, onClose, showStickers])
+      const toggleStickers = () => {
+        if (showStickers) {
+          setShowStickers(false)
+          inputRef.current?.focus()
+        } else {
+          Keyboard.dismiss()
+          setShowStickers(true)
+        }
+      }
+    
+      const handleSelectSticker = useCallback((s: Sticker) => {
+        selectSticker(s)
+        setShowStickers(false)
+        inputRef.current?.focus() // lets the user add a caption, then send
+      }, [selectSticker])
   //  slide animation ─
   useEffect(() => {
     if (visible) {
@@ -149,12 +199,12 @@ const[processError,setProcessError]=useState<boolean>(false)
     return () => handler.remove()
   }, [visible, onClose])
 
-  const handleProcessError=()=>{
+  const handleProcessError = () => {
     setProcessError(true);
-    setTimeout(()=>{
+    setTimeout(() => {
       setProcessError(false);
 
-    },2000)
+    }, 2000)
   }
   //  render comment 
   const renderComment = useCallback(
@@ -163,11 +213,11 @@ const[processError,setProcessError]=useState<boolean>(false)
         comment={item}
         postSlug={slug}
         depth={0}
-        onReplyPress={(comment:Comment,rootId:string) => {
-                 setReplyingTo(comment)
-                 setRelyRootId(rootId)
-                 inputRef.current?.focus()
-               }}
+        onReplyPress={(comment: Comment, rootId: string) => {
+          setReplyingTo(comment)
+          setRelyRootId(rootId)
+          inputRef.current?.focus()
+        }}
         queryKey={["com-comments", slug]}
         optimisticReplies={optimisticReplies}
         onEditSuccess={handleEditSuccess}
@@ -198,14 +248,14 @@ const[processError,setProcessError]=useState<boolean>(false)
       </View>
     )
     if (isError) {
-return(
-      <View style={styles.loading}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={[styles.errorText, { color: theme.textMuted }]}>Failed to load </Text>
-        <TouchableOpacity style={[styles.retryBtn, { borderColor: theme.primary }]} onPress={() => refetch}>
-          <Text style={[styles.retryText, { color: theme.primary }]}>Try again</Text>
-        </TouchableOpacity>
-      </View>)
+      return (
+        <View style={styles.loading}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={[styles.errorText, { color: theme.textMuted }]}>Failed to load </Text>
+          <TouchableOpacity style={[styles.retryBtn, { borderColor: theme.primary }]} onPress={() => refetch}>
+            <Text style={[styles.retryText, { color: theme.primary }]}>Try again</Text>
+          </TouchableOpacity>
+        </View>)
 
     }
     return (
@@ -264,11 +314,11 @@ return(
             >
               <Text style={[styles.closeIcon, { color: theme.textSecondary }]}>✕</Text>
             </TouchableOpacity>
-           
+
           </View>
-           {(ProcessError || processError) && (<Text style={[styles.errorText, { color: theme.ALLwarning }]}>
-              An error has occured ,please try again
-            </Text>)}
+          {(ProcessError || processError) && (<Text style={[styles.errorText, { color: theme.ALLwarning }]}>
+            An error has occured ,please try again
+          </Text>)}
         </View>
 
         {/*  comments list  */}
@@ -292,14 +342,31 @@ return(
           <View style={[styles.replyingToBanner, { backgroundColor: theme.surfaceSecondary }]}>
             <Text style={[styles.replyingToText, { color: theme.textSecondary }]}>
               Replying to{" "}
-              <Text style={{ color: theme.primary }}>sc/{replyingTo.author.username.slice(0,11)}{`→[${replyingTo.body.slice(0,5)}...]`}</Text>
+                <Text style={{ color: theme.primary }}>@{replyingTo.author.username.slice(0, 11)}{`→[${replyingTo.body?`${replyingTo.body.slice(0, 5)}${"..."}`:replyingTo.image?"Photo":replyingTo.sticker?"Sticker":""}]`}</Text>
             </Text>
             <TouchableOpacity onPress={() => setReplyingTo(null)}>
               <Text style={[styles.cancelReply, { color: theme.textMuted }]}>✕</Text>
             </TouchableOpacity>
           </View>
         )}
-
+        {sticker && (
+          <View style={styles.previewRow}>
+            <View style={styles.previewWrap}>
+              <Image source={{ uri: sticker.preview_url }} style={styles.previewThumb} contentFit="contain" />
+              <TouchableOpacity onPress={() => setSticker(null)} style={styles.previewRemove}>
+                <Text style={{ color: "#fff" }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+        {image && (
+          <View style={styles.previewRow}>
+            <Image source={{ uri: image.uri }} style={styles.previewThumb} />
+            <TouchableOpacity onPress={() => setImage(null)} style={styles.previewRemove}>
+              <Text style={{ color: "#fff" }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {/*  comment input ─ */}
         <View style={[
           styles.inputBar,
@@ -308,6 +375,16 @@ return(
             borderTopColor: theme.border,
           }
         ]}>
+          <TouchableOpacity onPress={pickImage} disabled={isPosting}>
+              <MaterialCommunityIcons name="image-outline" size={26} color={theme.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={toggleStickers} disabled={isPosting}>
+              <MaterialCommunityIcons
+                name={showStickers ? "keyboard-outline" : "sticker-emoji"}
+                size={26}
+                color={showStickers ? theme.primary : theme.textMuted}
+              />
+            </TouchableOpacity>
           <TextInput
             style={[
               styles.commentInput,
@@ -316,7 +393,7 @@ return(
                 color: theme.textPrimary,
               }
             ]}
-            placeholder={replyingTo ? `Reply to @${replyingTo.author.username.slice(0,11)}→[${replyingTo.body.slice(0,5)}...]` : "Add a comment…"}
+            placeholder={replyingTo ? `Reply to @${replyingTo.author.username.slice(0, 11)}→[${replyingTo.body.slice(0, 5)}...]` : "Add a comment…"}
             placeholderTextColor={theme.textPlaceholder}
             value={commentText}
             onChangeText={setCommentText}
@@ -333,12 +410,12 @@ return(
             onPress={() => {
               handlePost()
             }}
-            disabled={!commentText.trim() || isPosting}
+            disabled={(!commentText.trim() && !image && !sticker) || isPosting}
             style={[
               styles.sendButton,
               {
                 backgroundColor:
-                  commentText.trim() ? theme.primary : theme.border,
+                  (commentText.trim() || image ||sticker) ? theme.primary : theme.border,
               },
             ]}
           >
@@ -350,7 +427,9 @@ return(
           </TouchableOpacity>
         </View>
 
-
+{showStickers && (
+            <StickerPicker height={PICKER_HEIGHT} onSelect={handleSelectSticker} />
+          )}
       </Animated.View>
 
     </Modal>
@@ -436,6 +515,37 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  previewRow: {
+    flexDirection: "row",
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    width: 100
+  },
+  previewWrap: {
+    width: 72,
+    height: 72,
+  },
+  previewThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: Radius.md,
+  },
+  previewRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewRemoveIcon: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  },
   commentHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -503,6 +613,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
     borderTopWidth: 1,
+    marginBottom: 32
   },
   commentInput: {
     flex: 1,

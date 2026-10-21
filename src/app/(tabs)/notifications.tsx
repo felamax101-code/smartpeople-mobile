@@ -24,6 +24,7 @@ import { Notification } from "@/types"
 import { Spacing, Radius, FontSize, FontWeight, Colors } from "@/constants/colors"
 import { useToast } from "@/components/activityIndicator/ToastProvider"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
 type ListItem =
   | { type: "date"; label: string; key: string }
   | { type: "notification"; data: Notification; key: string }
@@ -257,7 +258,7 @@ useEffect(()=>{
         {/*  list  */}
         {isLoading ? (
           <View style={styles.loading}>
-            <ActivityIndicator color={theme.primary} size="large" />
+            <BouncingBarsIndicator  />
           </View>
         ) :
         
