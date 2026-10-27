@@ -1,20 +1,21 @@
 
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, memo } from "react"
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  
+  FlatList
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router } from "expo-router"
+import { useInfiniteQuery } from "@tanstack/react-query"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "@/hooks/useTheme"
 import api from "@/services/api"
-import {  Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
+import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { useToast } from "@/components/activityIndicator/ToastProvider"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import BouncingBarsIndicator from "@/components/activityIndicator/BouncingBarsIndicator"
@@ -35,35 +36,41 @@ export default function SessionsScreen() {
   const theme = useTheme()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
-  const {showNotifToast}=useNotificationToast()
-  const { data: sessions, isLoading } = useQuery({
+  const { showNotifToast } = useNotificationToast()
+  const {
+    data, fetchNextPage, refetch, isError, isLoading, hasNextPage, isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["sessions"],
-    queryFn: async (): Promise<Session[]> => {
-      const { data } = await api.get("/users/me/sessions/")
-
-      return data.data ?? data
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const { data } = await api.get("/users/me/sessions/", {
+        params: { page: pageParam },
+      })
+      return data
     },
+    getNextPageParam: (last, pages) => (last.next ? pages.length + 1 : undefined),
   })
+  const total = data?.pages[0]?.count ?? 0
+  const sessions = data?.pages.flatMap((p) => p.data) ?? []
 
   const terminateMutation = useMutation({
     mutationFn: (sessionId: string) =>
       api.delete(`/users/me/sessions/${sessionId}/`),
     onSuccess: () => {
-      showNotifToast("Session terminated","success")
+      showNotifToast("Session terminated", "success")
       queryClient.invalidateQueries({ queryKey: ["sessions"] })
     },
-    onError: () => showNotifToast("Failed to terminate session","error"),
+    onError: () => showNotifToast("Failed to terminate session", "error"),
   })
 
   const terminateAllMutation = useMutation({
     mutationFn: () => api.post("/auth/logout-others/",),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] })
-      showNotifToast( "All other sessions terminated","success")
+      queryClient.resetQueries({ queryKey: ["sessions"] }), showNotifToast("All other sessions terminated", "success")
     },
   })
 
-  const handleTerminate = (session: Session) => {
+  const handleTerminate = useCallback((session: Session) => {
     if (session.is_current) return
     showToast(
       {
@@ -74,17 +81,94 @@ export default function SessionsScreen() {
       }
     )
 
-  }
-  
-  const formatTime = (dateString: string): string => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-    if (diff < 60) return "Active now"
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-    return `${Math.floor(diff / 86400)}d ago`
-  }
+  }, [sessions, showToast])
+
+  const logoutAllButton =
+    total > 1 ? (
+      <TouchableOpacity
+        style={[styles.terminateAll, { borderColor: theme.error }]}
+        disabled={terminateAllMutation.isPending}
+        onPress={() =>
+          showToast({
+            title: "Log Out All Other Devices?",
+            message: `This will terminate the other ${total - 1} sessions and keep this one.`,
+            onConfirm: () => terminateAllMutation.mutate(),
+          })
+        }
+      >
+        <View style={styles.terminateAllRow}>
+          <MaterialCommunityIcons name="logout" size={20} color={theme.error} />
+          <Text style={[styles.terminateAllText, { color: theme.error }]}>
+            {terminateAllMutation.isPending
+              ? "Logging out..."
+              : "Log out all other devices"}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    ) : null
+
+  const emptyState = (
+    <View style={styles.empty}>
+      <MaterialCommunityIcons name="devices" size={48} color={theme.textSecondary} />
+      <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+        No active sessions found
+      </Text>
+    </View>
+  )
+
+  const footer = isFetchingNextPage ? (
+    <View style={{ paddingVertical: Spacing.md }}>
+      <BouncingBarsIndicator color={theme.primary} />
+    </View>
+  ) : null
+
+  const SessionCard = memo(function SessionCard({
+    session, theme, onTerminate,
+  }: { session: Session; theme: any; onTerminate: (s: Session) => void }) {
+    const isMobile =
+      session.browser?.includes("Mobile") ||
+      session.os?.includes("iOS") ||
+      session.os?.includes("Android")
+
+    return (
+      <View style={[styles.sessionCard, {
+        backgroundColor: session.is_current ? theme.primaryLight : theme.surface,
+        borderColor: session.is_current ? theme.primary : theme.border,
+      }]}>
+        <View style={styles.sessionIcon}>
+          <MaterialCommunityIcons
+            name={isMobile ? "tablet" : "laptop"}
+            size={20}
+            color={theme.textPrimary}
+          />
+        </View>
+        <View style={styles.sessionInfo}>
+          <View style={styles.sessionTitleRow}>
+            <Text style={[styles.sessionDevice, { color: theme.textPrimary }]}>
+              {session.browser} on {session.os}
+            </Text>
+            {session.is_current && (
+              <View style={[styles.currentBadge, { backgroundColor: theme.primary }]}>
+                <Text style={styles.currentBadgeText}>This device</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.sessionDetail, { color: theme.textSecondary }]}>
+            Location: {session.location} · {session.ip_address}
+          </Text>
+          <Text style={[styles.sessionTime, { color: theme.textSecondary }]}>
+            🕐 {formatTime(session.last_active)}
+          </Text>
+        </View>
+        {!session.is_current && (
+          <TouchableOpacity onPress={() => onTerminate(session)} style={styles.terminateButton}>
+            <Text style={[styles.terminateIcon, { color: theme.error }]}>Terminate</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    )
+  })
+
 
   return (
     <SafeAreaView
@@ -101,108 +185,49 @@ export default function SessionsScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      {isLoading ? (
+      {isError ? (
+        <View style={styles.loading}>
+          <Text style={{ color: theme.textSecondary }}>Couldn't load sessions</Text>
+          <TouchableOpacity onPress={() => refetch()}>
+            <Text style={{ color: theme.primary }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : isLoading ? (
         <View style={styles.loading}>
           <BouncingBarsIndicator color={theme.primary} />
         </View>
       ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
+        <FlatList
+          data={sessions}
+          keyExtractor={(s) => s.id}
+          renderItem={({ item }) => (
+            <SessionCard session={item} theme={theme} onTerminate={handleTerminate} />
+          )}
+          ListHeaderComponent={logoutAllButton}
+          ListEmptyComponent={emptyState}
+          ListFooterComponent={footer}
+          onEndReached={() => hasNextPage && !isFetchingNextPage && fetchNextPage()}
+          onEndReachedThreshold={0.5}
           contentContainerStyle={styles.content}
-        >
-          {/* terminate all others */}
-          {(sessions?.length ?? 0) > 1 && (
-            <TouchableOpacity
-              style={[styles.terminateAll, { borderColor: theme.error }]}
-              onPress={() =>
-                showToast(
-                  {
-                    title: "Log Out All Other Devices?",
-                    message: "This will terminate all sessions except this one.",
-                    onConfirm: () => { terminateAllMutation.mutate() },
-
-                  }
-                )
-
-              }
-            >
-              <Text style={[styles.terminateAllText, { color: theme.error }]}>
-                {<MaterialCommunityIcons name="logout" size={20} color={`${theme.textPrimary}`} />} Log out all other devices
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {sessions?.map((session) => (
-            <View
-              key={session.id}
-              style={[
-                styles.sessionCard,
-                {
-                  backgroundColor: session.is_current
-                    ? theme.primaryLight
-                    : theme.surface,
-                  borderColor: session.is_current
-                    ? theme.primary
-                    : theme.border,
-                },
-              ]}
-            >
-              <View style={styles.sessionIcon}>
-                <Text style={styles.sessionIconText}>
-                  {session.browser?.includes("Mobile") ||
-                    session.os?.includes("iOS") ||
-                    session.os?.includes("Android")
-                    ? <MaterialCommunityIcons name="tablet" size={20} color={`${theme.textPrimary}`} />
-                    : <MaterialCommunityIcons name="laptop" size={20} color={`${theme.textPrimary}`} />}
-                </Text>
-              </View>
-
-              <View style={styles.sessionInfo}>
-                <View style={styles.sessionTitleRow}>
-                  <Text style={[styles.sessionDevice, { color: theme.textPrimary }]}>
-                    {session.browser} on {session.os}
-                  </Text>
-                  {session.is_current && (
-                    <View style={[styles.currentBadge, { backgroundColor: theme.primary }]}>
-                      <Text style={styles.currentBadgeText}>This device</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={[styles.sessionDetail, { color: theme.textSecondary }]}>
-                  Location: {session.location} · {session.ip_address}
-                </Text>
-                <Text style={[styles.sessionTime, { color: theme.textPrimarylight }]}>
-                  🕐 {formatTime(session.last_active)}
-                </Text>
-              </View>
-
-              {!session.is_current && (
-                <TouchableOpacity
-                  onPress={() => handleTerminate(session)}
-                  style={styles.terminateButton}
-                >
-                  <Text style={[styles.terminateIcon, { color: theme.error }]}>
-                    Terminate
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
-
-          {(!sessions || sessions.length === 0) && (
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>📱</Text>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                No active sessions found
-              </Text>
-            </View>
-          )}
-        </ScrollView>
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+        />
       )}
     </SafeAreaView>
   )
 }
 
+const formatTime = (dateString: string): string => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
+  if (diff < 60) return "Active now"
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
 const styles = StyleSheet.create({
   container: { flex: 1 },
   loading: {
@@ -249,6 +274,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     gap: Spacing.md,
+  },
+  terminateAllRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
   },
   sessionIcon: {
     width: 44,

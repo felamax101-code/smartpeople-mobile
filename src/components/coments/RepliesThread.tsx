@@ -136,7 +136,6 @@ const styles = StyleSheet.create({
   loading: {
     paddingVertical: Spacing.md,
     alignItems: "center",
-    height: 10,
   },
   loadMore: {
     paddingVertical: Spacing.sm,

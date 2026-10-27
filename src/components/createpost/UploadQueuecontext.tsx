@@ -2,9 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import * as Crypto from "expo-crypto"
 import api from "@/services/api"
 import { PostVideo } from "@/types"
-import { AxiosError } from "axios"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
-
+import { PostViewer } from "@/app/(tabs)/createpost"
 const CREATE_POST_PATH = "/posts/"
 const VIDEO_STATUS_PATH = (videoId: string) => `/post-videos/${videoId}/status/`
 
@@ -30,7 +29,13 @@ export interface CreatePostInput {
   rooms?: string
   deposit?: string
   listing_type?: string
-  soundId?:string
+  soundId?: string
+  visibility?: PostViewer
+  allowComments?: boolean
+  allowDownload?: boolean
+  isPromotional?: boolean
+
+
 }
 
 export interface UploadEntry {
@@ -44,7 +49,7 @@ export interface UploadEntry {
   postSlug?: string
   videoIds?: string[]
   error?: string
-  size?:string
+  size?: string
 
 }
 
@@ -55,7 +60,7 @@ interface StartUploadOptions {
 
 interface UploadQueueContextValue {
   uploads: UploadEntry[]
-  startUpload: (input: CreatePostInput, options?: StartUploadOptions, isGroup?: boolean, slug?: string,isSP?:boolean) => string
+  startUpload: (input: CreatePostInput, options?: StartUploadOptions, isGroup?: boolean, slug?: string, isSP?: boolean) => string
   dismissUpload: (id: string) => void
 }
 
@@ -92,7 +97,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
 
   // polls every still-processing video for one upload until all resolve
   const pollVideoStatuses = useCallback(
-    (uploadId: string, postId: string, postSlug: string, videoIds: string[], isGroup?: boolean,isSP?:boolean) => {
+    (uploadId: string, postId: string, postSlug: string, videoIds: string[], isGroup?: boolean, isSP?: boolean) => {
       const pending = new Set(videoIds)
       const failed = new Set<string>()
 
@@ -103,7 +108,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
             Array.from(pending).map(async (videoId) => {
               // goes through `api` too — status checks stay authenticated and
               // benefit from the same 401-refresh handling as everything else
-              const res = await api.get(isGroup ? GROUP_VIDEO_STATUS_PATH(videoId) :isSP? SP_VIDEO_STATUS_PATH(videoId): VIDEO_STATUS_PATH(videoId))
+              const res = await api.get(isGroup ? GROUP_VIDEO_STATUS_PATH(videoId) : isSP ? SP_VIDEO_STATUS_PATH(videoId) : VIDEO_STATUS_PATH(videoId))
 
               const data = res.data
               if (data.status === "done") {
@@ -138,7 +143,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
   )
 
   const startUpload = useCallback(
-    (input: CreatePostInput, options?: StartUploadOptions, isGroup?: boolean, slug?: string,isSP?:boolean) => {
+    (input: CreatePostInput, options?: StartUploadOptions, isGroup?: boolean, slug?: string, isSP?: boolean) => {
       const clientUploadId = Crypto.randomUUID()
       const id = clientUploadId
       callbacks.current[id] = options ?? {}
@@ -171,24 +176,30 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
       if (input.monthlyInstallment) formData.append("monthly_installment", input.monthlyInstallment)
       if (input.listing_type) formData.append("listing_type", input.listing_type)
       if (input.rooms) formData.append("house_type", input.rooms)
-        if(input.soundId) {formData.append("sound_id",input.soundId);}
+      if (input.soundId) { formData.append("sound_id", input.soundId) }
+      if (input.allowComments) { formData.append("allow_comments", String(input.allowComments)) }
+      if (input.visibility) { formData.append("who_can_view", input.visibility ?? "anybody") }
+      if (input.allowDownload) { formData.append("allow_download", String(input.allowDownload)) }
+      if (input.isPromotional) { formData.append("is_promotional_content", String(input.isPromotional)) }
 
 
 
-        // DRF's ListField(child=FileField()) expects repeated "media" entries —
-        // append each file under the same field name (1 for video, up to 10 for photos)
-        ; (input.mediaUris ?? []).forEach((uri, index) => {
-          const ext = uri.split(".").pop() || (input.mediaType === "video" ? "mp4" : "jpg")
-          const mimeType = input.mediaType === "video" ? "video/mp4" : "image/jpeg"
-          formData.append("media", {
-            uri,
-            name: `media_${index}.${ext}`,
-            type: mimeType,
-          } as any)
-        })
+
+
+      // DRF's ListField(child=FileField()) expects repeated "media" entries —
+      // append each file under the same field name (1 for video, up to 10 for photos)
+      ; (input.mediaUris ?? []).forEach((uri, index) => {
+        const ext = uri.split(".").pop() || (input.mediaType === "video" ? "mp4" : "jpg")
+        const mimeType = input.mediaType === "video" ? "video/mp4" : "image/jpeg"
+        formData.append("media", {
+          uri,
+          name: `media_${index}.${ext}`,
+          type: mimeType,
+        } as any)
+      })
 
       api
-        .post(isGroup ? `/groups/${slug}/posts/` :isSP?"/sp/posts/": CREATE_POST_PATH, formData, {
+        .post(isGroup ? `/groups/${slug}/posts/` : isSP ? "/sp/posts/" : CREATE_POST_PATH, formData, {
           headers: { "Content-Type": "multipart/form-data" }, // overrides the instance's default JSON header for this request
           timeout: 300000, // 2 min — the instance-wide 15s default is fine for JSON but too short for a video upload on a slow connection
           onUploadProgress: (progressEvent) => {
@@ -226,7 +237,7 @@ export const UploadQueueProvider = ({ children }: { children: React.ReactNode })
           })
 
           if (pendingVideoIds.length > 0) {
-            pollVideoStatuses(id, postId, postSlug ?? "", pendingVideoIds, isGroup,isSP)
+            pollVideoStatuses(id, postId, postSlug ?? "", pendingVideoIds, isGroup, isSP)
           } else {
             // text/image posts, or a post with no video needing processing
             callbacks.current[id]?.onDone?.(postId, postSlug ?? "")

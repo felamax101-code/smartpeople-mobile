@@ -47,6 +47,7 @@ interface Props {
   ) => void
   communityslug?: string
   sound_url?: string
+  onVideoDuration?: (s: number) => void
 }
 
 export const ImageCarousel = ({
@@ -64,7 +65,8 @@ export const ImageCarousel = ({
   deposit,
   installments,
   communityslug,
-  onActiveMediaChange
+  onActiveMediaChange,
+  onVideoDuration
 }: Props) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const scrollRef = useRef<ScrollView>(null)
@@ -145,6 +147,7 @@ export const ImageCarousel = ({
                 isGroup={isGroup}
                 isSP={isSP}
                 communityslug={communityslug}
+                onVideoDuration={onVideoDuration}
               />
             ) : (
               <Image
@@ -259,7 +262,7 @@ export const ImageCarousel = ({
 
 // ─── VideoMedia 
 
-const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP, communityslug }: { url: string; isActive: boolean, isDetail: boolean, slug: string, isGroup: boolean, isSP: boolean, communityslug: string | undefined }) => {
+const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP, communityslug, onVideoDuration }: { url: string; isActive: boolean, isDetail: boolean, slug: string, isGroup: boolean, isSP: boolean, communityslug: string | undefined, onVideoDuration?: (s: number) => void }) => {
   const [isMuted, setIsMuted] = useState(true)
   const [isDetailMuted, setIsDetailMuted] = useState(false)
   const [speedIndex, setSpeedIndex] = useState(1)           // default 1x
@@ -296,7 +299,9 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP, communityslu
     setStatus(status)
     if (status === "readyToPlay") setDuration(player.duration ?? 0)
   })
-
+  useEffect(() => {
+    if (isActive && duration > 0) onVideoDuration?.(duration)
+  }, [isActive, duration])
   useEventListener(player, "timeUpdate", ({ currentTime }) => {
     if (seeking) return
     setPosition((prev) => (Math.abs(prev - currentTime) > 0.25 ? currentTime : prev))

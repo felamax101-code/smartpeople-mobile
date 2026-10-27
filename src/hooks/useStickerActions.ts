@@ -10,7 +10,6 @@ import { useNotificationToast } from "@/components/activityIndicator/ToastNotifi
 export const useStickerActions = () => {
   const queryClient = useQueryClient()
   const {showNotifToast}=useNotificationToast()
-  console.log("hhhh")
   const refreshMine = () =>
     queryClient.invalidateQueries({ queryKey: ["stickers", "mine"] })
 

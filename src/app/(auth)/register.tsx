@@ -298,7 +298,7 @@ export default function RegisterScreen() {
 
           />
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            By pressing <Text style={[{ color: theme.primary }]} >[Continue]</Text> you confirm to be  <Text style={[{ color: theme.primary }]}>13+ years old</Text> and thatyou agree you to our <Text
+            By pressing <Text style={[{ color: theme.primary }]} >[Continue]</Text> you confirm to be  <Text style={[{ color: theme.primary }]}>18+ years old</Text> and that you agree you to our <Text
               style={[{ color: theme.primary }]}
               onPress={async () => {
                 await WebBrowser.openBrowserAsync("https://smartpipla.com/terms", {

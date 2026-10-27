@@ -204,7 +204,6 @@ reportPost: async (Id: any, reason: string, description: string): Promise<void> 
     sticker?: Sticker | null
 
 ): Promise<Comment> => {
-  console.log("postrep",body)
   const { data } = await api.post(
     `/post/${slug}/comments/${commentId}/reply/`,
     buildCommentForm(body, image, {
@@ -216,6 +215,12 @@ reportPost: async (Id: any, reason: string, description: string): Promise<void> 
   )
   return data
 },
+recordWatch: (postId: string, seconds: number, duration?: number) =>
+  api.post("/feed/watch/", {
+    post_id: postId,
+    seconds: Number(seconds.toFixed(1)),
+    ...(duration ? { duration } : {}),
+  }),
       searchUsers: async (
     page: number,
     searchQuery?: string

@@ -102,7 +102,6 @@ export const useCommunityComments = (slug: string) => {
     },
 
     onError: (_, __, context) => {
-      console.log((_ as AxiosError).response?.data)
 
       // roll back temp comment on failure
       queryClient.setQueryData(["com-comments", slug], (old: any) => ({

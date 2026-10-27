@@ -328,28 +328,31 @@ export default function PostDetailScreen() {
             Repost
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-          onPress={handleDownload}
-          activeOpacity={0.7}
-          disabled={downloadStatus === "downloading"}
-        >
-          {downloadStatus === "idle" ? (
-            <>
-              <MaterialCommunityIcons name="download" color={theme.primary} />
-              <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
-                Download
-              </Text>
-            </>
-          ) : (
-            <>
-              <DownloadProgressRing progress={downloadProgress} status={downloadStatus} size={16} />
-              <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
-                {downloadStatus === "downloading" ? `${Math.round(downloadProgress * 100)}%` : downloadStatus === "success" ? "Saved" : "Failed"}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {
+
+          post.post_type != "text" && post.allow_download &&
+          <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            onPress={handleDownload}
+            activeOpacity={0.7}
+            disabled={downloadStatus === "downloading"}
+          >
+            {downloadStatus === "idle" ? (
+              <>
+                <MaterialCommunityIcons name="download" color={theme.primary} />
+                <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+                  Download
+                </Text>
+              </>
+            ) : (
+              <>
+                <DownloadProgressRing progress={downloadProgress} status={downloadStatus} size={16} />
+                <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.md, fontWeight: FontWeight.bold }]}>
+                  {downloadStatus === "downloading" ? `${Math.round(downloadProgress * 100)}%` : downloadStatus === "success" ? "Saved" : "Failed"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>}
         <TouchableOpacity
           style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
           onPress={handleCopyinapplink}
@@ -649,7 +652,7 @@ export default function PostDetailScreen() {
                 <Text style={styles.interactionIcon}>
                   {post.is_upvoted ? <MaterialCommunityIcons name="chevron-up-circle-outline" size={30} color={`${theme.primary}`} /> : <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={"white"} />}
                 </Text>
-                <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
+                <Text style={[styles.interactionCount, { color: "#fff" }]}>
                   {post.upvotes_count}
                 </Text>
               </TouchableOpacity>
@@ -662,7 +665,7 @@ export default function PostDetailScreen() {
                   <MaterialCommunityIcons name="comment" color={`${theme.primary}`} size={30} />
 
                 </Text>
-                <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
+                <Text style={[styles.interactionCount, { color: "#fff" }]}>
                   {post.comments_count}
                 </Text>
               </TouchableOpacity>
@@ -676,7 +679,7 @@ export default function PostDetailScreen() {
                   <MaterialCommunityIcons name="bookmark" size={post.is_saved ? 30 : 20} color={post.is_saved ? theme.primary : theme.textMuted} />
 
                 </Text>
-                <Text style={[styles.interactionCount, { color: theme.textPrimary, fontWeight: FontWeight.extrabold }]}>
+                <Text style={[styles.interactionCount, { color: "#fff", fontWeight: FontWeight.extrabold }]}>
                   {post.saves_count}
                 </Text>
               </TouchableOpacity>
@@ -687,7 +690,7 @@ export default function PostDetailScreen() {
                 onPress={() => setShareModalVisible((v) => !v)}
               >
 
-                <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: 12 }]}>Share</Text>
+                <Text style={[styles.interactionIcon, { color: "#fff", fontSize: 12 }]}>Share</Text>
                 <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
 
                 </Text>
@@ -738,28 +741,28 @@ export default function PostDetailScreen() {
             )}
             <TouchableOpacity activeOpacity={0.7} onPress={() => setExpanded((v) => !v)}
             >
-                <View
-                 style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
-                >
-              <Text
-                style={[styles.postTitle, { color: "white" }]}
+              <View
+                style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
               >
-                {post.name.slice(0, 30)}{post.name.length > 30 ? "..." : null}
-              
-              </Text>
-              {post.sound && (
-                <TouchableOpacity
-                onPress={(e)=>{
-                  e.stopPropagation;
-                }}
-                hitSlop={{top:3,left:3,bottom:3,right:3}}
-                  style={[{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: Radius.md, borderColor: theme.textPlaceholder, paddingHorizontal: 3 }]}
+                <Text
+                  style={[styles.postTitle, { color: "white" }]}
                 >
-                  <MaterialCommunityIcons name="music-note" size={14} color={theme.primary} />
+                  {post.name.slice(0, 30)}{post.name.length > 30 ? "..." : null}
 
-                  <Text style={[, { color: theme.textPrimary, fontSize: FontSize.sm }]}>{post.sound?.title.slice(0, 11) ?? "sound"}{post.sound?.title?.length > 11 ? "..." : null}</Text>
-                </TouchableOpacity>
-              )}
+                </Text>
+                {post.sound && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation;
+                    }}
+                    hitSlop={{ top: 3, left: 3, bottom: 3, right: 3 }}
+                    style={[{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: Radius.md, borderColor: theme.textPlaceholder, paddingHorizontal: 3 }]}
+                  >
+                    <MaterialCommunityIcons name="music-note" size={14} color={theme.primary} />
+
+                    <Text style={[, { color: theme.textPrimary, fontSize: FontSize.sm }]}>{post.sound?.title.slice(0, 11) ?? "sound"}{post.sound?.title?.length > 11 ? "..." : null}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <ScrollView
                 style={[{ maxHeight: 500 }]}
@@ -795,6 +798,7 @@ export default function PostDetailScreen() {
         visible={commentsVisible}
         onClose={() => setCommentsVisible(false)}
         totalCount={post.comments_count}
+        allowComments={post.allow_comments??true}
       />
       {/* Report modal */}
       <ReportPostModal

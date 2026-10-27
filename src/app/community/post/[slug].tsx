@@ -594,7 +594,7 @@ export default function PostDetailScreen() {
                     <MaterialCommunityIcons name="bookmark" size={post.is_saved ? 30 : 20} color={post.is_saved ? theme.primary : theme.textMuted} />
 
                   </Text>
-                  <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
+                  <Text style={[styles.interactionCount, { color: "#fff" }]}>
                     {post.saves_count}
                   </Text>
                 </TouchableOpacity>
@@ -642,7 +642,7 @@ export default function PostDetailScreen() {
                 <Text style={styles.interactionIcon}>
                   {post.is_upvoted ? <MaterialCommunityIcons name="chevron-up-circle-outline" size={30} color={`${theme.primary}`} /> : <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={"white"} />}
                 </Text>
-                <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
+                <Text style={[styles.interactionCount, { color:"#fff" }]}>
                   {post.upvotes_count}
                 </Text>
               </TouchableOpacity>
@@ -757,7 +757,7 @@ export default function PostDetailScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>}
-                <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: 12 }]}>Share</Text>
+                <Text style={[styles.interactionIcon, { color: "#fff", fontSize: 12 }]}>Share</Text>
                 <Text style={[styles.interactionCount, { color: theme.textSecondary }]}>
 
                 </Text>
@@ -832,7 +832,7 @@ export default function PostDetailScreen() {
             <ScrollView
               style={[{ maxHeight: 500 }]}>
               <Text
-                style={[styles.commentsPreviewText, { color: theme.textPrimary }]}
+                style={[styles.commentsPreviewText, { color:"#fff" }]}
               >{expanded ?
                 parseText(post.description)
                 : parseText(truncate(post.description, 50))}

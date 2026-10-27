@@ -62,7 +62,7 @@ export const useMediaPicker = (
         headerText: " Edit and Trim video (max 60s)",
         closeWhenFinish: true,
           trimmingText: 'Applying video edits...',
-
+          cancelTrimmingDialogMessage:"Cancel this process"
       })
     },
     [notify]

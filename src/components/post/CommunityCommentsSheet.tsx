@@ -24,7 +24,7 @@ import {
 import { Image } from "expo-image"
 import { useTheme } from "@/hooks/useTheme"
 import { useCommunityComments } from "@/hooks/useCommunityComments"
-import { Comment ,Sticker} from "@/types"
+import { Comment, Sticker } from "@/types"
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { CommunityCommentItem } from "../coments/CommunityCommentItem"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
@@ -44,7 +44,7 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
   const inputRef = useRef<TextInput>(null)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [showStickers, setShowStickers] = useState(false)
-    const lastKeyboardHeight = useRef(300)
+  const lastKeyboardHeight = useRef(300)
   const PICKER_HEIGHT = Math.min(lastKeyboardHeight.current, SHEET_HEIGHT * 0.45)
 
   const theme = useTheme()
@@ -109,43 +109,43 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
       })),
     }))
   }, [slug])
-    const showSub = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      (e: KeyboardEvent) => {
-        lastKeyboardHeight.current = e.endCoordinates.height
-        setKeyboardHeight(e.endCoordinates.height)
-      }
-    )
-     useEffect(() => {
-        if (!visible) setShowStickers(false)
-      }, [visible])
-      useEffect(() => {
-        if (!visible) return
-        const handler = BackHandler.addEventListener("hardwareBackPress", () => {
-          if (showStickers) {
-            setShowStickers(false)
-            return true
-          }
-          onClose()
-          return true
-        })
-        return () => handler.remove()
-      }, [visible, onClose, showStickers])
-      const toggleStickers = () => {
-        if (showStickers) {
-          setShowStickers(false)
-          inputRef.current?.focus()
-        } else {
-          Keyboard.dismiss()
-          setShowStickers(true)
-        }
-      }
-    
-      const handleSelectSticker = useCallback((s: Sticker) => {
-        selectSticker(s)
+  const showSub = Keyboard.addListener(
+    Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+    (e: KeyboardEvent) => {
+      lastKeyboardHeight.current = e.endCoordinates.height
+      setKeyboardHeight(e.endCoordinates.height)
+    }
+  )
+  useEffect(() => {
+    if (!visible) setShowStickers(false)
+  }, [visible])
+  useEffect(() => {
+    if (!visible) return
+    const handler = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (showStickers) {
         setShowStickers(false)
-        inputRef.current?.focus() // lets the user add a caption, then send
-      }, [selectSticker])
+        return true
+      }
+      onClose()
+      return true
+    })
+    return () => handler.remove()
+  }, [visible, onClose, showStickers])
+  const toggleStickers = () => {
+    if (showStickers) {
+      setShowStickers(false)
+      inputRef.current?.focus()
+    } else {
+      Keyboard.dismiss()
+      setShowStickers(true)
+    }
+  }
+
+  const handleSelectSticker = useCallback((s: Sticker) => {
+    selectSticker(s)
+    setShowStickers(false)
+    inputRef.current?.focus() // lets the user add a caption, then send
+  }, [selectSticker])
   //  slide animation ─
   useEffect(() => {
     if (visible) {
@@ -302,7 +302,12 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
           {/* drag handle */}
           <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
 
-          <View style={styles.sheetTitleRow}>
+          <View 
+          style={[{flexDirection:"column"}]}
+          >
+            <View
+            style={styles.sheetTitleRow}
+            >
             <Text style={[styles.sheetTitle, { color: theme.textPrimary }]}>
               Comments{totalCount > 0 ? ` (${totalCount})` : ""}
             </Text>
@@ -314,7 +319,10 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
             >
               <Text style={[styles.closeIcon, { color: theme.textSecondary }]}>✕</Text>
             </TouchableOpacity>
-
+            </View>
+            <Text style={[ {fontSize:FontSize.sm, color: theme.textPrimarylight }]}>
+              Long Press on a sticker to save
+            </Text>
           </View>
           {(ProcessError || processError) && (<Text style={[styles.errorText, { color: theme.ALLwarning }]}>
             An error has occured ,please try again
@@ -342,7 +350,7 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
           <View style={[styles.replyingToBanner, { backgroundColor: theme.surfaceSecondary }]}>
             <Text style={[styles.replyingToText, { color: theme.textSecondary }]}>
               Replying to{" "}
-                <Text style={{ color: theme.primary }}>@{replyingTo.author.username.slice(0, 11)}{`→[${replyingTo.body?`${replyingTo.body.slice(0, 5)}${"..."}`:replyingTo.image?"Photo":replyingTo.sticker?"Sticker":""}]`}</Text>
+              <Text style={{ color: theme.primary }}>@{replyingTo.author.username.slice(0, 11)}{`→[${replyingTo.body ? `${replyingTo.body.slice(0, 5)}${"..."}` : replyingTo.image ? "Photo" : replyingTo.sticker ? "Sticker" : ""}]`}</Text>
             </Text>
             <TouchableOpacity onPress={() => setReplyingTo(null)}>
               <Text style={[styles.cancelReply, { color: theme.textMuted }]}>✕</Text>
@@ -376,15 +384,15 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
           }
         ]}>
           <TouchableOpacity onPress={pickImage} disabled={isPosting}>
-              <MaterialCommunityIcons name="image-outline" size={26} color={theme.textMuted} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={toggleStickers} disabled={isPosting}>
-              <MaterialCommunityIcons
-                name={showStickers ? "keyboard-outline" : "sticker-emoji"}
-                size={26}
-                color={showStickers ? theme.primary : theme.textMuted}
-              />
-            </TouchableOpacity>
+            <MaterialCommunityIcons name="image-outline" size={26} color={theme.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={toggleStickers} disabled={isPosting}>
+            <MaterialCommunityIcons
+              name={showStickers ? "keyboard-outline" : "sticker-emoji"}
+              size={26}
+              color={showStickers ? theme.primary : theme.textMuted}
+            />
+          </TouchableOpacity>
           <TextInput
             style={[
               styles.commentInput,
@@ -415,7 +423,7 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
               styles.sendButton,
               {
                 backgroundColor:
-                  (commentText.trim() || image ||sticker) ? theme.primary : theme.border,
+                  (commentText.trim() || image || sticker) ? theme.primary : theme.border,
               },
             ]}
           >
@@ -427,9 +435,9 @@ export const CommunityCommentsSheet = ({ slug, visible, onClose, totalCount }: P
           </TouchableOpacity>
         </View>
 
-{showStickers && (
-            <StickerPicker height={PICKER_HEIGHT} onSelect={handleSelectSticker} />
-          )}
+        {showStickers && (
+          <StickerPicker height={PICKER_HEIGHT} onSelect={handleSelectSticker} />
+        )}
       </Animated.View>
 
     </Modal>

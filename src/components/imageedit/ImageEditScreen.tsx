@@ -11,7 +11,7 @@ import {
   useImage,
   matchFont,
   Paragraph,
-  Skia,RoundedRect,
+  Skia, RoundedRect,
 } from "@shopify/react-native-skia"
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio"
 import { buildColorMatrix } from "./ColorMatrices"
@@ -47,7 +47,9 @@ export function ImageEditScreen({ imageUris, onCancel, onDone, isMessageScreen }
   const skImage = useImage(imageUri)
   const { width: screenWidth, height: screenHeight } = useWindowDimensions()
   const theme = useTheme()
-  const canvasWidth = screenWidth
+  const GUTTER = 32 // keeps handles out of the system back-gesture zone
+
+  const canvasWidth = screenWidth - GUTTER * 2
   const canvasHeight = screenHeight - TOOLBAR_ESTIMATE - TOP_BAR_HEIGHT
   const [activeTextId, setActiveTextId] = useState<string | null>(null)
   const [edits, setEdits] = useState<EditState>(initialEditState)
@@ -164,32 +166,32 @@ export function ImageEditScreen({ imageUris, onCancel, onDone, isMessageScreen }
     default: ["sans-serif", "Roboto", "Noto Color Emoji"],
   })!
 
-const paragraphs = useMemo(
-  () =>
-    edits.textLayers.map((t) => {
-      const p = Skia.ParagraphBuilder.Make({ textAlign: 0 })
-        .pushStyle({
-          color: Skia.Color(t.color),
+  const paragraphs = useMemo(
+    () =>
+      edits.textLayers.map((t) => {
+        const p = Skia.ParagraphBuilder.Make({ textAlign: 0 })
+          .pushStyle({
+            color: Skia.Color(t.color),
+            fontSize: t.fontSize,
+            fontFamilies: textFamilies,
+            fontStyle: { weight: 700 },
+          })
+          .addText(t.text)
+          .pop()
+          .build()
+        p.layout(canvasWidth) // needed before measuring
+        return {
+          id: t.id,
+          x: t.x,
+          y: t.y,
           fontSize: t.fontSize,
-          fontFamilies: textFamilies,
-          fontStyle: { weight: 700 },
-        })
-        .addText(t.text)
-        .pop()
-        .build()
-      p.layout(canvasWidth) // needed before measuring
-      return {
-        id: t.id,
-        x: t.x,
-        y: t.y,
-        fontSize: t.fontSize,
-        paragraph: p,
-        width: p.getLongestLine(),
-        height: p.getHeight(),
-      }
-    }),
-  [edits.textLayers, canvasWidth]
-)
+          paragraph: p,
+          width: p.getLongestLine(),
+          height: p.getHeight(),
+        }
+      }),
+    [edits.textLayers, canvasWidth]
+  )
   const handleRedo = () => {
     if (!canRedo) return
     const pointer = history.pointer + 1
@@ -357,118 +359,120 @@ const paragraphs = useMemo(
           )}
         </View>
       </View>
+      <View style={{ alignSelf: "center", borderWidth: 3, borderColor: theme.textMuted }}>
 
-      <View style={{ width: canvasWidth, height: canvasHeight }}>
-        <Canvas ref={canvasRef} style={{ width: canvasWidth, height: canvasHeight }}>
-          <Group
-            transform={[
-              { translateX: canvasWidth / 2 },
-              { translateY: canvasHeight / 2 },
-              { rotate: (edits.rotation * Math.PI) / 180 },
-              { translateX: -canvasWidth / 2 },
-              { translateY: -canvasHeight / 2 },
-            ]}
-          >
-            <SkiaImage
-              image={skImage}
-              x={offsetX}
-              y={offsetY}
-              width={drawW}
-              height={drawH}
-              fit="contain"
+        <View style={{ width: canvasWidth, height: canvasHeight }}>
+          <Canvas ref={canvasRef} style={{ width: canvasWidth, height: canvasHeight }}>
+            <Group
+              transform={[
+                { translateX: canvasWidth / 2 },
+                { translateY: canvasHeight / 2 },
+                { rotate: (edits.rotation * Math.PI) / 180 },
+                { translateX: -canvasWidth / 2 },
+                { translateY: -canvasHeight / 2 },
+              ]}
             >
-              <ColorMatrix matrix={colorMatrix} />
-            </SkiaImage>
+              <SkiaImage
+                image={skImage}
+                x={offsetX}
+                y={offsetY}
+                width={drawW}
+                height={drawH}
+                fit="contain"
+              >
+                <ColorMatrix matrix={colorMatrix} />
+              </SkiaImage>
 
-            {edits.drawPaths.map((p) => (
-              <Path
-                key={p.id}
-                path={p.svgPath}
-                color={p.color}
-                style="stroke"
-                strokeWidth={p.strokeWidth}
-                strokeCap="round"
-                strokeJoin="round"
-              />
-            ))}
-            {currentStroke && (
-              <Path
-                path={currentStroke}
-                color={drawColor}
-                style="stroke"
-                strokeWidth={5}
-                strokeCap="round"
-                strokeJoin="round"
-              />
-            )}
+              {edits.drawPaths.map((p) => (
+                <Path
+                  key={p.id}
+                  path={p.svgPath}
+                  color={p.color}
+                  style="stroke"
+                  strokeWidth={p.strokeWidth}
+                  strokeCap="round"
+                  strokeJoin="round"
+                />
+              ))}
+              {currentStroke && (
+                <Path
+                  path={currentStroke}
+                  color={drawColor}
+                  style="stroke"
+                  strokeWidth={5}
+                  strokeCap="round"
+                  strokeJoin="round"
+                />
+              )}
 
-            {paragraphs.map((p) => {
-  const active = p.id === activeTextId
-  const top = p.y - p.fontSize
-  return (
-    <Group key={p.id}>
-      {active && (
-        <>
-          <RoundedRect
-            x={p.x - 8}
-            y={top - 6}
-            width={p.width + 16}
-            height={p.height + 12}
-            r={8}
-            color="rgba(255,255,255,0.18)"
-          />
-          <RoundedRect
-            x={p.x - 8}
-            y={top - 6}
-            width={p.width + 16}
-            height={p.height + 12}
-            r={8}
-            color="rgba(255,255,255,0.9)"
-            style="stroke"
-            strokeWidth={1.5}
-          />
-        </>
-      )}
-      <Group opacity={active ? ACTIVE_TEXT_OPACITY : 1}>
-        <Paragraph paragraph={p.paragraph} x={p.x} y={top} width={canvasWidth} />
-      </Group>
-    </Group>
-  )
-})}
-          </Group>
-        </Canvas>
+              {paragraphs.map((p) => {
+                const active = p.id === activeTextId
+                const top = p.y - p.fontSize
+                return (
+                  <Group key={p.id}>
+                    {active && (
+                      <>
+                        <RoundedRect
+                          x={p.x - 8}
+                          y={top - 6}
+                          width={p.width + 16}
+                          height={p.height + 12}
+                          r={8}
+                          color="rgba(255,255,255,0.18)"
+                        />
+                        <RoundedRect
+                          x={p.x - 8}
+                          y={top - 6}
+                          width={p.width + 16}
+                          height={p.height + 12}
+                          r={8}
+                          color="rgba(255,255,255,0.9)"
+                          style="stroke"
+                          strokeWidth={1.5}
+                        />
+                      </>
+                    )}
+                    <Group opacity={active ? ACTIVE_TEXT_OPACITY : 1}>
+                      <Paragraph paragraph={p.paragraph} x={p.x} y={top} width={canvasWidth} />
+                    </Group>
+                  </Group>
+                )
+              })}
+            </Group>
+          </Canvas>
 
-        {/* touch overlays — only one is mounted at a time, matching activeTool */}
-        {activeTool === "crop" && (
-          <CropOverlay
-            containerWidth={canvasWidth}
-            containerHeight={canvasHeight}
-            value={edits.cropRect}
-            onChange={handleCropChange}
-            onChangeEnd={handleCropCommit}
-          />
-        )}
-        {activeTool === "draw" && (
-          <DrawTouchLayer
-            enabled
-            onStrokeUpdate={setCurrentStroke}
-            onStrokeEnd={handleDrawEnd}
-          />
-        )}
-        {activeTool === "text" && (
-          <TextTouchLayer
-            enabled
-            layers={edits.textLayers}
-            onTapEmpty={(x, y) => setPendingTextPos({ x, y })}
-            onMoveLayer={handleMoveTextLayer}
-            onMoveEnd={handleTextMoveEnd}
-            onResizeLayer={handleResizeTextLayer}
-            onDeleteLayer={handleDeleteTextLayer}
-            onActiveChange={setActiveTextId}
-          />
-        )}
+          {/* touch overlays — only one is mounted at a time, matching activeTool */}
+          {activeTool === "crop" && (
+            <CropOverlay
+              containerWidth={canvasWidth}
+              containerHeight={canvasHeight}
+              bounds={{ x: offsetX, y: offsetY, width: drawW, height: drawH }}
+              value={edits.cropRect}
+              onChange={handleCropChange}
+              onChangeEnd={handleCropCommit}
+            />
+          )}
+          {activeTool === "draw" && (
+            <DrawTouchLayer
+              enabled
+              onStrokeUpdate={setCurrentStroke}
+              onStrokeEnd={handleDrawEnd}
+            />
+          )}
+          {activeTool === "text" && (
+            <TextTouchLayer
+              enabled
+              layers={edits.textLayers}
+              onTapEmpty={(x, y) => setPendingTextPos({ x, y })}
+              onMoveLayer={handleMoveTextLayer}
+              onMoveEnd={handleTextMoveEnd}
+              onResizeLayer={handleResizeTextLayer}
+              onDeleteLayer={handleDeleteTextLayer}
+              onActiveChange={setActiveTextId}
+            />
+          )}
+        </View>
       </View>
-
       <EditorToolbar
         edits={edits}
         activeTool={activeTool}
@@ -504,7 +508,7 @@ const paragraphs = useMemo(
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
+  container: { flex: 1, backgroundColor: "#000", paddingBottom: 40, flexDirection: "column", justifyContent: "space-between", },
   loading: { flex: 1 },
   topBar: {
     height: TOP_BAR_HEIGHT,

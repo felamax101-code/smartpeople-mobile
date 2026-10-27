@@ -45,10 +45,7 @@ export const MediaTypeSelector = ({ selected, onSelect, isSP }: Props) => {
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.textPrimary }]}>
-        Select media type
-      </Text>
-      <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+      <Text style={[styles.subtitle, { color: theme.primary,fontWeight:FontWeight.extrabold }]}>
         {isSP ? "Choose images or video" : "Choose images,video or text"}
       </Text>
       <TouchableOpacity
@@ -131,14 +128,13 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   option: {
-    height: 100,
-    padding: Spacing.lg,
     borderRadius: Radius.lg,
     borderWidth: 2,
+    paddingHorizontal:7,
+    paddingVertical:4,
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.xs,
-    position: "relative",
   },
   soundTab: {
     height: 80,

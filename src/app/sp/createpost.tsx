@@ -31,6 +31,10 @@ import { useUploadQueue } from "@/components/createpost/UploadQueuecontext"
 import { useNotificationToast } from "@/components/activityIndicator/ToastNotification"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { SelectedSound } from "@/components/createpost/SoundModal"
+import { DraftsList } from "@/components/createpost/DraftList"
+import { usePostDraft } from "@/hooks/usePostDraft"
+import { resolveDraftUris, PostDraft } from "@/hooks/drafts.store"
+
 //  screen steps 
 type Step =
   | "media_type"    // choose images or video
@@ -63,8 +67,8 @@ function SellScreen() {
 
 
   //  step state 
-    const [sound, setsound] = useState<SelectedSound|null|undefined>(null)
-  
+  const [sound, setsound] = useState<SelectedSound | null | undefined>(null)
+
   const [step, setStep] = useState<Step>("media_type")
   const [mediaType, setMediaType] = useState<"image" | "video">("image")
   const [selectedUris, setSelectedUris] = useState<string[]>([])
@@ -96,7 +100,45 @@ function SellScreen() {
   //  location (auto GPS) ─
   const { location: gpsLocation } = useLocation()
   const params = useLocalSearchParams<{ pickedLat?: string; pickedLng?: string }>()
+  const EMPTY_FORM = {
+    name: "", description: "", category: "", location: "", price: "",
+    listingType: "rental" as ListingType, rooms: "" as RoomType | "",
+    deposit: "", monthlyInstallment: "", roomsError: "",
+  }
+  const resetState = useCallback(() => {
+    setStep("media_type"); setMediaType("image")
+    setForm(EMPTY_FORM); setSelectedUris([]); setsound(null)
+    setErrors({}); setMediaErrors(null); setthereIsErrors(false)
+    setPinnedCoords(null)
+  }, [])
 
+  const hasContent =
+    form.name.trim().length > 0 ||
+    form.description.trim().length > 0 ||
+    selectedUris.length > 0
+
+  const {
+    draftIdRef, allowLeaveRef, skipAutosaveRef,
+    buildDraft, saveDraft, removeDraft, askToSaveDraft, resetAll,
+  } = usePostDraft({
+    screen: "sp",
+    mediaType, uris: selectedUris, form, sound, hasContent,
+    onReset: resetState,
+  })
+
+  const exitToStart = useCallback(() => {
+    if (hasContent) askToSaveDraft(() => { })
+    else setStep("media_type")
+  }, [hasContent, askToSaveDraft])
+
+  const restoreDraft = (d: PostDraft) => {
+    draftIdRef.current = d.id
+    setMediaType(d.mediaType as typeof mediaType)
+    setSelectedUris(resolveDraftUris(d))
+    setForm(d.form as typeof form)
+    setsound(d.sound)
+    setStep("form")
+  }
   useEffect(() => {
     if (params.pickedLat && params.pickedLng) {
       setPinnedCoords({
@@ -112,78 +154,8 @@ function SellScreen() {
     staleTime: 10 * 60 * 1000,
   })
 
-  //  submit mutation ─
-  const submitMutation = useMutation({
-    mutationFn: async () => {
-      setStep("uploading")
-      setopengalleryDisabled(true)
-      setUploadProgress({ done: 0, total: selectedUris.length })
-      // Build mediaFiles array from selected URIs
-      const mediaFiles = selectedUris.map((uri) => ({
-        uri,
-        name: uri.split("/").pop() ?? "file",
-        type: mediaType === "image" ? "image/jpeg" : "video/mp4",
-      }))
 
-      setUploadProgress({ done: selectedUris.length, total: selectedUris.length })
 
-      const isSale = form.listingType === "sale"
-
-      return splistingService.createListing({
-        name: form.name.trim(),
-        description: form.description.trim(),
-        category: form.category,
-        post_type: mediaType,
-        mediaFiles,
-        mediaType: mediaType === "image" ? "photo" : "video",
-        location_display: form.location.trim(),
-        listing_type: form.listingType,
-        rooms: form.rooms,
-        // For rentals "price" is the monthly rent.
-        // For sales "price" mirrors the deposit/full-price field so listings remain sortable/filterable by a single price.
-        price: (isSale ? form.deposit : form.price).replace(/,/g, ""),
-        deposit: isSale ? form.deposit.replace(/,/g, "") : undefined,
-        monthly_installment: isSale ? form.monthlyInstallment.replace(/,/g, "") : undefined,
-        location_lat: pinnedCoords?.latitude ?? gpsLocation?.lat ?? 0,
-        location_lng: pinnedCoords?.longitude ?? gpsLocation?.lng ?? 0,
-      })
-    },
-    onSuccess: (post: Post) => {
-      setStep("success")
-      queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
-      // navigate to the new listing after short delay
-      setTimeout(() => {
-        router.push(`/sp/post/${post.slug}`)
-      }, 1500)
-      setTimeout(() => {
-
-        setopengalleryDisabled(false)
-
-      }, 2000)
-      setStep("media_type")
-      setForm({
-        name: "",
-        description: "",
-        category: "",
-        location: "",
-        price: "",
-        listingType: "rental",
-        rooms: "",
-        deposit: "",
-        monthlyInstallment: "",
-        roomsError: ""
-      })
-
-      setthereIsErrors(false)
-      setMediaErrors(null)
-    },
-    onError: (error: any) => {
-      setopengalleryDisabled(false)
-      setStep("form")
-      const detail = error?.response?.data?.detail ?? "Failed to post listing. Try again."
-      showBanner("error", detail)
-    },
-  })
   const categories: Category[] = categoriesData?.data ?? []
   const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
@@ -201,24 +173,14 @@ function SellScreen() {
   useFocusEffect(
     useCallback(() => {
       const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-        if (step === "media_type") {
-          return false // nothing to trap — let default back/exit happen
-        }
-
-        if (step === "form") {
-
-          if (mediaType === "image") setStep("image_edit")
-          else setStep("media_type")
-        } else if (step === "uploading" || step === "success") {
-          // don't let back interrupt an in-flight submit or the success screen
-          return true
-        } else {
-          // gallery, image_edit, video_edit, etc. → back to media type choice
-          setStep("media_type")
-        }
-
+        if (step === "media_type") return false
+        if (step === "uploading" || step === "success") return true
+        if (step === "form" && mediaType === "image") { setStep("image_edit"); return true }
+        exitToStart()
         return true
       })
+      // deps: [step, mediaType, exitToStart]
+
 
       return () => sub.remove()
     }, [step, mediaType])
@@ -273,6 +235,8 @@ function SellScreen() {
     if (isSubmitting) return // guard against a double-tap firing two uploads
     setIsSubmitting(true)
     const isSale = form.listingType === "sale"
+    const submittedDraftId = draftIdRef.current
+    const snapshot = buildDraft("upload_failed")
     startUpload(
       {
         name: form.name.trim(),
@@ -297,11 +261,15 @@ function SellScreen() {
       },
       {
         onDone: (postId, postSlug) => {
+          removeDraft(submittedDraftId)
+
           queryClient.invalidateQueries({ queryKey: ["user-listings", user?.username] })
           showNotifToast("Post uploaded to SmartProperty Account", "success")
           router.push(`/sp/post/${postSlug}`)
         },
         onFailed: (error) => {
+          saveDraft(snapshot as any)
+
           showNotifToast("Failed to upload post", "error")
         },
       }, false, undefined, true
@@ -311,23 +279,10 @@ function SellScreen() {
     // floating badge. 
     router.back()
 
-    setStep("media_type")
-    setForm({
-      name: "",
-      description: "",
-
-      category: "",
-      location: "",
-      price: "",
-      listingType: "rental",
-      rooms: "",
-      deposit: "",
-      monthlyInstallment: "",
-      roomsError: ""
-    })
-    setSelectedUris([])
-    setthereIsErrors(false)
-    setMediaErrors(null)
+     allowLeaveRef.current = true
+    resetAll()
+    setIsSubmitting(false)
+    
     setIsSubmitting(false)
   }
   //  auth check 
@@ -437,7 +392,7 @@ function SellScreen() {
         {/* header */}
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={[styles.headerBack, { color: theme.textPrimary }]}>✕</Text>
+            <Text style={[styles.headerBack, { color: theme.primary }]}>✕</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
             New property post
@@ -450,6 +405,10 @@ function SellScreen() {
             selected={mediaType}
             onSelect={setMediaType}
             isSP={true}
+          />
+          <DraftsList
+            onResume={restoreDraft}
+            screen="sp"
           />
           <View style={styles.mediaTypeCTA}>
             <TouchableOpacity
@@ -508,9 +467,9 @@ function SellScreen() {
       <ImageEditScreen
         imageUris={selectedUris}
         onCancel={() => setStep("gallery")}
-        onDone={(finalUris,sound_id) => {
+        onDone={(finalUris, sound_id) => {
           setSelectedUris(finalUris)
-           setsound(sound_id)
+          setsound(sound_id)
           setStep("form")
         }}
       />
@@ -542,8 +501,8 @@ function SellScreen() {
         >
           {/* header */}
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
-            <TouchableOpacity onPress={() => setStep("media_type")}>
-              <Text style={[styles.headerBack, { color: theme.textPrimary }]}>←</Text>
+            <TouchableOpacity  onPress={() => (mediaType === "image" ? setStep("image_edit") : exitToStart())}>
+                <MaterialCommunityIcons name="arrow-left-thick" color={theme.primary} size={30} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
               post Details
@@ -602,13 +561,13 @@ function SellScreen() {
                 onChangeText={(t) => updateField("name", t)}
                 error={errors.name}
                 placeholder="title"
-                maxLength={50}
+                maxLength={30}
                 returnKeyType="next"
               />
               <View style={styles.descriptionFooter}>
 
-                <Text style={[styles.charCount, { color: form.name.length == 50 ? theme.error : theme.textMuted }]}>
-                  {form.description.length} / 50
+                <Text style={[styles.charCount, { color: form.name.length == 30 ? theme.error : theme.textMuted }]}>
+                  {form.name.length} / 50
                 </Text>
               </View>
             </View>
@@ -621,10 +580,11 @@ function SellScreen() {
               {!categories.length || isError ? (<TouchableOpacity
                 onPress={() => refetch()}
               >
-                Could not load categories,click to retry
+
                 <Text
                   style={[styles.fieldError, { color: theme.ALLwarning, fontSize: FontSize.lg }]}
                 >
+                  Could not load categories,click to retry
                 </Text>
 
               </TouchableOpacity>
@@ -959,17 +919,33 @@ function SellScreen() {
               <Text style={[styles.fieldError, { color: theme.error }]}>
                 Correct the above errors                  </Text>
             )}
-            {/* submit button */}
-            <TouchableOpacity
-              style={[styles.submitButton, { backgroundColor: theme.primary }]}
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-              activeOpacity={0.85}
+            <View
+              style={[{ flexDirection: "row", justifyContent: "space-between" }]}
+
             >
-              <Text style={styles.submitButtonText}>
-                Post
-              </Text>
-            </TouchableOpacity>
+              {/* draft button */}
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: theme.primary }]}
+                onPress={() => askToSaveDraft(() => { })}
+                disabled={isSubmitting}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.submitButtonText}>
+                  Save as draft
+                </Text>
+              </TouchableOpacity>
+              {/* submit button */}
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: theme.primary }]}
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.submitButtonText}>
+                  Post
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* pending notice */}
             <Text style={[styles.pendingNotice, { color: theme.textMuted }]}>
@@ -1189,11 +1165,12 @@ const styles = StyleSheet.create({
     marginTop: -Spacing.xs,
   },
   submitButton: {
-    height: 56,
     borderRadius: Radius.md,
     alignItems: "center",
     justifyContent: "center",
     marginTop: Spacing.sm,
+    paddingVertical:10,
+    paddingHorizontal:20
   },
   submitButtonText: {
     color: "#fff",

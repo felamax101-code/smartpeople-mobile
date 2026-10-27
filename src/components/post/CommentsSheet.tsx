@@ -37,9 +37,10 @@ interface Props {
   visible: boolean
   onClose: () => void
   totalCount: number
+  allowComments?:boolean
 }
 
-export const CommentsSheet = ({ slug, visible, onClose, totalCount }: Props) => {
+export const CommentsSheet = ({ slug, visible, onClose, totalCount,allowComments=true }: Props) => {
   const inputRef = useRef<TextInput>(null)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [showStickers, setShowStickers] = useState(false)
@@ -259,6 +260,7 @@ export const CommentsSheet = ({ slug, visible, onClose, totalCount }: Props) => 
         </View>)
 
     }
+  
     return (
       <View style={styles.emptyState}>
         <Text style={styles.emptyIcon}>💬</Text>
@@ -306,19 +308,27 @@ export const CommentsSheet = ({ slug, visible, onClose, totalCount }: Props) => 
             {/* drag handle */}
             <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
 
-            <View style={styles.sheetTitleRow}>
-              <Text style={[styles.sheetTitle, { color: theme.textPrimary }]}>
-                Comments{totalCount > 0 ? ` (${totalCount})` : ""}
-              </Text>
-              {/* close button */}
-              <TouchableOpacity
-                onPress={onClose}
-                style={[styles.closeButton, { backgroundColor: theme.surfaceSecondary }]}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            <View
+              style={[{ flexDirection: "column" }]}
+            >
+              <View
+                style={styles.sheetTitleRow}
               >
-                <Text style={[styles.closeIcon, { color: theme.textSecondary }]}>✕</Text>
-              </TouchableOpacity>
-
+                <Text style={[styles.sheetTitle, { color: theme.textPrimary }]}>
+                  Comments{totalCount > 0 ? ` (${totalCount})` : ""}
+                </Text>
+                {/* close button */}
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={[styles.closeButton, { backgroundColor: theme.surfaceSecondary }]}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={[styles.closeIcon, { color: theme.textSecondary }]}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[{ fontSize: FontSize.sm, color: theme.textPrimarylight }]}>
+                Long Press on a sticker to save
+              </Text>
             </View>
             {(ProcessError || processError) && (<Text style={[styles.errorText, { color: theme.ALLwarning }]}>
               An error has occured ,please try again
@@ -346,7 +356,7 @@ export const CommentsSheet = ({ slug, visible, onClose, totalCount }: Props) => 
             <View style={[styles.replyingToBanner, { backgroundColor: theme.surfaceSecondary }]}>
               <Text style={[styles.replyingToText, { color: theme.textSecondary }]}>
                 Replying to{" "}
-                <Text style={{ color: theme.primary }}>@{replyingTo.author.username.slice(0, 11)}{`→[${replyingTo.body?`${replyingTo.body.slice(0, 5)}${"..."}`:replyingTo.image?"Photo":replyingTo.sticker?"Sticker":""}]`}</Text>
+                <Text style={{ color: theme.primary }}>@{replyingTo.author.username.slice(0, 11)}{`→[${replyingTo.body ? `${replyingTo.body.slice(0, 5)}${"..."}` : replyingTo.image ? "Photo" : replyingTo.sticker ? "Sticker" : ""}]`}</Text>
               </Text>
               <TouchableOpacity onPress={() => setReplyingTo(null)}>
                 <Text style={[styles.cancelReply, { color: theme.textMuted }]}>✕</Text>
@@ -371,6 +381,18 @@ export const CommentsSheet = ({ slug, visible, onClose, totalCount }: Props) => 
               </TouchableOpacity>
             </View>
           )}
+          { allowComments?(
+            <View
+            style={[]}
+            >
+
+            <Text 
+            style={[{color:theme.textPrimary,fontSize:FontSize.lg,fontWeight:FontWeight.bold}]}
+            >Comments restricted or not allowed by the user</Text>
+            </View>
+          ):
+            
+            <>
           {/*  comment input ─ */}
           <View style={[
             styles.inputBar,
@@ -432,8 +454,9 @@ export const CommentsSheet = ({ slug, visible, onClose, totalCount }: Props) => 
                 <Text style={styles.sendIcon}>↑</Text>
               )}
             </TouchableOpacity>
+            
           </View>
-
+</>}
           {showStickers && (
             <StickerPicker height={PICKER_HEIGHT} onSelect={handleSelectSticker} />
           )}

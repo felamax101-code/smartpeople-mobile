@@ -535,7 +535,7 @@ function SearchSheet({
                         accessibilityState={{ disabled: !selected }}
                     >
                         <Text style={s.useText} numberOfLines={1}>
-                            {selected ? `Use "${selected.title.slice(0,20)}${selected.title.length>20?"...":null}"` : "Tap a sound to listen and select it"}
+                            {selected ? `Use "${selected.title.slice(0,20)}${selected.title.length>20?"...":""}"` : "Tap a sound to listen and select it"}
                         </Text>
                     </Pressable>
                 </View>

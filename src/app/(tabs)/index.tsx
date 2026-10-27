@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef, useEffect,useMemo } from "react"
 import {
   View,
   StyleSheet,
@@ -43,13 +43,12 @@ export default function FeedScreen() {
   const { setUnreadMessageCount } = useMessageStore()
   const theme = useTheme()
   const scrollOffsetRef = useRef(0)
-  const [filters, setFilters] = useState<FeedFilters>({
-    sort: "newest",
-    page: 1,
-  })
+  
   const [searchText, setSearchText] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [categorydropdownVisisble, setCategorydropdownVisible] = useState<boolean>(false)
+  const [filters, setFilters] = useState<FeedFilters>({ sort: "for_you", page: 1 })
+const isRanked = !selectedCategory && !searchText   // the server falls back to "newest" when filtering
   const queryClient = useQueryClient()
   const feedQueryKey = ["feed", filters, selectedCategory, searchText]
   const { user } = useAuthStore()
@@ -109,6 +108,7 @@ usePushToken()
     isFetching: isRefreshing,
     refetch,
     isError,
+    isRefetching,
     isFetchNextPageError
   } = useInfiniteQuery({
     queryKey: ["feed", filters, selectedCategory, searchText],
@@ -118,6 +118,7 @@ usePushToken()
         category: selectedCategory ?? undefined,
         search: searchText || undefined,
         page: pageParam,
+         refresh: isRanked && pageParam === 1 ? 1 : undefined,
       }) as unknown as FeedApiResponse;
 
       return response
@@ -129,30 +130,39 @@ usePushToken()
       return undefined  // no more pages
     },
     initialPageParam: 1,
-    staleTime: 2 * 60 * 1000,  // feed stays fresh for 2 mins before background refetch
+    staleTime: isRanked ? Infinity : 2 * 60 * 1000,
+  refetchOnMount: !isRanked,
+  refetchOnReconnect: !isRanked,
   })
+// c) pull-to-refresh: keep only page 1, then refetch (otherwise it re-requests every loaded page)
+const handleRefresh = useCallback(() => {
+  queryClient.setQueryData(feedQueryKey, (old: any) =>
+    old && { pages: old.pages.slice(0, 1), pageParams: old.pageParams.slice(0, 1) })
+  refetch(); refetchCategory()
+}, [queryClient, feedQueryKey, refetch, refetchCategory])
+// RefreshControl: onRefresh={handleRefresh}
 
-  useEffect(() => {
-    // Only hydrate the default view (no active filters/search),
-    // since that's the state the user lands on when opening the app
-    if (!selectedCategory && !searchText) {
-      loadFeedCache().then((cached) => {
-        if (cached) {
-          queryClient.setQueryData(["feed", filters, selectedCategory, searchText], {
-            pages: [cached.page],
-            pageParams: [1],
-          });
-        }
-      });
-    }
-  }, []);
+// d) never show the same post twice
+const posts = useMemo(() => {
+  const seen = new Set<string>()
+  return (data?.pages.flatMap((p: any) => p.data.posts ?? []) ?? [])
+    .filter((p: Post) => !seen.has(p.id) && !!seen.add(p.id))
+}, [data])
+// e) cache hydration: paint instantly, never overwrite fresher data, then replace with a fresh page
+useEffect(() => {
+  if (!isRanked) return
+  loadFeedCache().then((cached) => {
+    if (!cached || queryClient.getQueryData(feedQueryKey)) return
+    queryClient.setQueryData(feedQueryKey, { pages: [cached.page], pageParams: [1] })
+    refetch()
+  })
+}, [])
+
   useEffect(() => {
     if (data?.pages?.[0] && !selectedCategory && !searchText) {
       saveFeedCache(data.pages[0]);
     }
   }, [data?.pages?.[0]]);
-  // flatten all pages into a single post array
-  const posts: Post[] = data?.pages.flatMap((page: any) => page.data.posts ?? []) ?? []
 
   //  prefetch next page 
   // called when user is PREFETCH_THRESHOLD items from the end
@@ -468,7 +478,7 @@ usePushToken()
             // pull to refresh
             refreshControl={
               <RefreshControl
-                refreshing={isRefreshing ?? false}
+                refreshing={(isRefetching && !isFetchingNextPage) ?? false}
                 onRefresh={() => { refetch(), refetchCategory() }}
                 tintColor={Colors.primary}
               />

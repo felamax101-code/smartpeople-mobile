@@ -93,7 +93,6 @@ useEffect(() => {
 if (isError){
     return(
           <View style={styles.loading}>
-            <Text style={styles.errorIcon}>⚠️</Text>
             <Text style={[styles.errorText, { color: theme.textMuted }]}>Failed to load replies</Text>
             <TouchableOpacity style={[styles.retryBtn, { borderColor: theme.primary }]} onPress={()=>refetch}>
               <Text style={[styles.retryText, { color: theme.primary }]}>Try again</Text>
@@ -138,7 +137,7 @@ const styles = StyleSheet.create({
   loading: {
     paddingVertical: Spacing.md,
     alignItems: "center",
-    height:10,
+    justifyContent:"center",
   },
   loadMore: {
     paddingVertical: Spacing.sm,
@@ -152,7 +151,7 @@ const styles = StyleSheet.create({
 
   errorIcon: { fontSize: 32, marginBottom: Spacing.sm, textAlign: "center" },
   errorText: { fontSize: FontSize.sm, textAlign: "center", marginBottom: Spacing.md },
-  retryBtn: { borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  retryBtn: { borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm},
   retryText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 })
 

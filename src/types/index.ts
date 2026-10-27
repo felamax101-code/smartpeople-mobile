@@ -19,6 +19,7 @@ export interface ListingFilterValues {
   radius?: number
   search?: string
   page?: number
+  refresh?:number
 }
 
 export interface LoginPayload {
@@ -331,6 +332,7 @@ export interface Post {
   is_harmful?: boolean
   is_AI_generated?: boolean
   allow_download?: boolean
+  allow_comments?:boolean
   sound?: Sound
 
 }
@@ -344,6 +346,7 @@ export interface Sound {
   duration: string
   start_offset: string
   usage_count: number
+  coin?:number
 }
 export interface Reply_to {
 
@@ -407,7 +410,7 @@ export interface Comment {
 
 //  Feed ─
 
-export type SortOption = "newest" | "most_viewed" | "most_upvoted" | "nearest"
+export type SortOption = "newest" | "most_viewed" | "most_upvoted" | "nearest" |"for_you"
 
 export interface FeedFilters {
   category?: string       // slug

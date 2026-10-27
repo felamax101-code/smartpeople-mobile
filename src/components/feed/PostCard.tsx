@@ -32,6 +32,7 @@ import { DownloadProgressRing } from "../ui/DownloadProgress"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
 import { useToast } from "../activityIndicator/ToastProvider"
 import { parseText } from "@/hooks/useTextParser"
+import { useWatchTime } from "@/hooks/useWatchTime"
 import ReportPostModal from "../reportpost/ReportPostModal"
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
 
@@ -101,6 +102,8 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
   // local visibility state + ref
   const carouselRef = useRef<View>(null)
   const [isVisible, setIsVisible] = useState(false)
+  const durationRef = useRef<number | undefined>(undefined)
+useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
   const { handleRepost } = usePostRepost(post.slug)
   const [activeIndex, setActiveIndex] = useState(0)
   const navigation = useNavigation()
@@ -267,7 +270,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
           bottom: 0,
           left: 0,
           right: 0,
-
+          backgroundColor:"rgb(0,0,0,0.1)",
           zIndex: 800
 
         }]}
@@ -308,7 +311,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
             Repost
           </Text>
         </TouchableOpacity>}
-        {post.post_type != "text" &&
+        {post.post_type != "text" && post.allow_download &&
           <TouchableOpacity
             style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
             onPress={handleDownload}
@@ -510,6 +513,7 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
                   setActiveIndex(index)
                 }}
                 sound_url={post.sound?.preview_url}
+                onVideoDuration={(s) => { durationRef.current = s }}
 
               />
             </>

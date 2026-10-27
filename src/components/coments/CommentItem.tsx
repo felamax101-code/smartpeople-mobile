@@ -72,7 +72,6 @@ export const CommentItem = React.memo(({
   const { showNotifToast } = useNotificationToast()
   const { user } = useAuthStore()
   const { save } = useStickerActions()
-  console.log(replyToCommentBody)
   const isAuthor = user?.id === comment.author.id
 
   const [isEditing, setIsEditing] = useState(false)

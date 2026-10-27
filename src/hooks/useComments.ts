@@ -212,7 +212,6 @@ const [sticker, setSticker] = useState<Sticker | null>(null)
   const handlePost = useCallback(() => {
     if (!commentText.trim() && !image && !sticker) return
     const body = commentText.trim()
-    console.log("hdfrrrr",body)
     gatedAction(
       { type: "comment", postSlug: slug },
       async () => {

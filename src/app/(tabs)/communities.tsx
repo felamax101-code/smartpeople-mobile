@@ -422,7 +422,7 @@ const showBanner = useCallback((type: BannerType, message: string) => {
           >
             <Text style={styles.loginButtonText}>Log In</Text>
           </TouchableOpacity>
-          <Text style={[styles.guestSub, { color: theme.textSecondary }]}>Or new to marketplace? </Text>
+          <Text style={[styles.guestSub, { color: theme.textSecondary }]}>Or new to SmartPipla? </Text>
           <TouchableOpacity
             style={[styles.loginButton, { backgroundColor: theme.primary }]}
             onPress={() => router.push("/(auth)/register")}

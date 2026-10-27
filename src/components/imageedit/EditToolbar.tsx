@@ -128,7 +128,7 @@ export function EditorToolbar({
               />
             ))}
           </View>
-          <Text style={[styles.hint, { textAlign: "center", marginBottom: 8 }]}>
+          <Text style={[styles.hint, { textAlign: "center", marginBottom: 3 }]}>
             Tap anywhere on the photo to add text
           </Text>
         </View>
@@ -183,8 +183,8 @@ function clamp(v: number) {
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: "#111", paddingBottom: 20, paddingTop: 8 },
-  subRow: { paddingHorizontal: 12, paddingVertical: 10 },
+  container: { backgroundColor: "#111",  paddingTop: 2 },
+  subRow: { paddingHorizontal: 12, paddingVertical: 2 },
   centerRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 16 },
   pill: {
     paddingHorizontal: 14,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   stepButtonText: { color: "#fff", fontSize: 20, fontWeight: "700" },
   contrastValue: { color: "#fff", fontSize: 15, fontWeight: "600", minWidth: 36, textAlign: "center" },
-  colorSwatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: "transparent" },
+  colorSwatch: { width: 18, height: 18, borderRadius: 14, borderWidth: 2, borderColor: "transparent" },
   colorSwatchActive: { borderColor: "#fff" },
   hint: { color: "#aaa", fontSize: 13 },
   undoRow: {
@@ -231,9 +231,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 1,
   },
-  actionButton: { paddingHorizontal: 16, paddingVertical: 8 },
+  actionButton: { paddingHorizontal: 16, paddingVertical: 1 },
   actionsRight: { flexDirection: "row", alignItems: "center" },
   actionText: { color: "#ccc", fontSize: 15, fontWeight: "600" },
   doneButton: { backgroundColor: "#0a84ff", borderRadius: 8 },

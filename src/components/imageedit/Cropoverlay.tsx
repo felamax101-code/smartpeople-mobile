@@ -2,15 +2,19 @@ import { useRef, useState, useEffect, useMemo } from "react"
 import { View, PanResponder, StyleSheet, type PanResponderInstance } from "react-native"
 import type { CropRect } from "@/types/ImageEditor"
 
+
+type Bounds = { x: number; y: number; width: number; height: number }
+
 type Props = {
   containerWidth: number
   containerHeight: number
   value: CropRect | null
   onChange: (rect: CropRect) => void
   onChangeEnd?: (rect: CropRect) => void
+  bounds:Bounds
 }
 
-const HANDLE_HIT = 32
+const HANDLE_HIT = 10
 const MIN_SIZE = 60
 
 // Which handle codes affect which edges. 'l'/'r'/'t'/'b' = single edge,
@@ -29,47 +33,50 @@ function applyHandle(
   start: CropRect,
   dx: number,
   dy: number,
-  containerW: number,
-  containerH: number
+  b:Bounds
 ): CropRect {
+  const minX = b.x, maxX = b.x + b.width
+  const minY = b.y, maxY = b.y + b.height
+
   if (handle === "move") {
     return {
       ...start,
-      x: clamp(start.x + dx, 0, containerW - start.width),
-      y: clamp(start.y + dy, 0, containerH - start.height),
+      x: clamp(start.x + dx, minX, maxX - start.width),
+      y: clamp(start.y + dy, minY, maxY - start.height),
     }
   }
 
   let { x, y, width, height } = start
-  const left = handle.includes("l")
-  const right = handle.includes("r")
-  const top = handle.includes("t")
-  const bottom = handle.includes("b")
-
-  if (left) {
-    const newX = clamp(start.x + dx, 0, start.x + start.width - MIN_SIZE)
+  if (handle.includes("l")) {
+    const newX = clamp(start.x + dx, minX, start.x + start.width - MIN_SIZE)
     width = start.x + start.width - newX
     x = newX
   }
-  if (right) {
-    width = clamp(start.width + dx, MIN_SIZE, containerW - start.x)
+  if (handle.includes("r")) {
+    width = clamp(start.width + dx, MIN_SIZE, maxX - start.x)
   }
-  if (top) {
-    const newY = clamp(start.y + dy, 0, start.y + start.height - MIN_SIZE)
+  if (handle.includes("t")) {
+    const newY = clamp(start.y + dy, minY, start.y + start.height - MIN_SIZE)
     height = start.y + start.height - newY
     y = newY
   }
-  if (bottom) {
-    height = clamp(start.height + dy, MIN_SIZE, containerH - start.y)
+  if (handle.includes("b")) {
+    height = clamp(start.height + dy, MIN_SIZE, maxY - start.y)
   }
-
   return { x, y, width, height }
 }
 
-export function CropOverlay({ containerWidth, containerHeight, value, onChange, onChangeEnd }: Props) {
-  const [rect, setRect] = useState<CropRect>(
-    value ?? { x: 20, y: 20, width: containerWidth - 40, height: containerHeight - 40 }
-  )
+export function CropOverlay({ containerWidth, containerHeight, value, onChange, onChangeEnd,bounds }: Props) {
+ 
+  const fullRect = useMemo<CropRect>(
+  () => ({ x: 0, y: 0, width: containerWidth, height: containerHeight }),
+  [containerWidth, containerHeight]
+)
+const [rect, setRect] = useState<CropRect>(value ?? bounds)
+
+useEffect(() => {
+  setRect(value ?? bounds)
+}, [value, bounds.x, bounds.y, bounds.width, bounds.height])
   // snapshot of the rect taken at the moment a touch begins — every move
   // event during that gesture computes from this fixed value, never from
   // the live `rect` state, so deltas don't compound.
@@ -107,7 +114,7 @@ export function CropOverlay({ containerWidth, containerHeight, value, onChange, 
       },
       onPanResponderMove: (_, gesture) => {
         commit(
-          applyHandle(handle, startRect.current, gesture.dx, gesture.dy, containerWidth, containerHeight)
+          applyHandle(handle, startRect.current, gesture.dx, gesture.dy,bounds)
         )
       },
       onPanResponderRelease: () => {
@@ -129,7 +136,7 @@ export function CropOverlay({ containerWidth, containerHeight, value, onChange, 
       bl: makeResponder("bl"),
       br: makeResponder("br"),
     }),
-    [containerWidth, containerHeight]
+    [bounds.x, bounds.y, bounds.width, bounds.height]
   )
 
   return (
