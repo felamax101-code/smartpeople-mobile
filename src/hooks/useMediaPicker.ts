@@ -22,7 +22,7 @@ type ToastType = "default" | "success" | "error"
 type ShowToast = (message: string, type: ToastType) => void
 
 const MAX_IMAGES = 5
-const MAX_VIDEO_MS = 60_000 // maxDuration in the library is in milliseconds
+const MAX_VIDEO_MS = 300_000 // maxDuration in the library is in milliseconds
 
 // The library may return a bare path; expo-video / expo-image want a file:// URI
 const toFileUri = (path: string) =>
@@ -59,7 +59,7 @@ export const useMediaPicker = (
       showEditor(uri, {
         maxDuration: MAX_VIDEO_MS,
         enablePreciseTrimming: true, // default stream-copy can drift past the limit
-        headerText: " Edit and Trim video (max 60s)",
+        headerText: " Edit and Trim video (max 300s)",
         closeWhenFinish: true,
           trimmingText: 'Applying video edits...',
           cancelTrimmingDialogMessage:"Cancel this process"

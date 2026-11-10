@@ -26,7 +26,7 @@ interface Props {
   typing: boolean
 }
 
-export const ConversationItem = ({ conversation, onDelete, typing, }: Props) => {
+export const ConversationItem = ({ conversation, onDelete, typing,}: Props) => {
   const theme = useTheme()
   const { user } = useAuthStore()
   // get the other participant (not current user)
@@ -58,7 +58,11 @@ export const ConversationItem = ({ conversation, onDelete, typing, }: Props) => 
       overshootRight={false}>
       <TouchableOpacity
         style={[styles.container, { borderBottomColor: theme.border }]}
-        onPress={() => {router.push(`/messages/${conversation.id}` as any); setUnreadMessageCount(unreadMesageCount-(conversation.unread_count??0))}}
+        onPress={() => {router.push({
+           pathname:`/messages/${conversation.id}` as any,
+          
+          });
+           setUnreadMessageCount(unreadMesageCount-(conversation.unread_count??0))}}
         activeOpacity={0.7}
       >
         {/* avatar */}

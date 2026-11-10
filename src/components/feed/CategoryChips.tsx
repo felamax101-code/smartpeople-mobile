@@ -41,12 +41,10 @@ export const CategoryChips = ({ categories, selected, onSelect }: Props) => {
           onPress={() => onSelect(cat.slug)}
           activeOpacity={0.7}
         >
-          {cat.icon && (
-            <Text style={styles.chipIcon}>{cat.icon}</Text>
-          )}
+          
           <Text style={[
             styles.chipText,
-            selected === cat.slug && styles.chipTextActive
+            selected === cat.slug && styles.chipTextActive,{color:"#fff"}
           ]}>
             {cat.name}
           </Text>
@@ -68,15 +66,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs ,
     borderRadius: Radius.full,
-    backgroundColor: Colors.gray[100],
+    backgroundColor: "rgb(0,0,0,0.1)",
     borderWidth: 0.1,
     borderColor: Colors.gray[200],
   },
   chipActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: "rgb(0,0,0,0.5)",
     borderColor: Colors.primary,
   },
   chipIcon: {

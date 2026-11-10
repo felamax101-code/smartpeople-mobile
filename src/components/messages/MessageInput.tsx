@@ -13,6 +13,7 @@ import {
 import { File } from "expo-file-system"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import { MediaType } from "@/hooks/useMediaPicker"
+import { router } from "expo-router"
 import { useTheme } from "@/hooks/useTheme"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { MessageWithExtras } from "@/hooks/useConversationDetail"
@@ -23,6 +24,7 @@ import { useAuthStore } from "@/stores/auth.store"
 import { ImageEditScreen } from "../imageedit/ImageEditScreen"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
 import NativeVideoTrim, { showEditor, isValidFile, type Spec } from "react-native-video-trim"
+import { useShareStore } from "@/hooks/usePostlinkDraftStore"
 
 const MAX_VIDEO_MS = 60_000 // library and expo-image-picker both use milliseconds
 
@@ -43,11 +45,9 @@ const MAX_MEDIA_ITEMS = 5
 
 interface Props {
   onSendText: (text: string) => void
-  onSendOffer: (amount: number) => void
   onSendMedia: (assets: PickedMediaAsset[]) => void
   onTyping: (isTyping: boolean) => void
   isSending: boolean
-  showOfferButton: boolean
   replyingTo: MessageWithExtras | null
   onCancelReply: () => void
 }
@@ -63,11 +63,9 @@ const getReplyPreviewText = (message: MessageWithExtras): string => {
 
 export const MessageInput = forwardRef<{ focus: () => void }, Props>(({
   onSendText,
-  onSendOffer,
   onSendMedia,
   onTyping,
   isSending,
-  showOfferButton,
   replyingTo,
   onCancelReply,
 }, ref) => {
@@ -77,10 +75,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, Props>(({
     focus: () => inputRef.current?.focus(),
   }))
   const theme = useTheme()
-  const [text, setText] = useState("")
-  const [showOfferModal, setShowOfferModal] = useState(false)
-  const [offerAmount, setOfferAmount] = useState("")
-  const {showNotifToast}=useNotificationToast()
+  const { showNotifToast } = useNotificationToast()
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [mediapickerVisisble, setMediaPickerMediaVisisble] = useState<boolean>(false)
   const [pendingAssets, setPendingAssets] = useState<PickedMediaAsset[] | null>(null)
@@ -89,6 +84,10 @@ export const MessageInput = forwardRef<{ focus: () => void }, Props>(({
   // and springs back to 0 when cancelled or sent.
   const replyAnim = useRef(new Animated.Value(0)).current
   const [cameraMode, setCameraMode] = useState<MediaType | null>(null)
+  const link = useShareStore((s) => s.link);
+const [text, setText] = useState(link ?? "");
+
+
   useEffect(() => {
     Animated.spring(replyAnim, {
       toValue: replyingTo ? 1 : 0,
@@ -103,7 +102,7 @@ export const MessageInput = forwardRef<{ focus: () => void }, Props>(({
     outputRange: [0, 56],
   })
   const replyBarOpacity = replyAnim
-
+  
   const handleTextChange = (value: string) => {
     setText(value)
     onTyping(true)
@@ -116,10 +115,11 @@ export const MessageInput = forwardRef<{ focus: () => void }, Props>(({
     onTyping(false)
     if (typingTimeoutRef.current !== null) clearTimeout(typingTimeoutRef.current)
     onSendText(text.trim())
+    useShareStore.getState().clearShare();
     setText("")
   }, [text, isSending, onSendText, onTyping])
 
-  
+
 
   //  media: normalize a raw picker asset into our own shape, tagging it
   //    image vs video so everything downstream    can branch on `type` without re-inspecting the file. 
@@ -132,112 +132,112 @@ export const MessageInput = forwardRef<{ focus: () => void }, Props>(({
     mimeType: asset.mimeType
   })
   // Opens the native editor and resolves with the trimmed asset, or null if the
-// user cancelled or something failed.
-const trimVideo = useCallback(
-  async (asset: PickedMediaAsset): Promise<PickedMediaAsset | null> => {
-    const { isValid } = await isValidFile(asset.uri)
-    if (!isValid) {
-      showNotifToast("This video can't be opened.", "error")
-      return null
-    }
-
-    return new Promise((resolve) => {
-      const native = NativeVideoTrim as Spec
-      const subs: { remove: () => void }[] = []
-      const finish = (result: PickedMediaAsset | null) => {
-        subs.forEach((s) => s.remove())   // always unsubscribe
-        resolve(result)
+  // user cancelled or something failed.
+  const trimVideo = useCallback(
+    async (asset: PickedMediaAsset): Promise<PickedMediaAsset | null> => {
+      const { isValid } = await isValidFile(asset.uri)
+      if (!isValid) {
+        showNotifToast("This video can't be opened.", "error")
+        return null
       }
 
-      subs.push(
-        native.onFinishTrimming(({ outputPath, duration }) => {
-          const uri = toFileUri(outputPath)
-          finish({
-            ...asset,
-            uri,
-            duration,
-            mimeType: "video/mp4",
-            width: undefined,    // edit tools may have cropped/rotated
-            height: undefined,
-            fileSize: getFileSize(uri),   // new file, re-read
+      return new Promise((resolve) => {
+        const native = NativeVideoTrim as Spec
+        const subs: { remove: () => void }[] = []
+        const finish = (result: PickedMediaAsset | null) => {
+          subs.forEach((s) => s.remove())   // always unsubscribe
+          resolve(result)
+        }
+
+        subs.push(
+          native.onFinishTrimming(({ outputPath, duration }) => {
+            const uri = toFileUri(outputPath)
+            finish({
+              ...asset,
+              uri,
+              duration,
+              mimeType: "video/mp4",
+              width: undefined,    // edit tools may have cropped/rotated
+              height: undefined,
+              fileSize: getFileSize(uri),   // new file, re-read
+            })
           })
-        })
-      )
-      subs.push(native.onCancel(() => finish(null)))
-      subs.push(
-        native.onError(({ message }) => {
-          showNotifToast(message || "Could not trim this video.", "error")
-          finish(null)
-        })
-      )
+        )
+        subs.push(native.onCancel(() => finish(null)))
+        subs.push(
+          native.onError(({ message }) => {
+            showNotifToast(message || "Could not trim this video.", "error")
+            finish(null)
+          })
+        )
 
-      showEditor(asset.uri, {
-        maxDuration: MAX_VIDEO_MS,
-        enablePreciseTrimming: true,   // otherwise output can overshoot 60s
-        headerText: "Edit video (max 60s)",
-        closeWhenFinish: true,
-        trimmerColor: `${theme.primary}`,
-        trimmingText: 'Processing video...',
+        showEditor(asset.uri, {
+          maxDuration: MAX_VIDEO_MS,
+          enablePreciseTrimming: true,   // otherwise output can overshoot 60s
+          headerText: "Edit video (max 60s)",
+          closeWhenFinish: true,
+          trimmerColor: `${theme.primary}`,
+          trimmingText: 'Processing video...',
 
+        })
       })
-    })
-  },
-  [showNotifToast]
-)
-const handlePicked = useCallback(
-  async (assets: PickedMediaAsset[]) => {
-    const processed: PickedMediaAsset[] = []
+    },
+    [showNotifToast]
+  )
+  const handlePicked = useCallback(
+    async (assets: PickedMediaAsset[]) => {
+      const processed: PickedMediaAsset[] = []
 
-    for (const a of assets) {
-      if (a.type === "video" && a.duration && a.duration > MAX_VIDEO_MS) {
-        const trimmed = await trimVideo(a)   // one editor at a time
-        if (trimmed) processed.push(trimmed)
-        else showNotifToast("Video skipped: it must be 60 seconds or less.", "error")
-      } else {
-        processed.push(a)
+      for (const a of assets) {
+        if (a.type === "video" && a.duration && a.duration > MAX_VIDEO_MS) {
+          const trimmed = await trimVideo(a)   // one editor at a time
+          if (trimmed) processed.push(trimmed)
+          else showNotifToast("Video skipped: it must be 60 seconds or less.", "error")
+        } else {
+          processed.push(a)
+        }
       }
-    }
 
-    if (processed.length === 0) return
+      if (processed.length === 0) return
 
-    const withSize = processed.map((a) => ({
-      ...a,
-      fileSize: a.fileSize ?? getFileSize(a.uri),
-    }))
+      const withSize = processed.map((a) => ({
+        ...a,
+        fileSize: a.fileSize ?? getFileSize(a.uri),
+      }))
 
-    if (withSize.some((a) => a.type === "image")) {
-      setPendingAssets(withSize)   // image editor, as before
-    } else {
-      onSendMedia(withSize)
-    }
-  },
-  [onSendMedia, trimVideo, showNotifToast]
-)
+      if (withSize.some((a) => a.type === "image")) {
+        setPendingAssets(withSize)   // image editor, as before
+      } else {
+        onSendMedia(withSize)
+      }
+    },
+    [onSendMedia, trimVideo, showNotifToast]
+  )
 
-const handleEditDone = useCallback((editedUris: string[]) => {
-  if (!pendingAssets) return
-  let i = 0
-  const merged = pendingAssets.map((a) => {
-    if (a.type === "video") return a
-    const uri = editedUris[i++]
-    return {
-      ...a,
-      uri,
-      mimeType: mimeFromUri(uri),
-      width: undefined,            // crop/rotate changed these
-      height: undefined,
-      fileSize: getFileSize(uri),  // re-read, the edited file is a new file
-    }
-  })
-  setPendingAssets(null)
-  onSendMedia(merged)
-}, [pendingAssets, onSendMedia])
+  const handleEditDone = useCallback((editedUris: string[]) => {
+    if (!pendingAssets) return
+    let i = 0
+    const merged = pendingAssets.map((a) => {
+      if (a.type === "video") return a
+      const uri = editedUris[i++]
+      return {
+        ...a,
+        uri,
+        mimeType: mimeFromUri(uri),
+        width: undefined,            // crop/rotate changed these
+        height: undefined,
+        fileSize: getFileSize(uri),  // re-read, the edited file is a new file
+      }
+    })
+    setPendingAssets(null)
+    onSendMedia(merged)
+  }, [pendingAssets, onSendMedia])
   const pickFromLibrary = useCallback(async () => {
     setMediaPickerMediaVisisble(false)
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== "granted") {
-      showNotifToast("Permission needed. Allow access to your photos and videos to send media.","error")
+      showNotifToast("Permission needed. Allow access to your photos and videos to send media.", "error")
       return
     }
 
@@ -252,7 +252,7 @@ const handleEditDone = useCallback((editedUris: string[]) => {
 
     const assets = result.assets.slice(0, MAX_MEDIA_ITEMS).map(toPickedAsset)
     handlePicked(assets)
-  }, [onSendMedia,handlePicked])
+  }, [onSendMedia, handlePicked])
   const openCamera = useCallback((mode: MediaType) => {
     setMediaPickerMediaVisisble(false)
     setCameraMode(mode)
@@ -267,14 +267,14 @@ const handleEditDone = useCallback((editedUris: string[]) => {
         : ext === "mov" ? "video/quicktime" : "video/mp4"
 
     handlePicked([{
-  uri: asset.uri,
-  type: asset.type,
-  width: asset.width,
-  height: asset.height,
-  duration: asset.duration,
-  mimeType,
-}])
-  }, [onSendMedia,handlePicked])
+      uri: asset.uri,
+      type: asset.type,
+      width: asset.width,
+      height: asset.height,
+      duration: asset.duration,
+      mimeType,
+    }])
+  }, [onSendMedia, handlePicked])
   return (
     <>
       {/*  reply bar  */}
@@ -395,41 +395,41 @@ const handleEditDone = useCallback((editedUris: string[]) => {
               </TouchableOpacity>
             </View>
           </View>
-         
+
         </>
       )}
-       <Modal
-            visible={cameraMode !== null}
-            animationType="slide"
-            presentationStyle="fullScreen"
-            onRequestClose={() => setCameraMode(null)}   // Android back button
-          >
-            {cameraMode && (
-              <InAppCamera
-                mediaType={cameraMode}
-                onCapture={handleCameraCapture}
-                onClose={() => setCameraMode(null)}
-              />
-            )}
-          </Modal>
-          <Modal
-  visible={pendingAssets !== null}
-  animationType="slide"
-  presentationStyle="fullScreen"
-  statusBarTranslucent
-  onRequestClose={() => setPendingAssets(null)}
->
-  <SafeAreaProvider>
-    {pendingAssets && (
-      <ImageEditScreen
-        imageUris={pendingAssets.filter((a) => a.type === "image").map((a) => a.uri)}
-        onCancel={() => setPendingAssets(null)}
-        onDone={handleEditDone}
-        isMessageScreen={true}
-      />
-    )}
-  </SafeAreaProvider>
-</Modal>
+      <Modal
+        visible={cameraMode !== null}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setCameraMode(null)}   // Android back button
+      >
+        {cameraMode && (
+          <InAppCamera
+            mediaType={cameraMode}
+            onCapture={handleCameraCapture}
+            onClose={() => setCameraMode(null)}
+          />
+        )}
+      </Modal>
+      <Modal
+        visible={pendingAssets !== null}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        onRequestClose={() => setPendingAssets(null)}
+      >
+        <SafeAreaProvider>
+          {pendingAssets && (
+            <ImageEditScreen
+              imageUris={pendingAssets.filter((a) => a.type === "image").map((a) => a.uri)}
+              onCancel={() => setPendingAssets(null)}
+              onDone={handleEditDone}
+              isMessageScreen={true}
+            />
+          )}
+        </SafeAreaProvider>
+      </Modal>
     </>
   )
 })

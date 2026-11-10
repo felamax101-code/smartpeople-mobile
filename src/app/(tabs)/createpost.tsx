@@ -113,6 +113,7 @@ function SellScreen() {
     setSelectedUris([])
     setsound(null)
     setErrors({})
+    setMoreSettingsVisible(false)
     setMediaErrors(null)
     setthereIsErrors(false)
   }, [])
@@ -904,7 +905,7 @@ function SellScreen() {
                   {/* description */}
                   <View style={styles.fieldGroup}>
                     <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                      Write about your post to make it easily dscoverable
+                      Write about your post to make it easily discoverable
                     </Text>
                     <TextInput
                       style={[

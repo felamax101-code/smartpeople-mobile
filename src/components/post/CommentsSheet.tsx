@@ -381,14 +381,14 @@ export const CommentsSheet = ({ slug, visible, onClose, totalCount,allowComments
               </TouchableOpacity>
             </View>
           )}
-          { allowComments?(
+          { !allowComments?(
             <View
-            style={[]}
+            style={[styles.inputBar]}
             >
 
             <Text 
-            style={[{color:theme.textPrimary,fontSize:FontSize.lg,fontWeight:FontWeight.bold}]}
-            >Comments restricted or not allowed by the user</Text>
+            style={[{color:theme.textPrimary,fontSize:FontSize.sm,fontWeight:FontWeight.bold}]}
+            >Comments restricted or not allowed by the post owner</Text>
             </View>
           ):
             

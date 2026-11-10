@@ -1,6 +1,6 @@
 
 
-import { useCallback, useRef, useState, useEffect } from "react"
+import React, { useCallback, useRef, useState, useEffect } from "react"
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   StyleSheet,
   Dimensions,
   Share,
-  BackHandler
+  BackHandler,
+  ScrollView
 } from "react-native"
 import * as Clipboard from "expo-clipboard"
 import { Image } from "expo-image"  // expo-image has better caching than RN Image
@@ -34,19 +35,22 @@ import { useToast } from "../activityIndicator/ToastProvider"
 import { parseText } from "@/hooks/useTextParser"
 import { useWatchTime } from "@/hooks/useWatchTime"
 import ReportPostModal from "../reportpost/ReportPostModal"
+import { useShareStore } from "@/hooks/usePostlinkDraftStore"
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 interface Props {
   post: Post
   //isVisible:boolean
   onSave?: (post_slug: string, saved: boolean) => void
   onUpvote?: (slug: string, upvoted: boolean) => void
-  index: number
-  scrollOffset: any
+  height: number
   isSP?: boolean
+  isActive: boolean
 }
 
-export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = false }: Props) => {
+export const PostCard = React.memo(({ post, height, isActive, onSave, onUpvote, isSP = false }: Props) => {
 
   const { gatedAction } = useAuthGate()
   const theme = useTheme()
@@ -101,9 +105,9 @@ export const PostCard = ({ post, onSave, onUpvote, index, scrollOffset, isSP = f
   )
   // local visibility state + ref
   const carouselRef = useRef<View>(null)
-  const [isVisible, setIsVisible] = useState(false)
+  const isVisible = isActive
   const durationRef = useRef<number | undefined>(undefined)
-useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
+  useWatchTime(post.id, isVisible, !isSP, () => durationRef.current)
   const { handleRepost } = usePostRepost(post.slug)
   const [activeIndex, setActiveIndex] = useState(0)
   const navigation = useNavigation()
@@ -177,18 +181,7 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
   useEffect(() => {
     navigation.setOptions({ gestureEnabled: !shareModalVisible })
   }, [shareModalVisible, navigation])
-  useEffect(() => {
-    const interval = setInterval(() => {
-      carouselRef.current?.measure((_x, _y, _w, height, _pageX, pageY) => {
-        const screenHeight = Dimensions.get("window").height
-        const carouselBottom = pageY + height
-        const carouselTop = pageY
-        const visible = carouselTop < screenHeight * 0.5 && carouselBottom > screenHeight * 0.3
-        setIsVisible(visible)
-      })
-    }, 200)
-    return () => clearInterval(interval)
-  }, [])
+
   useEffect(() => {
     if (isVisible) {
       isSP ? spfeedService.viewsEndpoint(post.slug) : feedService.viewsEndpoint(post.slug)
@@ -261,6 +254,12 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
       showNotifToast("Error copying. Try again", "error")
     }
   }
+   const handleSendToDm = async () => {
+    if (!post) return
+    setShareModalVisible(false)
+  useShareStore.getState().startShare(isSP ? `https://smartpipla.com/sp/post/${post.slug}` : `https://smartpipla.com/post/${post.slug}`);
+router.navigate("/messages");
+  }
   return (
     <View style={[styles.container, { backgroundColor: theme.background, borderColor: theme.textMuted }]}>
       {shareModalVisible && <TouchableOpacity
@@ -270,7 +269,7 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor:"rgb(0,0,0,0.1)",
+          backgroundColor: "rgb(0,0,0,0.1)",
           zIndex: 800
 
         }]}
@@ -281,11 +280,11 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
       {shareModalVisible && <View
         style={[{
           position: "absolute", backgroundColor: theme.backgroundMuted, borderWidth: 2, borderColor: theme.textPlaceholder,
-          right: 3, bottom: 30, zIndex: 1000, width: 150, gap: 10, borderRadius: Radius.md, paddingVertical: 6,
+          right: 7, bottom: 110, zIndex: 1000, width: 150, gap: 10, borderRadius: Radius.md, paddingVertical: 6,
         }]}
       >
         <TouchableOpacity
-          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, borderWidth: 0, justifyContent: "space-between" }]}
+          style={[styles.shareItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder, borderWidth: 0, justifyContent: "space-between" }]}
           onPress={() => setShareModalVisible(false)}
           activeOpacity={0.7}
         >
@@ -301,7 +300,7 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
           </View>
         </TouchableOpacity>
         {!isSP && <TouchableOpacity
-          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          style={[styles.shareItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
           onPress={handleRepostPost}
           activeOpacity={0.7}
         >
@@ -313,7 +312,7 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
         </TouchableOpacity>}
         {post.post_type != "text" && post.allow_download &&
           <TouchableOpacity
-            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            style={[styles.shareItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
             onPress={handleDownload}
             activeOpacity={0.7}
             disabled={downloadStatus === "downloading"}
@@ -336,7 +335,7 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
           </TouchableOpacity>
         }
         <TouchableOpacity
-          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          style={[styles.shareItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
           onPress={handleCopyinapplink}
           activeOpacity={0.7}
         >
@@ -347,7 +346,7 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
         </TouchableOpacity>
         {post.description &&
           <TouchableOpacity
-            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            style={[styles.shareItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
             onPress={handleCopy}
             activeOpacity={0.7}
           >
@@ -356,9 +355,18 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
               Copy text body
             </Text>
           </TouchableOpacity>}
-
+<TouchableOpacity
+          style={[styles.shareItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          onPress={handleSendToDm}
+          activeOpacity={0.7}
+        >
+           <MaterialCommunityIcons name="message-text" color={theme.primary} />
+          <Text style={[styles.interactionIcon, { color: theme.textPrimary, fontSize: FontSize.sm, fontWeight: FontWeight.bold }]}>
+           Send to inapp-friend 
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+          style={[styles.shareItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
           onPress={handleShare}
           activeOpacity={0.7}
         >
@@ -370,6 +378,137 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
       </View>}
       {/*  media carousel  */}
       <View ref={carouselRef}>
+
+        <View >
+          {post.post_type === "text" ? (
+            <View style={[styles.textConatiner, { flex: 1, height, paddingTop: height * 0.2, paddingBottom: height * 0.1, justifyContent: "center", paddingRight: 43 }]}>
+              <View>
+                <Text style={[styles.textTitle, { color: theme.textPrimary }]}>{post.name}</Text>
+              </View>
+
+              <View>
+                <ScrollView
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={false}
+                >
+
+                  <Text
+
+                    style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(post.description)}</Text>
+                </ScrollView>
+              </View>
+
+            </View>
+
+          ) : (
+            <>
+              <View style={{ width: SCREEN_WIDTH, height, backgroundColor: "black" }}>
+
+                <ImageCarousel
+                  height={height}
+                  images={post.images}
+                  video={post.videos}
+                  slug={post.slug}
+                  isVisible={isVisible}
+                  isSP={isSP}
+                  price={post.price}
+                  deposit={post.deposit}
+                  installments={post.monthly_installment}
+                  listing_type={post.listing_type}
+                  location={post.location_display}
+                  onActiveMediaChange={(item, index) => {
+                    setActiveMedia(item)
+                    setActiveIndex(index)
+                  }}
+                  sound_url={post.sound?.preview_url}
+                  onVideoDuration={(s) => { durationRef.current = s }}
+
+                />
+              </View>
+            </>
+
+          )}
+        </View>
+      </View>
+
+
+
+
+      {/*  post info section ─ */}
+      <View style={styles.infoSection}>
+        {/* interactions row */}
+        <View style={[styles.interactionsRow, { borderBottomColor: theme.textMuted, borderTopColor: theme.textMuted }]}>
+          {/* upvote */}
+          <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            onPress={handleUpvote}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.interactionIcon]}>
+              {post.is_upvoted ? <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={`${theme.primary}`} /> : <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={"white"} />}
+            </Text>
+            <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
+              {formatCount(post.upvotes_count)}
+            </Text>
+          </TouchableOpacity>
+
+          {/* comments — public, no auth gate */}
+          {!isSP && <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            onPress={handleComments}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.interactionIcon]}>
+              <MaterialCommunityIcons name="comment-outline" color={`${theme.primary}`} size={20} />
+            </Text>
+            <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
+              {formatCount(post.comments_count)}
+            </Text>
+          </TouchableOpacity>}
+
+          <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            onPress={handleRefetchViewsCount}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.interactionIcon]}>
+
+              <MaterialCommunityIcons name="eye-outline" color={theme.primary} size={20} />
+            </Text>
+            <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
+              {formatCount(post.views_count)}
+            </Text>
+          </TouchableOpacity>
+
+          {/* save */}
+          <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: post.is_saved ? theme.primary : theme.textPlaceholder }]}
+            onPress={handleSave}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.interactionIcon, { color: theme.textPrimary }]}>
+              <MaterialCommunityIcons name="bookmark" size={20} color={post.is_saved ? theme.primary : theme.textMuted} />
+
+            </Text>
+            <Text style={styles.interactionCount}>{post.saves_count}</Text>
+          </TouchableOpacity>
+
+          {/* share — no auth required */}
+          <TouchableOpacity
+            style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
+            onPress={() => setShareModalVisible((v) => !v)}
+            activeOpacity={0.7}
+          >
+
+            <Text style={[styles.interactionIcon, { color: theme.textPrimary, borderColor: theme.borderMuted }]}>Share</Text>
+            {/* <Text style={styles.interactionCount}></Text> */}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+
+
+      <View style={styles.infoOverlay} pointerEvents="box-none">
         <View
           style={[styles.userRow, { justifyContent: "space-between" }]}
         >
@@ -388,7 +527,7 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
             >
               {post.owner.avatar === null ? (
                 <View style={[styles.usernamePlcaholder, { backgroundColor: `${getAvatarColor(post.owner.username)}` }]}>
-                  <Text style={[{ color: "#fff", fontSize: FontSize.xl, fontWeight: FontWeight.bold }]} >  {post.owner.username.charAt(0)}</Text>
+                  <Text style={[{ color: "#fff", fontSize: FontSize.md, fontWeight: FontWeight.bold }]} >  {post.owner.username.charAt(0)}</Text>
                 </View>
               ) : (
                 <Image
@@ -400,10 +539,10 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
 
 
               <View
-                style={[{ flexDirection: "row" }]}
+                style={[{ flexDirection: "row", backgroundColor: "rgb(0,0,0,0.3)", borderRadius: Radius.md, paddingHorizontal: 4, paddingVertical: 1 }]}
               >
                 <Text style={[styles.userName, { color: theme.primary }]}>{isSP ? "sp/" : "@/"}</Text>
-                <Text style={[styles.userName, { color: theme.textPrimary }]}>{post.owner?.username}</Text>
+                <Text style={[styles.userName, { color: "#fff" }]}>{post.owner?.username}</Text>
               </View>
               {/* <VerifiedBadge badge={post.owner?.verification_badge} size="sm" /> */}
 
@@ -430,183 +569,91 @@ useWatchTime(post.id, isVisible, !!user && !isSP, () => durationRef.current)
           </View>
 
         </View>
-        <View >
-          {post.post_type === "text" ? (
-            <View style={[styles.textConatiner]}>
-              <View>
-                <Text style={[styles.textTitle, { color: theme.textPrimary }]}>{post.name}</Text>
-              </View>
+        {post.post_type !== "text" &&
 
-              <View>
-                <TouchableOpacity onPress={() =>
-                  post.description.length > 100 ?
-                    setExpanded((v) => !v) :
-                    null
-                } activeOpacity={0.8}>
-                  <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description, 300))}</Text>
-                </TouchableOpacity>
-              </View>
-              {post.description.length > 100 && (
+          <View style={[styles.textConatiner]}>
+            <View
+              style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
+            >
+              <Text style={[styles.textTitle, { color: "#fff" }]}>{post.name.slice(0, 30)}{post.name.length > 30 ? "..." : null}</Text>
+              {post.sound && (
                 <TouchableOpacity
-                  style={[styles.readMore]}
-                  onPress={() => setExpanded((v) => !v)}
+                onPress={(e)=>{
+                  e.stopPropagation()
+                  router.push(`/sound/${post.sound?.id}`)
+                }}
+                  style={[{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: Radius.md, borderColor: theme.textPlaceholder, paddingHorizontal: 3 }]}
                 >
-                  <Text
-                    style={[{ color: theme.primary, fontSize: FontSize.xs, fontWeight: FontWeight.regular, }]}
-                  >{expanded ? "Show less" : "Read more"}</Text>
+                  <MaterialCommunityIcons name="music-note" size={14} color={theme.primary} />
+
+                  <Text style={[, { color: theme.textPrimary, fontSize: FontSize.sm }]}>{post.sound?.title.slice(0, 11) ?? "sound"}{post.sound?.title?.length > 11 ? "..." : null}</Text>
                 </TouchableOpacity>
               )}
             </View>
+            <View
+              style={[{ flexDirection: "row" }]}
 
-          ) : (
-            <>
-              <View style={[styles.textConatiner]}>
+            >
+              <ScrollView
+                style={{ maxHeight: expanded ? height * 0.6 : 40 }}
+                scrollEnabled={expanded}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+              >
                 <View
-                  style={[{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}
+                  style={[{ marginRight: expanded ? 45 : undefined, backgroundColor: expanded ? "rgb(0,0,0,0.3)" : undefined }]}
+
                 >
-                  <Text style={[styles.textTitle, { color: theme.textPrimary }]}>{post.name.slice(0,30)}{post.name.length>30?"...":null}</Text>
-                  {post.sound && (
-                    <View
-                    style={[{flexDirection:"row",alignItems:"center",borderWidth:1,borderRadius:Radius.md,borderColor:theme.textPlaceholder,paddingHorizontal:3}]}
-                    >
-                      <MaterialCommunityIcons name="music-note" size={14} color={theme.primary} />
+                  <Text
+                    onPress={() => post.description.length > 40 && setExpanded((v) => !v)}
 
-                      <Text style={[, { color: theme.textPrimary, fontSize: FontSize.sm }]}>{post.sound?.title.slice(0, 11) ?? "sound"}{post.sound?.title?.length > 11 ? "..." : null}</Text>
-                    </View>
-                  )}
+                    style={[styles.textBody, { color: expanded ? "#fff" : theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description, 40))}
+                   {post.description.length > 40  &&<Text
+                  onPress={(e) =>{e.stopPropagation() ;post.description.length > 40 && setExpanded((v) => !v)}}
+
+                  style={[{ color: theme.primary, fontSize: FontSize.xs, fontWeight: FontWeight.regular, }]}
+                >{expanded ? "Show less" : "Read more"}</Text>}
+                    </Text>
+
                 </View>
-                <TouchableOpacity onPress={() =>
-                  post.description.length > 100 ?
-                    setExpanded((v) => !v) :
-                    null
-                } activeOpacity={0.8}>
-                  <View>
-                    <Text style={[styles.textBody, { color: theme.textPrimarylight }]}>{expanded ? parseText(post.description) : parseText(truncate(post.description))}</Text>
 
-                  </View>
-                </TouchableOpacity>
-                {post.description.length > 100 && (
-                  <TouchableOpacity
-                    style={[styles.readMore]}
-                    onPress={() => setExpanded((v) => !v)}
-                  >
-                    <Text
-                      style={[{ color: theme.primary, fontSize: FontSize.xs, fontWeight: FontWeight.regular, }]}
-                    >{expanded ? "Show less" : "Read more"}</Text>
-                  </TouchableOpacity>
-                )}
+              </ScrollView>
+              {/* {post.description.length > 40 && <TouchableOpacity
+                onPress={() => setExpanded((v) => !v)}
 
-              </View>
-              <ImageCarousel
-                images={post.images}
-                video={post.videos}
-                slug={post.slug}
-                isVisible={isVisible}
-                isSP={isSP}
-                price={post.price}
-                deposit={post.deposit}
-                installments={post.monthly_installment}
-                listing_type={post.listing_type}
-                location={post.location_display}
-                onActiveMediaChange={(item, index) => {
-                  setActiveMedia(item)
-                  setActiveIndex(index)
-                }}
-                sound_url={post.sound?.preview_url}
-                onVideoDuration={(s) => { durationRef.current = s }}
+                style={[{ marginRight: expanded ? 45 : undefined, backgroundColor: expanded ? "rgb(0,0,0,0.3)" : undefined,}]}
 
-              />
-            </>
-          )}
-        </View>
+              >
+                <Text
+                  onPress={() => post.description.length > 50 && setExpanded((v) => !v)}
+
+                  style={[{ color: theme.primary, fontSize: FontSize.xs, fontWeight: FontWeight.regular, }]}
+                >Read more</Text>
+
+              </TouchableOpacity>} */}
+            </View>
+            {/* <TouchableOpacity
+              style={[styles.readMore]}
+              onPress={() => setExpanded((v) => !v)}
+            >
+              <Text
+                style={[{ color: theme.primary, fontSize: FontSize.xs, fontWeight: FontWeight.regular, }]}
+              >{post.description.length > 50 ? expanded ? "Show less" : "Read more" : ""}</Text>
+            </TouchableOpacity> */}
+
+
+          </View>}
       </View>
+      <ReportPostModal
+        isVisible={moreOptionsVisible}
+        id={post.id}
+        name={post.name}
+        onClose={() => setMoreOptionsVisisble(false)}
+      />
 
-      {/*  post info section ─ */}
-      <View style={styles.infoSection}>
-        {/* interactions row */}
-        <View style={[styles.interactionsRow, { borderBottomColor: theme.textMuted, borderTopColor: theme.textMuted }]}>
-          <View style={{ flexDirection: "row", gap: 15 }}>
-            {/* upvote */}
-            <TouchableOpacity
-              style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-              onPress={handleUpvote}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.interactionIcon]}>
-                {post.is_upvoted ? <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={`${theme.primary}`} /> : <MaterialCommunityIcons name="chevron-up-circle-outline" size={20} color={"white"} />}
-              </Text>
-              <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
-                {formatCount(post.upvotes_count)}
-              </Text>
-            </TouchableOpacity>
-
-            {/* comments — public, no auth gate */}
-            {!isSP && <TouchableOpacity
-              style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-              onPress={handleComments}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.interactionIcon]}>
-                <MaterialCommunityIcons name="comment-outline" color={`${theme.primary}`} size={20} />
-              </Text>
-              <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
-                {formatCount(post.comments_count)}
-              </Text>
-            </TouchableOpacity>}
-
-            <TouchableOpacity
-              style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-              onPress={handleRefetchViewsCount}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.interactionIcon]}>
-
-                <MaterialCommunityIcons name="eye-outline" color={theme.primary} size={20} />
-              </Text>
-              <Text style={[styles.interactionCount, { color: theme.textPrimary }]}>
-                {formatCount(post.views_count)}
-              </Text>
-            </TouchableOpacity>
-
-          </View>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            {/* save */}
-            <TouchableOpacity
-              style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: post.is_saved ? theme.primary : theme.textPlaceholder }]}
-              onPress={handleSave}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.interactionIcon, { color: theme.textPrimary }]}>
-                <MaterialCommunityIcons name="bookmark" size={20} color={post.is_saved ? theme.primary : theme.textMuted} />
-
-              </Text>
-              <Text style={styles.interactionCount}>{post.saves_count}</Text>
-            </TouchableOpacity>
-
-            {/* share — no auth required */}
-            <TouchableOpacity
-              style={[styles.interactionItem, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}
-              onPress={() => setShareModalVisible((v) => !v)}
-              activeOpacity={0.7}
-            >
-
-              <Text style={[styles.interactionIcon, { color: theme.textPrimary, borderColor: theme.borderMuted }]}>Share</Text>
-              <Text style={styles.interactionCount}></Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <ReportPostModal
-          isVisible={moreOptionsVisible}
-          id={post.id}
-          name={post.name}
-          onClose={() => setMoreOptionsVisisble(false)}
-
-        />
-      </View>
     </View>
   )
-}
+})
 
 //  helpers ─
 
@@ -635,12 +682,12 @@ const styles = StyleSheet.create({
   container: {
     width: SCREEN_WIDTH,
     borderRadius: Radius.md,
-    borderTopWidth: 2,
-    borderBottomWidth: 3,
     backgroundColor: Colors.surface,
-    marginBottom: 8,
   },
   infoSection: {
+    position: "absolute",
+    right: 6,
+    bottom: 100,
     paddingHorizontal: Spacing.sm,
     paddingTop: Spacing.sm,
     borderRadius: 10,
@@ -648,6 +695,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xs,
     gap: Spacing.xs,
   },
+  infoOverlay: { position: "absolute", left: 6, right: 0, bottom: 30, gap: 6 },
+  rail: { position: "absolute", right: 10, bottom: 40, alignItems: "center", gap: 18 },
   userRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -661,10 +710,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   usernamePlcaholder: {
-    width: 28,
+    width: 20,
 
-    height: 28,
-    borderRadius: 14,
+    height: 20,
+    borderRadius: 10,
   },
   userInfo: {
     flex: 1,
@@ -672,16 +721,15 @@ const styles = StyleSheet.create({
     gap: 10
   },
   userName: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.textPrimary,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.extrabold,
   },
   timeAgo: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
   },
   postName: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
     color: Colors.textPrimary,
     lineHeight: 20,
@@ -697,37 +745,38 @@ const styles = StyleSheet.create({
   },
 
   textConatiner: {
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+  
   },
   textTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    marginBottom: Spacing.sm
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.extrabold,
   },
   textBody: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
   },
 
 
   interactionsRow: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     paddingVertical: 2,
     justifyContent: "space-between",
     borderTopWidth: 1,
     borderBottomWidth: 0.5,
-
+    gap: 10,
     borderTopColor: Colors.gray[100],
   },
   interactionItem: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     borderRadius: Radius.md,
-    borderWidth: 2,
-    paddingHorizontal: Spacing.xs,
-    gap: 4,
+    borderWidth: 1,
+    gap: 2,
+    paddingHorizontal: 1
   },
+
   shareItem: {
     flexDirection: "row",
     alignItems: "center",

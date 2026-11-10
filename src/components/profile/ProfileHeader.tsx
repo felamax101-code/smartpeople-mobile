@@ -18,6 +18,7 @@ import FollowModal from "./FollowModal"
 import ProfileViewersModal from "@/components/profile/ProfileViewerModal"
 import { CommentImageViewer } from "../coments/ImageViewer"
 import { useNotificationToast } from "../activityIndicator/ToastNotification"
+import ShareModal from "./ProfileShareModal"
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
 const BANNER_HEIGHT = 140
 const AVATAR_SIZE = 80
@@ -46,6 +47,8 @@ export const ProfileHeader = ({
   const [folloWModalVisible, setfolloWModalVisible] = useState<boolean>(false)
   const [viewersModalVisible, setviewrsModalVisible] = useState<boolean>(false)
   const [imageViewerVisible, setimageViewerVisbble] = useState<boolean>(false)
+    const [shareModalVisible ,setshareModaolVisible] = useState<boolean>(false)
+
   const { showNotifToast } = useNotificationToast()
   // format large numbers — 1200 → 1.2k
   const formatCount = (n: number | null): string => {
@@ -65,6 +68,18 @@ export const ProfileHeader = ({
         {/* placeholder gradient banner — replace with actual banner image later */}
         <View style={[styles.bannerGradient, { backgroundColor: theme.primary }]} />
       </View>
+      <View
+      style={[styles.actions]}
+      >
+        <TouchableOpacity
+        onPress={() => setshareModaolVisible(true)}
+        style={[styles.profileViewers, {flexDirection:"row",gap:2,alignItems:"center", backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}>
+
+         <MaterialCommunityIcons name="share" color={theme.primary} size={20}/>
+          <Text style={[{ color: theme.primary, fontWeight: FontWeight.regular }]}>
+          Share profile
+        </Text>
+        </TouchableOpacity>
       {isOwn && <TouchableOpacity
         onPress={() => setviewrsModalVisible(true)}
         style={[styles.profileViewers, { backgroundColor: theme.backgroundMuted, borderColor: theme.textPlaceholder }]}>
@@ -87,6 +102,7 @@ export const ProfileHeader = ({
         </Text>
 
       </TouchableOpacity>}
+      </View>
       {/*  avatar  */}
       <TouchableOpacity
         onPress={() => {
@@ -285,6 +301,11 @@ export const ProfileHeader = ({
         image_url={profile.avatar}
         onClose={() => setimageViewerVisbble(false)}
       />
+      <ShareModal
+      isVisible={shareModalVisible}
+      setModalVisible={()=>setshareModaolVisible(false)}
+      postLink={`https://smartpipla.com/profile/${profile.username}`}
+      />  
     </View>
 
   )
@@ -309,10 +330,23 @@ const styles = StyleSheet.create({
     top: BANNER_HEIGHT - AVATAR_SIZE / 2,
     left: Spacing.lg,
   },
-  profileViewers: {
+
+  actions: {
     position: "absolute",
     top: 150,
-    right: Spacing.lg,
+    right: Spacing.sm,
+    borderRadius: Radius.md,
+    flexDirection:"row",
+    alignItems:"center",
+    justifyContent:"space-between",
+    borderWidth: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    gap:3
+
+  },
+  profileViewers: {
+    
     borderRadius: Radius.md,
     borderWidth: 2,
     paddingHorizontal: 4,

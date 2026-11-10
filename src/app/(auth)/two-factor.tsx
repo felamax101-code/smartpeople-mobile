@@ -23,6 +23,7 @@ import { useShakeAnimation } from "@/hooks/useShakeAnimations"
 import { authService } from "@/services/auth.service"
 import { Spacing, Radius, FontSize, FontWeight, Colors } from "@/constants/colors"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { claimAnonHistory } from "@/hooks/useClaimAnonId"
 type TwoFAMethod = "email" | "sms" | "totp"
 interface ErrorResponse {
   error?: string
@@ -136,6 +137,7 @@ export default function TwoFactorLoginScreen() {
         trust_device: trustDevice,
       }),
     onSuccess: async (data) => {
+      claimAnonHistory()
       const user = await authService.getMe()
       setUser(user)
       if (pendingAction) clearPendingAction()

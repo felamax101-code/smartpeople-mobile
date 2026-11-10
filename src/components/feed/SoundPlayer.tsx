@@ -45,7 +45,7 @@ export const CarouselSound = ({ url, isActive, isDetail, top }: Props) => {
 
   return (
     <TouchableOpacity
-      style={[styles.btn, { top }]}
+      style={[styles.btn, ]}
       activeOpacity={0.7}
       onPress={() => setMuted((m) => !m)}
       accessibilityRole="button"
@@ -60,7 +60,8 @@ export const CarouselSound = ({ url, isActive, isDetail, top }: Props) => {
 const styles = StyleSheet.create({
   btn: {
     position: "absolute",
-    left: 8,
+    right: 60,
+    bottom:0,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,

@@ -13,6 +13,8 @@ import { router } from "expo-router"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { useProfile } from "@/hooks/useProfile"
+import {  clearAnonId } from "@/hooks/useAnonymousId"
+
 import { useUserListings } from "@/hooks/useUserListings"
 import { useUserReviews } from "@/hooks/useUserReviews"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
@@ -155,6 +157,7 @@ function AuthenticatedProfile({ user, theme }: { user: any; theme: any }) {
 
         await authService.logout()
         queryClient.clear()
+        clearAnonId()
         clearUser()
         router.push("/(tabs)")
       },

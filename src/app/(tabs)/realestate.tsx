@@ -13,7 +13,7 @@ import {
     Modal,
     Animated
 } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { SafeAreaView ,useSafeAreaInsets} from "react-native-safe-area-context"
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { router } from "expo-router"
 import { PostCard } from "@/components/feed/PostCard"
@@ -74,7 +74,16 @@ export default function FeedScreen() {
     const { unreadCount, setUnreadCount } = useNotificationStore()
     //  filter state 
 
+// FeedScreen
+const insets = useSafeAreaInsets()            // from react-native-safe-area-context
+const [pageH, setPageH] = useState(0)
+const [activeId, setActiveId] = useState<string | null>(null)
 
+// MUST be stable refs, FlatList doesn't support changing these on the fly
+const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current
+const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+  if (viewableItems[0]) setActiveId(viewableItems[0].item.id)
+}).current
 
     // fetch unread count on mount
     useEffect(() => {
@@ -158,7 +167,7 @@ export default function FeedScreen() {
     const handleCategoryChange = useCallback((slug: string | null) => {
         setSelectedCategory(slug)
         // scroll back to top when category changes
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
     }, [])
 
     //  search 
@@ -234,26 +243,16 @@ export default function FeedScreen() {
     }, [queryClient, filters, selectedCategory, searchText, data])
 
     //  render post card 
-    const renderPost = useCallback(
-        ({ item, index }: { item: Post; index: number }) => {
-            // when user is PREFETCH_THRESHOLD items from end — prefetch
-            if (index === posts.length - PREFETCH_THRESHOLD) {
-                prefetchNextPage()
-            }
-
-            return (
-                <PostCard
-                    post={item}
-                    onUpvote={handleUpvote}
-                    onSave={handleSave}
-                    index={index}
-                    scrollOffset={scrollOffsetRef}
-                    isSP={true}
-                />
-            )
-        },
-        [posts.length, prefetchNextPage, handleUpvote, handleSave,]
-    )
+    const renderPost = useCallback(({ item, index }: { item: Post; index: number }) => (
+  <PostCard
+    post={item}
+    height={pageH}
+    isActive={item.id === activeId}
+    onUpvote={handleUpvote}
+    onSave={handleSave}
+  />
+), [pageH, activeId, handleUpvote, handleSave])
+     
 
     //  render footer 
     const renderFooter = () => {
@@ -270,7 +269,7 @@ export default function FeedScreen() {
     const renderEmpty = () => {
         if (isLoading) return null
         return (
-            <View style={styles.emptyState}>
+            <View style={[styles.emptyState,{height:pageH}]}>
                 <Text style={styles.emptyIcon}>🔍</Text>
                 <Text style={[styles.emptyTitle, { color: theme.textPrimarylight }]}>
                     {searchText
@@ -292,7 +291,7 @@ export default function FeedScreen() {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
+        <View style={[styles.container, { backgroundColor: theme.background }]} >
             {categorydropdownVisisble && (
                 <TouchableOpacity
                     onPress={() => setCategorydropdownVisible(false)}
@@ -507,38 +506,43 @@ export default function FeedScreen() {
                             </Text>
                         </TouchableOpacity>
                     </View>) : (
-                    <FlatList
-                        onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y }}
-                        scrollEventThrottle={16}
-                        ref={flatListRef}
-                        data={posts}
-                        keyExtractor={(item) => item.id}
-                        renderItem={renderPost}
-                        ListEmptyComponent={renderEmpty}
-                        ListFooterComponent={renderFooter}
+                    <View style={{ flex: 1 }} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
+  {pageH > 0 && (
+    <FlatList
+      ref={flatListRef}
+      data={posts}
+      keyExtractor={(item) => item.id}
+      renderItem={renderPost}
+      extraData={activeId}
+      getItemLayout={(_, i) => ({ length: pageH, offset: pageH * i, index: i })}
 
-                        showsVerticalScrollIndicator={false}
-                        // snap to each card — gives full-screen feel
-                        snapToInterval={undefined}  // we don't snap — just smooth scroll
-                        // pull to refresh
-                        refreshControl={
-                            <RefreshControl
+      snapToInterval={pageH}
+      snapToAlignment="start"
+      decelerationRate="fast"
+      disableIntervalMomentum        // one swipe = one post
+      showsVerticalScrollIndicator={false}
+
+      viewabilityConfig={viewabilityConfig}
+      onViewableItemsChanged={onViewableItemsChanged}
+
+      onEndReached={prefetchNextPage}
+      onEndReachedThreshold={2}      // measured in "pages" from the end
+
+      windowSize={3}
+      initialNumToRender={1}
+      maxToRenderPerBatch={1}
+      removeClippedSubviews
+      refreshControl={<RefreshControl
                                 refreshing={isRefreshing ?? false}
                                 onRefresh={() => { refetch(), refetchCategory() }}
                                 tintColor={Colors.primary}
-                            />
-                        }
-                        // performance optimizations
-                        removeClippedSubviews={true}    // unmount off-screen items
-                        maxToRenderPerBatch={3}         // render 3 at a time
-                        windowSize={5}                  // keep 5 screens worth in memory
-                        initialNumToRender={2}          // start with just 2
-                    // getItemLayout={(_, index) => ({
-                    //   length: SCREEN_HEIGHT,        // approximate — actual varies by content
-                    //   offset: SCREEN_HEIGHT * index,
-                    //   index,
-                    // })}
-                    />
+                            />}
+      ListEmptyComponent={renderEmpty}
+      ListFooterComponent={renderFooter}
+    />
+  )}
+  {/* header stays absolute on top */}
+</View>
                 )}
 
             {/*  auth prompt modal  */}
@@ -552,7 +556,7 @@ export default function FeedScreen() {
                 onReset={() => setFilters({ sort: "newest" })}
                 onApply={(values) => setFilters((f) => ({ ...f, ...values }))}
             />
-        </SafeAreaView>
+        </View>
     )
 }
 

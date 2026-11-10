@@ -17,6 +17,7 @@ import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { authService } from "@/services/auth.service"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
+import { claimAnonHistory } from "@/hooks/useClaimAnonId"
 import { FormInput } from "@/components/ui/FormInput"
 const RESEND_COOLDOWN = 60  // seconds before user can resend
 
@@ -63,7 +64,7 @@ export default function VerifyEmailScreen() {
       authService.verifyEmail(email, otp, user_id),
     onSuccess: async () => {
       // email verified — now log them in
-
+      claimAnonHistory()
       const user = await authService.getMe()
       setUser(user)
       // navigate back to feed

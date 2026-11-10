@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from "react-native"
 import { router } from "expo-router"
+import { claimAnonHistory } from "@/hooks/useClaimAnonId";
 import * as WebBrowser from 'expo-web-browser';
 import { useMutation } from "@tanstack/react-query"
 import { FormInput } from "@/components/ui/FormInput"

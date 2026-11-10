@@ -23,6 +23,7 @@ import { Pressable } from "react-native"
 import { useAuthStore } from "@/stores/auth.store"
 import { useToast } from "../activityIndicator/ToastProvider"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { parseText } from "@/hooks/useTextParser"
 interface Props {
   message: MessageWithExtras
   uploadProgress?: number
@@ -494,7 +495,7 @@ export const MessageBubble = memo(({
             <Text
               style={[styles.bodyText, { color: isOwn ? "#fff" : theme.textPrimary }]}
             >
-              {message.body}
+              {parseText(message.body)}
             </Text>
           )}
 

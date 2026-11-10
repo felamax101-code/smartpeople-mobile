@@ -89,7 +89,12 @@ export const GroupConversationItem = ({ conversation , typing, typingUsers = 0}:
     >
       <TouchableOpacity
         style={[styles.container, { borderBottomColor: theme.border }]}
-        onPress={() => {router.push(`/messages/${conversation.id}`);setUnreadMessageCount(unreadMesageCount-(conversation.unread_count??0))}}
+        onPress={() => {router.push({
+          
+          pathname:`/messages/${conversation.id}`,
+         
+        });
+          setUnreadMessageCount(unreadMesageCount-(conversation.unread_count??0))}}
         activeOpacity={0.7}
       >
         {/* ── avatar  */}

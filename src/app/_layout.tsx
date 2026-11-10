@@ -16,6 +16,7 @@ import { ToastNotificationProvider } from '@/components/activityIndicator/ToastN
 import { UploadQueueProvider } from '@/components/createpost/UploadQueuecontext';
 import * as Notitications from "expo-notifications"
 import { useUnstableConnectionWarning } from '@/hooks/useNetworkCheck';
+
 SplashScreen.preventAutoHideAsync();
 const KEY = 'last-path';
 const PARAMLESS_PATHS = ["/two-factor"];
@@ -29,6 +30,7 @@ function InnerLayout() {
     }
   }, [lasResponse])
   useUnstableConnectionWarning()
+
   const pathname = usePathname();
   const params = useGlobalSearchParams();
   const paramsKey = JSON.stringify(params); // stable dependency (params object changes identity)

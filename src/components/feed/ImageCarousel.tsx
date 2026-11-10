@@ -48,6 +48,7 @@ interface Props {
   communityslug?: string
   sound_url?: string
   onVideoDuration?: (s: number) => void
+  height: number
 }
 
 export const ImageCarousel = ({
@@ -66,13 +67,16 @@ export const ImageCarousel = ({
   installments,
   communityslug,
   onActiveMediaChange,
-  onVideoDuration
+  onVideoDuration,
+  height
 }: Props) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const scrollRef = useRef<ScrollView>(null)
   const [isFocused, setIsFocused] = useState(true)
   const theme = useTheme()
   const router = useRouter()
+  const pageH = isDetail ? SCREEN_HEIGHT : height
+
 
   // pause all videos when screen loses focus (navigating away)
   useFocusEffect(
@@ -118,15 +122,13 @@ export const ImageCarousel = ({
   if (totalItems === 0) {
 
     return (
-      <View style={[styles.container, { height: isDetail ? SCREEN_HEIGHT : CARD_HEIGHT, backgroundColor: "black", alignItems: "center", justifyContent: "center" }]}>
+      <View style={[styles.container, { height: pageH, backgroundColor: "black", alignItems: "center", justifyContent: "center" }]}>
         <Text style={{ color: "#fff" }}>No media available</Text>
       </View>
     )
   }
   return (
-    <View style={[styles.container, { height: isDetail ? SCREEN_HEIGHT : CARD_HEIGHT }]}>
-
-
+    <View style={[styles.container, { height: pageH }]}>
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -134,10 +136,13 @@ export const ImageCarousel = ({
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onScroll}
         scrollEventThrottle={16}
+        bounces={false}
+        style={{ height: pageH }}
+        contentContainerStyle={{ height: pageH }}   // stops the horizontal ScrollView stretching or leaving gaps
       >
 
         {mediaItems.map((item, index) => (
-          <View key={index} style={[styles.mediaItem, { height: isDetail ? SCREEN_HEIGHT : CARD_HEIGHT, backgroundColor: "black", borderColor: theme.borderMuted }]}>
+          <View key={index} style={[styles.mediaItem, { height: pageH, backgroundColor: "black", borderColor: theme.borderMuted }]}>
             {item.type === "video" ? (
               <VideoMedia
                 url={item.url}
@@ -153,7 +158,7 @@ export const ImageCarousel = ({
               <Image
                 source={{ uri: item.url }}
                 style={styles.image}
-                resizeMode={isDetail ? "contain" : "cover"}
+                resizeMode={"contain"}
               />
             )}
             {isSP && location && (
@@ -228,7 +233,7 @@ export const ImageCarousel = ({
             <Text style={styles.counterText}>
               {currentIndex + 1} / {totalItems}
             </Text>
-            {!isDetail && <TouchableOpacity
+            {/* {!isDetail && <TouchableOpacity
 
 
               onPress={handlePress}
@@ -236,7 +241,7 @@ export const ImageCarousel = ({
               <Text style={styles.counterText}>
                 <MaterialCommunityIcons size={20} name="fullscreen" />Full Screen
               </Text>
-            </TouchableOpacity>}
+            </TouchableOpacity>} */}
           </View>
           <View style={styles.dots}>
             {mediaItems.map((_, i) => (
@@ -263,7 +268,7 @@ export const ImageCarousel = ({
 // ─── VideoMedia 
 
 const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP, communityslug, onVideoDuration }: { url: string; isActive: boolean, isDetail: boolean, slug: string, isGroup: boolean, isSP: boolean, communityslug: string | undefined, onVideoDuration?: (s: number) => void }) => {
-  const [isMuted, setIsMuted] = useState(true)
+  const [isMuted, setIsMuted] = useState(false)
   const [isDetailMuted, setIsDetailMuted] = useState(false)
   const [speedIndex, setSpeedIndex] = useState(1)           // default 1x
   const [duration, setDuration] = useState(0)
@@ -316,8 +321,8 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP, communityslu
 
   // sync mute
   useEffect(() => {
-    player.muted = isDetail ? isDetailMuted : isMuted
-  }, [isMuted, isDetail, player, isDetailMuted])
+    player.muted = isMuted
+  }, [isMuted, player])
 
   // sync speed
   useEffect(() => {
@@ -381,60 +386,60 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP, communityslu
     )
   }
   return (
-    <View style={{ flex: 1 }}>
+    <TouchableOpacity
+      onPress={() => (isPlaying ? player.pause() : player.play())}
+      activeOpacity={1}
+      style={{ flex: 1 }}>
       <VideoView
         player={player}
         style={styles.image}
-        contentFit={isDetail ? "contain" : "cover"}
+        contentFit={"contain"}
         nativeControls={false}
       />
 
       {/* ── video controls overlay ── */}
       {
-        <View style={[vc.overlay, { paddingBottom: isDetail ? 110 : 12, }]} pointerEvents="box-none">
+        <View style={[vc.overlay, { paddingBottom: isDetail ? 110 : 0, }]} pointerEvents="box-none">
 
           {/* centre row: skip-back | play-pause | skip-forward */}
-          <View style={[vc.centreRow]}>
-            <TouchableOpacity style={vc.iconBtn} onPress={() => skipSeconds(-10)}>
+           <View style={[vc.centreRow,{marginBottom:100}]}>
+            {/* <TouchableOpacity style={vc.iconBtn} onPress={() => skipSeconds(-10)}>
               <Text style={vc.iconText}>
                 <MaterialCommunityIcons size={15} name="rewind-10" />
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
-            <TouchableOpacity
+          {!isPlaying&&  <TouchableOpacity
               style={vc.playBtn}
               activeOpacity={0.6}
-              onPress={() => (isPlaying ? player.pause() : player.play())}
+              onPress={(e) =>{e.stopPropagation(); (isPlaying ? player.pause() : player.play())}}
             >
               <Text style={vc.playText}>
-                {isPlaying ? <MaterialCommunityIcons size={20} name="pause-circle-outline" /> : <MaterialCommunityIcons size={20} name="play-circle-outline" />}
+                {isPlaying ? <MaterialCommunityIcons size={40} name="pause-circle-outline" /> : <MaterialCommunityIcons size={40} name="play-circle-outline" />}
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity>}
 
-            <TouchableOpacity style={vc.iconBtn} onPress={() => skipSeconds(10)}>
+            {/* <TouchableOpacity style={vc.iconBtn} onPress={() => skipSeconds(10)}>
               <Text style={vc.iconText}>
                 <MaterialCommunityIcons size={15} name="fast-forward-10" />
               </Text>
-            </TouchableOpacity>
-            {isDetail && <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() => setIsDetailMuted((m) => !m)}>
-              <Text style={vc.iconText}>{isDetailMuted ? <MaterialCommunityIcons size={15} name="volume-mute" /> : <MaterialCommunityIcons size={15} name="volume-high" />}</Text>
-            </TouchableOpacity>
-            }
+            </TouchableOpacity> */}
+            
 
-            {!isDetail && <TouchableOpacity
+            {/* {!isDetail && <TouchableOpacity
               activeOpacity={0.6}
               style={vc.fullscreen}
               onPress={handlePress}
             >
               <Text style={[{ color: "white", fontWeight: FontWeight.bold }]} > <MaterialCommunityIcons size={20} name="fullscreen" />Full Screen</Text>
-            </TouchableOpacity>}
-          </View>
+            </TouchableOpacity>} */}
+          </View> 
 
           {/* bottom: seek bar + time + mute + speed */}
-          <View style={[vc.bottomBar, { paddingRight: isDetail ? 50 : undefined }]}>
+          <View style={[vc.bottomBar, { paddingRight: isDetail ? 50 : undefined ,paddingBottom:isDetail?10:undefined}]}>
             {/* seek bar */}
             <View
-              style={[{ flex: 1, height: 30, backgroundColor: "transparent" }]}
+              style={[{ flex: 1, height: 10, backgroundColor: "transparent" }]}
               {...panResponder.panHandlers}
               onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width }}
             >
@@ -449,12 +454,12 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP, communityslu
             </View>
 
             {/* time */}
-            <Text style={vc.timeText}>{fmt(position)} / {fmt(duration)}</Text>
+            {/* <Text style={vc.timeText}>{fmt(position)} / {fmt(duration)}</Text> */}
 
             {/* mute */}
-            {!isDetail && <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() => setIsMuted((m) => !m)}>
+             { <TouchableOpacity style={vc.iconBtn} activeOpacity={0.7} onPress={() => setIsMuted((m) => !m)}>
               <Text style={vc.iconText}>{isMuted ? <MaterialCommunityIcons size={15} name="volume-mute" /> : <MaterialCommunityIcons size={15} name="volume-high" />}</Text>
-            </TouchableOpacity>}
+            </TouchableOpacity>} 
 
             {/* speed */}
             <TouchableOpacity style={vc.speedBtn} onPress={cycleSpeed}>
@@ -462,7 +467,7 @@ const VideoMedia = ({ url, isActive, isDetail, slug, isGroup, isSP, communityslu
             </TouchableOpacity>
           </View>
         </View>}
-    </View>
+    </TouchableOpacity>
   )
 }
 
@@ -474,10 +479,7 @@ const styles = StyleSheet.create({
   },
   mediaItem: {
     width: SCREEN_WIDTH,
-    borderWidth: 0.5,
     borderRadius: Radius.lg,
-    borderColor: "#fff",
-    overflow: "hidden"
   },
   image: {
     width: "100%",
@@ -513,7 +515,7 @@ const styles = StyleSheet.create({
   },
   counterContainer: {
     position: "absolute",
-    bottom: 16,
+    bottom: 150,
     left: 0,
     right: 0,
     alignItems: "center",
@@ -556,6 +558,7 @@ const vc = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
+   
 
   },
   centreRow: {
@@ -566,9 +569,9 @@ const vc = StyleSheet.create({
     marginBottom: 12,
   },
   playBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 26,
+    width: 60,
+    height: 60,
+    borderRadius: 52,
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
@@ -593,25 +596,26 @@ const vc = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-
+    justifyContent: "center",
     gap: 8,
+    marginRight: 50,
+  
   },
   seekBarTrack: {
-    height: 4,
+    height: 2,
     backgroundColor: "rgba(255,255,255,0.3)",
     borderRadius: 2,
-    position: "relative",
     justifyContent: "center",
   },
   seekBarFill: {
-    height: 4,
+    height: 2,
     backgroundColor: Colors.white ?? "#fff",
     borderRadius: 2,
   },
   seekThumb: {
     position: "absolute",
-    width: 12,
-    height: 12,
+    width: 10,
+    height: 10,
     borderRadius: 6,
     backgroundColor: "#fff",
     top: -4,

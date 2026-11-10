@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native"
 import { router } from "expo-router"
+import api from "@/services/api"
 import { useMutation } from "@tanstack/react-query"
 import { FormInput } from "@/components/ui/FormInput"
 import { Image } from "expo-image"
@@ -20,6 +21,7 @@ import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { authService } from "@/services/auth.service"
 import { Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
+import { claimAnonHistory } from "@/hooks/useClaimAnonId"
 const APP_ICON = require('../../assets/images/maskable_icon_x192.png');
 
 export default function LoginScreen() {
@@ -52,6 +54,7 @@ export default function LoginScreen() {
       }
 
       // login complete — fetch user profile
+      claimAnonHistory()
       const user = await authService.getMe()
       setUser(user)
 

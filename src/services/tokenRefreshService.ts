@@ -8,7 +8,7 @@ import * as SecureStore from "expo-secure-store"
 import { API } from "@/constants/api"
 import { Platform } from "react-native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-
+import { getAnonId } from "@/hooks/useAnonymousId"
 //  module-level state — shared across EVERY instance this is attached to ─
 // If messagingApi gets a 401 while api (Django) is already mid-refresh,
 // messagingApi's request joins the same queue instead of starting a second
@@ -59,7 +59,10 @@ export const attachAuthInterceptors = (instance: AxiosInstance) => {
       
       if (token) {
         config.headers.Authorization = `Bearer ${token}`
-      }
+      } else {
+      config.headers["X-Anon-Id"] = await getAnonId()   // guests only
+    }
+      
       return config
     },
     (error) => Promise.reject(error)

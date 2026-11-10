@@ -21,6 +21,7 @@ import {
   SettingsSectionHeader,
   SettingsSectionCard,
 } from "@/components/settings/SettingsRow"
+import { clearAnonId } from "@/hooks/useAnonymousId"
 import * as WebBrowser from 'expo-web-browser';
 import { Colors, Spacing, Radius, FontSize, FontWeight } from "@/constants/colors"
 import { useQueryClient } from "@tanstack/react-query"
@@ -46,6 +47,7 @@ export default function SettingsScreen() {
         queryClient.clear()
         await authService.logout()
         clearUser()
+        clearAnonId()
         router.replace("/")
       },
 

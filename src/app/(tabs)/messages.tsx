@@ -1,17 +1,16 @@
-import React, { useCallback, useRef, useMemo, useState ,useEffect} from "react"
+import React, { useCallback, useRef, useMemo, useState, useEffect } from "react"
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useQueryClient } from "@tanstack/react-query"
 import { messagingService } from "@/services/messaging.service"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { useTheme } from "@/hooks/useTheme"
 import { useAuthStore } from "@/stores/auth.store"
 import { useConversations } from "@/hooks/useConversations"
@@ -31,10 +30,11 @@ type TabType = "all" | "dm" | "groups"
 export default function MessagesScreen() {
   const theme = useTheme()
   const { user } = useAuthStore()
-  const queryClient=useQueryClient()
-  const {setUnreadMessageCount}=useMessageStore()
-    const [banner, setBanner] = useState<BannerState | null>(null);
-   const [typing, SetTypng] = useState<{ conversation_id: string | null, typing: boolean  }>({
+  const queryClient = useQueryClient()
+
+  const { setUnreadMessageCount } = useMessageStore()
+  const [banner, setBanner] = useState<BannerState | null>(null);
+  const [typing, SetTypng] = useState<{ conversation_id: string | null, typing: boolean }>({
     conversation_id: null,
     typing: false
   })
@@ -44,18 +44,18 @@ export default function MessagesScreen() {
     isLoading,
     refetch,
     updateConversationPreview,
-    updateGroupInfo,      
-    removeConversation,  
-    handleTyping ,
+    updateGroupInfo,
+    removeConversation,
+    handleTyping,
     typingUsers
-    
+
   } = useConversations()
   // ── global WebSocket handler 
   // Runs for every event while the messages tab is mounted.
   const handleWSEventRef = useRef<(event: any) => void>(null)
   const [activeTab, setActiveTab] = useState<TabType>("all")
   handleWSEventRef.current = useCallback((event: any) => {
-    
+
     // ── new message 
     // Update the preview text, timestamp, and unread badge in the list.
     // Works for both DMs and groups — useConversations handles the difference.
@@ -74,12 +74,12 @@ export default function MessagesScreen() {
       refetch()
       subscribeToConversation(event.data.conversation_id)
     }
-    if(event.type==="typing"){
-       SetTypng({
-          conversation_id:event.data.conversation_id,
-          typing:event.data.is_typing
-        })
-        handleTyping(event.data.user_id, event.data.is_typing)
+    if (event.type === "typing") {
+      SetTypng({
+        conversation_id: event.data.conversation_id,
+        typing: event.data.is_typing
+      })
+      handleTyping(event.data.user_id, event.data.is_typing)
     }
 
     // ── group renamed or avatar changed ────
@@ -125,22 +125,22 @@ export default function MessagesScreen() {
     userId: user?.id ?? "",
     onEvent: stableHandler,
   })
-  useEffect(()=>{
-      if(!user) return
-      
-      messagingService.getUnreadCount().then(setUnreadMessageCount)
-      
-      
-    },[user])
+  useEffect(() => {
+    if (!user) return
 
- const showBanner = useCallback((type: BannerType, message: string) => {
+    messagingService.getUnreadCount().then(setUnreadMessageCount)
+
+
+  }, [user])
+
+  const showBanner = useCallback((type: BannerType, message: string) => {
     setBanner({ id: Date.now(), type, message });
   }, []);
-const handleDeleteConversation = async (id:string) => {
+  const handleDeleteConversation = async (id: string) => {
     try {
       const data = await messagingService.deleteConversation(id)
       if (data.success === true) {
-         showBanner("success", "Deleted.You can start another conversation with the other partcipant any time")
+        showBanner("success", "Deleted.You can start another conversation with the other partcipant any time")
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
         queryClient.removeQueries({ queryKey: ["messages", id] });
       } else {
@@ -162,15 +162,15 @@ const handleDeleteConversation = async (id:string) => {
   // ── render one row in the conversation list ───────
   const renderConversation = useCallback(({ item }: { item: Conversation }) => {
     if (item.is_group) {
-      
+
       return <GroupConversationItem conversation={item} 
-      
-      typing={typing.conversation_id==item.id && typing.typing} typingUsers={typingUsers.length}
+
+        typing={typing.conversation_id == item.id && typing.typing} typingUsers={typingUsers.length}
       />
     }
     // ConversationItem 
-    return <ConversationItem conversation={item} onDelete={(id)=>handleDeleteConversation(id)}
-    typing={typingUsers.length>0}
+    return <ConversationItem conversation={item}  onDelete={(id) => handleDeleteConversation(id)}
+      typing={typingUsers.length > 0}
     />
   }, [])
 
@@ -206,20 +206,20 @@ const handleDeleteConversation = async (id:string) => {
       edges={["top"]}
     >
       {banner && (
-              <AnimatedBanner
-                key={banner.id}
-                type={banner.type}
-                message={banner.message}
-                onHide={() => setBanner(null)}
-              />
-            )}
+        <AnimatedBanner
+          key={banner.id}
+          type={banner.type}
+          message={banner.message}
+          onHide={() => setBanner(null)}
+        />
+      )}
       {/* ── header  */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
           Smart Chats
         </Text>
 
-        
+
 
 
 
@@ -267,25 +267,25 @@ const handleDeleteConversation = async (id:string) => {
       {/* ── list states ────── */}
       {isLoading ? (
         <View style={styles.loading}>
-          <BouncingBarsIndicator  />
+          <BouncingBarsIndicator />
         </View>
 
       ) : isError ? (
         <View style={styles.loading}>
           <Text style={styles.errorIcon}>
             <MaterialCommunityIcons
-            name="alert-circle-outline"
+              name="alert-circle-outline"
               size={25}
               color={`${theme.textPrimary}`}
-              />
+            />
           </Text>
           <Text style={[styles.errorText, { color: theme.textMuted }]}>
             Failed to load conversations
           </Text>
-           <Text style={[styles.errorText, { color: theme.textMuted }]}>
-           This might be a problem we are working on 
+          <Text style={[styles.errorText, { color: theme.textMuted }]}>
+            This might be a problem we are working on
           </Text>
-           <Text style={[styles.errorText, { color: theme.textMuted }]}>
+          <Text style={[styles.errorText, { color: theme.textMuted }]}>
             Meanwhile make sure you are well connected to the internet
           </Text>
           <TouchableOpacity
@@ -301,11 +301,11 @@ const handleDeleteConversation = async (id:string) => {
       ) : filteredConv.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>
-             <MaterialCommunityIcons
+            <MaterialCommunityIcons
               name="message-text"
               size={25}
               color={`${theme.textPrimary}`}
-              />
+            />
           </Text>
           <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
             {activeTab === "all"
@@ -320,33 +320,33 @@ const handleDeleteConversation = async (id:string) => {
               ? <TouchableOpacity onPress={() => router.push("/(messages)/new")}>
                 <Text
                   style={[styles.emptyIcon, { backgroundColor: theme.primary, color: theme.textPrimary, borderColor: theme.borderMuted }]}>
-                Start a conversation</Text>
+                  Start a conversation</Text>
               </TouchableOpacity>
               : activeTab === "dm"
                 ? <TouchableOpacity onPress={() => router.push({
-                  pathname:"/(messages)/new",
-                 
-                  })}>
+                  pathname: "/(messages)/new",
+
+                })}>
                   <Text
                     style={[styles.emptyIcon, { backgroundColor: theme.primary, color: theme.textPrimary, borderColor: theme.borderMuted }]}>
                     Start a conversation</Text>
                 </TouchableOpacity>
                 :
                 <TouchableOpacity onPress={() => router.push({
-                  pathname:"/(messages)/new",
-                  params:{
-                    tab:"group"
+                  pathname: "/(messages)/new",
+                  params: {
+                    tab: "group"
                   }
-                  })}>
+                })}>
                   <Text
                     style={[styles.emptyIcon, { backgroundColor: theme.primary, color: theme.textPrimary, borderColor: theme.borderMuted }]}>
                     Create a group</Text>
                 </TouchableOpacity>}
-                <TouchableOpacity onPress={()=>refetch()}>
-                  <Text
-                    style={[styles.emptyIcon, { backgroundColor: theme.primary, color: theme.textPrimary, borderColor: theme.borderMuted }]}>
-                    Reload</Text>
-                </TouchableOpacity>
+            <TouchableOpacity onPress={() => refetch()}>
+              <Text
+                style={[styles.emptyIcon, { backgroundColor: theme.primary, color: theme.textPrimary, borderColor: theme.borderMuted }]}>
+                Reload</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -365,7 +365,7 @@ const handleDeleteConversation = async (id:string) => {
           showsVerticalScrollIndicator={false}
         />
       )}
-      <UploadProgressBadge/>
+      <UploadProgressBadge />
     </SafeAreaView>
   )
 }
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   emptySub: {
-   
+
   },
   guestScreen: {
     flex: 1,

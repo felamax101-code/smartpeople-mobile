@@ -47,7 +47,8 @@ const getInitials = (name: string) =>
 
 export default function ConversationScreen() {
   const theme = useTheme()
-  const { id: conversationId } = useLocalSearchParams<{ id: string }>()
+  const { id: conversationId } = useLocalSearchParams<{ id: string ; }>()
+  
   const { user } = useAuthStore()
   const flatListRef = useRef<FlatList>(null)
   const messageInputRef = useRef<{ focus: () => void }>(null)
@@ -433,9 +434,6 @@ useEffect(() => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100)
   }, [sendMessage])
 
-  const handleSendOffer = useCallback((amount: number) => {
-    sendMessage({ message_type: "offer", offer_data: { amount, currency: "Ksh", status: "pending" } })
-  }, [sendMessage])
   const handleSendMedia = useCallback((assets: PickedMediaAsset[]) => {
     assets.forEach((asset) => {
       sendMessage(
@@ -788,12 +786,10 @@ useEffect(() => {
           <MessageInput
             ref={messageInputRef}
             onSendText={handleSendText}
-            onSendOffer={handleSendOffer}
             onTyping={handleTypingEvent}
             onSendMedia={handleSendMedia}
             isSending={isSending}
             // hide offer button in groups — offers are DM/post context only
-            showOfferButton={!isGroup}
             replyingTo={replyingTo}
             onCancelReply={cancelReply}
           />

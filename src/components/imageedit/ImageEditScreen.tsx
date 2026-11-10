@@ -339,7 +339,7 @@ export function ImageEditScreen({ imageUris, onCancel, onDone, isMessageScreen }
             onPress={() => setsongModalVisisble(true)}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={selectedSound ? `Change sound, current: ${selectedSound.title}` : "Add sound"}
+            accessibilityLabel={selectedSound ? `Change sound|current: ${selectedSound.title}` : "Add sound"}
           >
             <Text style={styles.soundBtnText} numberOfLines={1}>
               {selectedSound ? selectedSound.title : "Add sound"}

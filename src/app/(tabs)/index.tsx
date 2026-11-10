@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect,useMemo } from "react"
+import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import {
   View,
   StyleSheet,
@@ -12,7 +12,7 @@ import {
   ScrollView,
   Modal
 } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { router } from "expo-router"
 import { PostCard } from "@/components/feed/PostCard"
@@ -43,16 +43,19 @@ export default function FeedScreen() {
   const { setUnreadMessageCount } = useMessageStore()
   const theme = useTheme()
   const scrollOffsetRef = useRef(0)
-  
+  const insets = useSafeAreaInsets()            // from react-native-safe-area-context
+  const [pageH, setPageH] = useState(0)
+  const [activeId, setActiveId] = useState<string | null>(null)
+
   const [searchText, setSearchText] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [categorydropdownVisisble, setCategorydropdownVisible] = useState<boolean>(false)
   const [filters, setFilters] = useState<FeedFilters>({ sort: "for_you", page: 1 })
-const isRanked = !selectedCategory && !searchText   // the server falls back to "newest" when filtering
+  const isRanked = !selectedCategory && !searchText   // the server falls back to "newest" when filtering
   const queryClient = useQueryClient()
   const feedQueryKey = ["feed", filters, selectedCategory, searchText]
   const { user } = useAuthStore()
- 
+
 
   // const stableHandler = useCallback((event: any) => {
   //   handleWSEventRef.current?.(event)
@@ -62,7 +65,7 @@ const isRanked = !selectedCategory && !searchText   // the server falls back to 
   //   onEvent: stableHandler,
   // })
 
-usePushToken()
+  usePushToken()
   useEffect(() => {
     if (!user) return
 
@@ -70,8 +73,11 @@ usePushToken()
 
 
   }, [user])
-  // const viewabilityConfig = { itemVisiblePercentThreshold: 65}
-
+  // MUST be stable refs, FlatList doesn't support changing these on the fly
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems[0]) setActiveId(viewableItems[0].item.id)
+  }).current
   const flatListRef = useRef<FlatList>(null)
   const { unreadCount, setUnreadCount } = useNotificationStore()
   //  filter state 
@@ -118,7 +124,7 @@ usePushToken()
         category: selectedCategory ?? undefined,
         search: searchText || undefined,
         page: pageParam,
-         refresh: isRanked && pageParam === 1 ? 1 : undefined,
+        refresh: isRanked && pageParam === 1 ? 1 : undefined,
       }) as unknown as FeedApiResponse;
 
       return response
@@ -131,32 +137,32 @@ usePushToken()
     },
     initialPageParam: 1,
     staleTime: isRanked ? Infinity : 2 * 60 * 1000,
-  refetchOnMount: !isRanked,
-  refetchOnReconnect: !isRanked,
+    refetchOnMount: !isRanked,
+    refetchOnReconnect: !isRanked,
   })
-// c) pull-to-refresh: keep only page 1, then refetch (otherwise it re-requests every loaded page)
-const handleRefresh = useCallback(() => {
-  queryClient.setQueryData(feedQueryKey, (old: any) =>
-    old && { pages: old.pages.slice(0, 1), pageParams: old.pageParams.slice(0, 1) })
-  refetch(); refetchCategory()
-}, [queryClient, feedQueryKey, refetch, refetchCategory])
-// RefreshControl: onRefresh={handleRefresh}
+  // c) pull-to-refresh: keep only page 1, then refetch (otherwise it re-requests every loaded page)
+  const handleRefresh = useCallback(() => {
+    queryClient.setQueryData(feedQueryKey, (old: any) =>
+      old && { pages: old.pages.slice(0, 1), pageParams: old.pageParams.slice(0, 1) })
+    refetch(); refetchCategory()
+  }, [queryClient, feedQueryKey, refetch, refetchCategory])
+  // RefreshControl: onRefresh={handleRefresh}
 
-// d) never show the same post twice
-const posts = useMemo(() => {
-  const seen = new Set<string>()
-  return (data?.pages.flatMap((p: any) => p.data.posts ?? []) ?? [])
-    .filter((p: Post) => !seen.has(p.id) && !!seen.add(p.id))
-}, [data])
-// e) cache hydration: paint instantly, never overwrite fresher data, then replace with a fresh page
-useEffect(() => {
-  if (!isRanked) return
-  loadFeedCache().then((cached) => {
-    if (!cached || queryClient.getQueryData(feedQueryKey)) return
-    queryClient.setQueryData(feedQueryKey, { pages: [cached.page], pageParams: [1] })
-    refetch()
-  })
-}, [])
+  // d) never show the same post twice
+  const posts = useMemo(() => {
+    const seen = new Set<string>()
+    return (data?.pages.flatMap((p: any) => p.data.posts ?? []) ?? [])
+      .filter((p: Post) => !seen.has(p.id) && !!seen.add(p.id))
+  }, [data])
+  // e) cache hydration: paint instantly, never overwrite fresher data, then replace with a fresh page
+  useEffect(() => {
+    if (!isRanked) return
+    loadFeedCache().then((cached) => {
+      if (!cached || queryClient.getQueryData(feedQueryKey)) return
+      queryClient.setQueryData(feedQueryKey, { pages: [cached.page], pageParams: [1] })
+      refetch()
+    })
+  }, [])
 
   useEffect(() => {
     if (data?.pages?.[0] && !selectedCategory && !searchText) {
@@ -176,7 +182,7 @@ useEffect(() => {
   const handleCategoryChange = useCallback((slug: string | null) => {
     setSelectedCategory(slug)
     // scroll back to top when category changes
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
   }, [])
 
   //  search 
@@ -202,7 +208,7 @@ useEffect(() => {
                   ? {
                     ...p,
                     is_upvoted: !p.is_upvoted,
-                    upvotes_count: p.upvotes_count + (p.is_upvoted && p.upvotes_count>=0 ? -1 : 1),
+                    upvotes_count: p.upvotes_count + (p.is_upvoted && p.upvotes_count >= 0 ? -1 : 1),
                   }
                   : p
               ),
@@ -230,7 +236,7 @@ useEffect(() => {
             data: {
               ...page.data,
               posts: page.data.posts.map((p: Post) =>
-                p.slug === post_slug ? { ...p, is_saved: !p.is_saved, saves_count:  p.saves_count + (p.is_saved && p.saves_count>=0? -1 : 1), } : p
+                p.slug === post_slug ? { ...p, is_saved: !p.is_saved, saves_count: p.saves_count + (p.is_saved && p.saves_count >= 0 ? -1 : 1), } : p
               ),
             },
           })),
@@ -241,32 +247,24 @@ useEffect(() => {
   }, [queryClient, filters, selectedCategory, searchText, data])
 
   //  render post card 
-  const renderPost = useCallback(
-    ({ item, index }: { item: Post; index: number }) => {
-      // when user is PREFETCH_THRESHOLD items from end — prefetch
-      if (index === posts.length - PREFETCH_THRESHOLD) {
-        prefetchNextPage()
-      }
+ const renderPost = useCallback(({ item, index }: { item: Post; index: number }) => (
+  <PostCard
+    post={item}
+    height={pageH}
+    isActive={item.id === activeId}
+    onUpvote={handleUpvote}
+    onSave={handleSave}
+  />
+), [pageH, activeId, handleUpvote, handleSave])
 
-      return (
-        <PostCard
-          post={item}
-          onUpvote={handleUpvote}
-          onSave={handleSave}
-          index={index}
-          scrollOffset={scrollOffsetRef}
-        />
-      )
-    },
-    [posts.length, prefetchNextPage, handleUpvote, handleSave,]
-  )
+      
 
   //  render footer 
   const renderFooter = () => {
     if (!isFetchingNextPage) return null
     return (
       <View style={styles.loadingFooter}>
-        {isFetchNextPageError?(
+        {isFetchNextPageError ? (
           <View>
             <Text style={[styles.errorText, { color: theme.textMuted }]}>
               Failed to load
@@ -285,13 +283,13 @@ useEffect(() => {
               </Text>
             </TouchableOpacity>
           </View>
-        ):(
+        ) : (
           <>
-           <ActivityIndicator color={Colors.primary} size="small" />
-        <Text style={styles.loadingText}>Loading more...</Text>
-        </>
+            <ActivityIndicator color={Colors.primary} size="small" />
+            <Text style={styles.loadingText}>Loading more...</Text>
+          </>
         )}
-       
+
       </View>
     )
   }
@@ -300,7 +298,7 @@ useEffect(() => {
   const renderEmpty = () => {
     if (isLoading) return null
     return (
-      <View style={styles.emptyState}>
+      <View style={[styles.emptyState,{height: pageH}]}>
         <Text style={styles.emptyIcon}>🔍</Text>
         <Text style={styles.emptyTitle}>
           {searchText
@@ -322,7 +320,7 @@ useEffect(() => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]} >
       {categorydropdownVisisble && (
         <TouchableOpacity
           onPress={() => setCategorydropdownVisible(false)}
@@ -362,9 +360,9 @@ useEffect(() => {
 
 
       {/*  sticky header  */}
-      <View style={[styles.header, {position:"absolute",zIndex:2000,marginTop:30,top:0,left:0,right:0,backgroundColor: "transparent"}]}>
+      <View style={[styles.header, { position: "absolute", zIndex: 2000, marginTop: insets.top + 4, top: 0, left: 0, right: 0, backgroundColor: "transparent" }]}>
         {/* search bar */}
-        <View style={[styles.headerTop,{justifyContent:'flex-end'}]} >
+        <View style={[styles.headerTop, { justifyContent: 'flex-end' }]} >
           {/* <View style={[styles.searchContainer, { borderColor: theme.primaryDark }]}>
             <Text style={styles.searchIcon}>🔍</Text>
             <TextInput
@@ -430,13 +428,13 @@ useEffect(() => {
       {/*  feed list  */}
       {isLoading ? (
         <View style={styles.loadingState}>
-          <BouncingBarsIndicator  />
+          <BouncingBarsIndicator />
           <Text style={styles.loadingStateText}>Loading feed...</Text>
         </View>
       ) :
 
-        isError && !isFetchNextPageError? (
-          <View style={styles.loading}>
+        isError && !isFetchNextPageError ? (
+          <View style={[styles.loading,{height: pageH}]}>
             <Text style={[styles.errorIcon]}>
               <MaterialCommunityIcons
                 name="alert-circle-outline"
@@ -462,56 +460,61 @@ useEffect(() => {
               </Text>
             </TouchableOpacity>
           </View>) : (
-          <FlatList
-            onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y }}
-            scrollEventThrottle={16}
-            ref={flatListRef}
-            data={posts}
-            keyExtractor={(item) => item.id}
-            renderItem={renderPost}
-            ListEmptyComponent={renderEmpty}
-            ListFooterComponent={renderFooter}
+          <View style={{ flex: 1 }} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
+  {pageH > 0 && (
+    <FlatList
+      ref={flatListRef}
+      data={posts}
+      keyExtractor={(item) => item.id}
+      renderItem={renderPost}
+      extraData={activeId}
+      getItemLayout={(_, i) => ({ length: pageH, offset: pageH * i, index: i })}
 
-            showsVerticalScrollIndicator={false}
-            // snap to each card — gives full-screen feel
-            snapToInterval={undefined}  // we don't snap — just smooth scroll
-            // pull to refresh
-            refreshControl={
-              <RefreshControl
+      snapToInterval={pageH}
+      snapToAlignment="start"
+      decelerationRate="fast"
+      disableIntervalMomentum        // one swipe = one post
+      showsVerticalScrollIndicator={false}
+
+      viewabilityConfig={viewabilityConfig}
+      onViewableItemsChanged={onViewableItemsChanged}
+
+      onEndReached={prefetchNextPage}
+      onEndReachedThreshold={2}      // measured in "pages" from the end
+
+      windowSize={3}
+      initialNumToRender={1}
+      maxToRenderPerBatch={1}
+      removeClippedSubviews
+      refreshControl={
+      <RefreshControl
                 refreshing={(isRefetching && !isFetchingNextPage) ?? false}
                 onRefresh={() => { refetch(), refetchCategory() }}
                 tintColor={Colors.primary}
-              />
-            }
-            // performance optimizations
-            removeClippedSubviews={true}    // unmount off-screen items
-            maxToRenderPerBatch={3}         // render 3 at a time
-            windowSize={5}                  // keep 5 screens worth in memory
-            initialNumToRender={2}          // start with just 2
-          // getItemLayout={(_, index) => ({
-          //   length: SCREEN_HEIGHT,        // approximate — actual varies by content
-          //   offset: SCREEN_HEIGHT * index,
-          //   index,
-          // })}
-          />
-        )}
-
+              />}
+      ListEmptyComponent={renderEmpty}
+      ListFooterComponent={renderFooter}
+    />
+  )}
+  {/* header stays absolute on top */}
+</View>
+         )}
       {/*  auth prompt modal  */}
       {/* mounts at root level — shown globally when guest taps auth-required action */}
       <AuthPrompt />
       <UploadProgressBadge />
-    </SafeAreaView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-   
+
   },
   header: {
     elevation: 2,
-        
+
   },
   catDrop: {
     position: "absolute",
@@ -553,7 +556,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: Colors.gray[100],
     alignItems: "center",
-    padding:0,
+    padding: 0,
     justifyContent: "center",
   },
   headerButtonIcon: {
@@ -624,6 +627,7 @@ const styles = StyleSheet.create({
     paddingTop: SCREEN_HEIGHT * 0.15,
     paddingHorizontal: Spacing.xl,
     gap: Spacing.sm,
+    
   },
   emptyIcon: {
     fontSize: 56,

@@ -1,16 +1,32 @@
 import { useEffect } from "react"
-import { Tabs } from "expo-router"
+import { Tabs,usePathname } from "expo-router"
 import { Text ,View} from "react-native"
 import { useTheme } from "@/hooks/useTheme"
 import { useMessageStore } from "@/stores/message.store"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
-import { useAuthStore } from "@/stores/auth.store"
+import { useShareStore } from "@/hooks/usePostlinkDraftStore"
 export default function TabLayout() {
   // ALL hooks at top — no conditions before these
   const theme = useTheme()
-  const {user}=useAuthStore()
   const {unreadMesageCount}=useMessageStore()
+function ShareFlowGuard() {
+  const pathname = usePathname();
+  const link = useShareStore((s) => s.link);
+  const enteredMessages = useShareStore((s) => s.enteredMessages);
+  const { markEntered, clearShare } = useShareStore.getState();
+const FLOW_PREFIXES = ["/messages", "/chat"]; // list tab + conversation screen
 
+const isInFlow = (pathname: string) =>
+  FLOW_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+ useEffect(() => {
+    if (!link) return;
+    const inFlow = isInFlow(pathname);
+    if (inFlow && !enteredMessages) markEntered();
+    else if (!inFlow && enteredMessages) clearShare();
+  }, [pathname, link, enteredMessages]);
+
+  return null;
+}
 
   return (
     <Tabs
